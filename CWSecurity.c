@@ -109,6 +109,33 @@ static unsigned long CWSslIdFunction() {
 	return (unsigned long)pthread_self();
 }
 
+static int CWGenerateCookie(SSL* ssl, unsigned char* cookie, unsigned int* cookie_len) {
+	unsigned int resultlength;
+	char result[EVP_MAX_MD_SIZE] = "012345678";
+
+	/* Cookie generated */
+	resultlength = strlen(result);
+	memcpy(cookie, result, resultlength);
+	*cookie_len = resultlength;
+
+	return 1;
+}
+
+static int CWVerifyCookie(SSL* ssl, unsigned char* cookie, unsigned int cookie_len) {
+	unsigned int resultlength;
+	char result[EVP_MAX_MD_SIZE] = "012345678";
+
+	/* */
+	resultlength = strlen(result);
+
+	/* Check cookie */
+	if ((cookie_len != resultlength) || (memcmp(result, cookie, resultlength) != 0)) {
+		return 0;
+	}
+
+	return 1;
+}
+
 void CWSslCleanUp() {
 
 	int i;
@@ -456,7 +483,11 @@ CWBool CWSecurityInitContext(CWSecurityContext *ctxPtr,
 		}
 		*/
 	}
-	
+
+	/* Cookie management */
+	SSL_CTX_set_cookie_generate_cb((*ctxPtr), CWGenerateCookie);
+	SSL_CTX_set_cookie_verify_cb((*ctxPtr), CWVerifyCookie);
+
 	/* needed for DTLS */
 	SSL_CTX_set_read_ahead((*ctxPtr), 1);
 
