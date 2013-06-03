@@ -630,6 +630,7 @@ CWBool CWParseMsgElemDataTransferData(CWProtocolMessage *msgPtr, int len, CWProt
 
 CWBool CWParseWTPDescriptor(CWProtocolMessage *msgPtr, int len, CWWTPDescriptor *valPtr) {
 	int theOffset, i;
+	unsigned char countenc;
 	CWParseMessageElementStart();
 
 	valPtr->maxRadios = CWProtocolRetrieve8(msgPtr);
@@ -637,9 +638,15 @@ CWBool CWParseWTPDescriptor(CWProtocolMessage *msgPtr, int len, CWWTPDescriptor 
 	
 	valPtr->radiosInUse = CWProtocolRetrieve8(msgPtr);
 //	CWDebugLog("WTP Descriptor Active Radios: %d",	valPtr->radiosInUse);
-		
-	valPtr->encCapabilities	= CWProtocolRetrieve16(msgPtr);					
-//	CWDebugLog("WTP Descriptor Encryption Capabilities: %d", valPtr->encCapabilities);
+
+	countenc = CWProtocolRetrieve8(msgPtr);
+	for (i = 0; i < countenc; i++) {
+		// Retrieve IEEE802.11 binding
+		if (CWProtocolRetrieve8(msgPtr) == 1) {
+			valPtr->encCapabilities	= CWProtocolRetrieve16(msgPtr);
+			//	CWDebugLog("WTP Descriptor Encryption Capabilities: %d", valPtr->encCapabilities);
+		}
+	}
 		
 	valPtr->vendorInfos.vendorInfosCount = 0;
 	

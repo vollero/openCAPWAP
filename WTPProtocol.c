@@ -264,7 +264,11 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr) {
 	
 	CWProtocolStore8(msgPtr, CWWTPGetMaxRadios()); // number of radios supported by the WTP
 	CWProtocolStore8(msgPtr, CWWTPGetRadiosInUse()); // number of radios present in the WTP
-	CWProtocolStore16(msgPtr, CWWTPGetEncCapabilities()); // encryption capabilities
+
+	// encryption capabilities
+	CWProtocolStore8(msgPtr, 1);
+	CWProtocolStore8(msgPtr, 1);	// IEEE802.11 binding
+	CWProtocolStore16(msgPtr, CWWTPGetEncCapabilities());
  
 	for(i = 0; i < infos.vendorInfosCount; i++) {
 		CWProtocolStore32(msgPtr, ((infos.vendorInfos)[i].vendorIdentifier));

@@ -55,7 +55,7 @@ __inline__ int CWWTPGetRadiosInUse()
 }
 
 __inline__ int CWWTPGetEncCapabilities() {
-	return 2569;
+	return 0;
 }
 
 
