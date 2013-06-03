@@ -143,7 +143,10 @@ void CWACManageIncomingPacket(CWSocket sock,
 		
 	/* check if sender address is known */
 	wtpPtr = CWWTPByAddress(addrPtr, sock);
-	
+	if ((wtpPtr != NULL) && dataFlag && (wtpPtr->dataaddress.ss_family == AF_UNSPEC)) {
+		CW_COPY_NET_ADDR_PTR(&(wtpPtr->dataaddress), addrPtr);
+	}
+
 	if(wtpPtr != NULL) {
 		/* known WTP */
 		/* Clone data packet */
@@ -152,7 +155,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 
 		CWLockSafeList(wtpPtr->packetReceiveList);
 		CWAddElementToSafeListTailwitDataFlag(wtpPtr->packetReceiveList, pData, readBytes,dataFlag);
-		CWUnlockSafeList(wtpPtr->packetReceiveList);		
+		CWUnlockSafeList(wtpPtr->packetReceiveList);
 	} else { 
 		/* unknown WTP */
 		int seqNum, tmp;
@@ -225,6 +228,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 			for(i = 0; i < gMaxWTPs && gWTPs[i].isNotFree; i++);
 	
 			CW_COPY_NET_ADDR_PTR(&(gWTPs[i].address), addrPtr);
+			gWTPs[i].dataaddress.ss_family = AF_UNSPEC;
 			gWTPs[i].isNotFree = CW_TRUE;
 			gWTPs[i].isRequestClose = CW_FALSE;
 			CWThreadMutexUnlock(&gWTPsMutex);

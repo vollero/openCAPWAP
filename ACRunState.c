@@ -216,7 +216,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			for(i = 0; i < gACSocket.count; i++) {
 			    if (gACSocket.interfaces[i].sock == gWTPs[WTPIndex].socket){
 				dataSocket = gACSocket.interfaces[i].dataSock;
-				CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[WTPIndex].address));
+				CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[WTPIndex].dataaddress));
 				break;
 			    }
 			}
@@ -225,10 +225,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			      CWLog("data socket of WTP %d isn't ready.");
 			      return CW_FALSE;
 			}
-		      
-			/* Set port and address of data tunnel */
-			sock_set_port_cw((struct sockaddr *)&(address), htons(CW_DATA_PORT));
-			
+
 			for(i = 0; i < fragmentsNum; i++) {
 				if(!CWNetworkSendUnsafeUnconnected(	dataSocket, 
 									&(address), 
