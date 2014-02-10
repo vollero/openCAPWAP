@@ -67,6 +67,14 @@ int gInterfacesCount = 0;
 /* DTLS Context */
 CWSecurityContext gACSecurityContext;
 int gActiveStations = 0;
+/*
+ * Elena Agostini - 02/2014
+ * OpenSSL params variables
+ */
+char *gACCertificate=NULL;
+char *gACKeyfile=NULL;
+char *gACPassword=NULL;
+
 /* max stations */
 int gLimit;
 char **gMulticastGroups;
@@ -169,13 +177,16 @@ void CWACInit() {
 #ifndef CW_NO_DTLS
 	if(gACDescriptorSecurity == CW_X509_CERTIFICATE) {
 
+		/*
+		 * Elena Agostini - 02/2014
+		 * Dynamic OpenSSL params
+		 */
 		if(!CWErr(CWSecurityInitContext(&gACSecurityContext,
-						"root.pem",
-						"server.pem",
-						"prova",
+						gACCerthificate,
+						gACKeyfile,
+						gACPassword,
 						CW_FALSE,
 						CWACSemPostForOpenSSLHack))) {
-
 			CWLog("Can't start AC");
 			exit(1);
 		}

@@ -101,6 +101,11 @@ extern int gEnabledLog;
 #define	CW_CREATE_ARRAY_ERR(ar_name, ar_size, ar_type, on_err)	{ar_name = (ar_type*) (malloc(sizeof(ar_type) * (ar_size))); if(!(ar_name)) {on_err}}
 #define	CW_CREATE_STRING_ERR(str_name, str_length, on_err)	{str_name = (char*) (malloc(sizeof(char) * ((str_length)+1) ) ); if(!(str_name)) {on_err}}
 #define	CW_CREATE_STRING_FROM_STRING_ERR(str_name, str, on_err)	{CW_CREATE_STRING_ERR(str_name, strlen(str), on_err); strcpy((str_name), str);}
+/*
+ * Elena Agostini - 02/2014
+ */
+#define	CW_STRING_GET_START_WHITE_SPACES(str, blank)	{ int i = 0; blank=0; for(i = 0; i < strlen(str); i++) if(str[i] == ' ' || str[i] == '\t') blank++; else break; }
+
 
 #ifdef CW_DEBUGGING
 

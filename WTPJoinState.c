@@ -107,10 +107,14 @@ CWStateTransition CWWTPEnterJoin() {
 
 #ifndef CW_NO_DTLS
 	if(gACInfoPtr->security == CW_X509_CERTIFICATE) {
+		/*
+		 * Elena Agostini - 02/2014
+		 * Dynamic OpenSSL params
+		 */
 		if(!CWErr(CWSecurityInitContext(&gWTPSecurityContext,
-						"root.pem",
-						"client.pem",
-						"prova",
+						gWTPCertificate,
+						gWTPKeyfile,
+						gWTPPassword,
 						CW_TRUE,
 						NULL))) {
 			

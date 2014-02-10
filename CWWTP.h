@@ -95,6 +95,14 @@ extern CWSafeList gFrameList;
 extern CWThreadCondition gInterfaceWait;
 extern CWThreadMutex gInterfaceMutex;
 
+/*
+ * Elena Agostini - 02/2014
+ * OpenSSL params variables
+ */
+extern char *gWTPCertificate;
+extern char *gWTPKeyfile;
+extern char *gWTPPassword;
+
 /*__________________________________________________________*/
 /*  *******************___PROTOTYPES___*******************  */
 

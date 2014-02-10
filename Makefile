@@ -46,7 +46,7 @@ OPENSSL_INCLUDE = -I./include/  #Openssl include files
 
 CFLAGS += -DCW_DEBUGGING 
 #CFLAGS += -DWRITE_STD_OUTPUT
-CFLAGS += -DSOFTMAC
+#CFLAGS += -DSOFTMAC
 CFLAGS += -DOPENSSL_NO_KRB5
 
 #OpenSSL inc files path
@@ -58,16 +58,16 @@ RM = /bin/rm -f
 AC_OBJS = AC.o ACConfigFile.o ACMainLoop.o ACDiscoveryState.o ACJoinState.o \
 	ACConfigureState.o ACDataCheckState.o ACRunState.o ACProtocol_User.o \
 	ACRetransmission.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWList.o \
-	CWLog.o ACMultiHomedSocket.o  ACProtocol.o CWSafeList.o CWNetwork.o CWProtocol.o \
+	CWLog.o ACMultiHomedSocket.o ACProtocol.o CWSafeList.o CWNetwork.o CWProtocol.o \
 	CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsAC.o \
 	ACBinding.o ACInterface.o ACSettingsFile.o timerlib.o tap.o ACipcHostapd.o
 
-# list of generated object files for WTP. 
+# list of generated object files for WTP.
 WTP_OBJS = WTP.o WTPipcHostapd.o WTPmacFrameReceive.o WTPFreqStatsReceive.o WTPStatsReceive.o WTPConfigFile.o WTPProtocol.o WTPProtocol_User.o \
 	WTPDiscoveryState.o WTPJoinState.o WTPConfigureState.o WTPDataCheckState.o WTPRunState.o WTPRunStateCheck.o \
 	WTPRetransmission.o WTPSulkingState.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWSafeList.o CWList.o CWLog.o CWNetwork.o \
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
-	WTPmacDriverInteraction.o WTPSettingsFile.o timerlib.o 
+	WTPmacDriverInteraction.o WTPSettingsFile.o timerlib.o WTPDriverInteraction.o
 
 WUA_OBJS = WUA.o
  
@@ -91,9 +91,9 @@ all: $(AC_NAME) $(WTP_NAME) $(WUA_NAME)
 
 $(AC_NAME): $(AC_OBJS) 
 	$(CC) $(AC_OBJS) $(CC_FLAGS) $(OPENSSL_INCLUDE) $(LDFLAGS) -o $(AC_NAME) 
-
+#-DSOFTMAC
 $(WTP_NAME): $(WTP_OBJS) 
-	$(CC) -DWRITE_STD_OUTPUT -DSOFTMAC $(WTP_OBJS) $(CC_FLAGS) $(LDFLAGS) -o $(WTP_NAME) 
+	$(CC) -DWRITE_STD_OUTPUT $(WTP_OBJS) $(CC_FLAGS) $(LDFLAGS) -o $(WTP_NAME) 
 
 $(WUA_NAME): $(WUA_OBJS) 
 	$(CC) $(WUA_OBJS) $(CC_FLAGS)  $(LDFLAGS) -o $(WUA_NAME) 

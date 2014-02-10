@@ -36,3 +36,9 @@
 </AC_LOG_FILE_ENABLE> 1
 
 </AC_LOG_FILE_SIZE> 30000000
+
+# Elena Agostini - 02/2014
+# OpenSSL params
+</AC_SECURITY_CERTIFICATE>      root.pem
+</AC_SECURITY_KEYFILE>      server.pem
+</AC_SECURITY_PASSWORD>         prova

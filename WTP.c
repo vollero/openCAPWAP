@@ -67,6 +67,14 @@ CWSocket 		gWTPDataSocket;
 CWSecurityContext	gWTPSecurityContext;
 CWSecuritySession 	gWTPSession;
 
+/*
+ * Elena Agostini - 02/2014
+ * OpenSSL params variables
+ */
+char *gWTPCertificate=NULL;
+char *gWTPKeyfile=NULL;
+char *gWTPPassword=NULL;
+
 /* list used to pass frames from wireless interface to main thread */
 CWSafeList 		gFrameList;
 
