@@ -41,6 +41,22 @@ char* gRadioInterfaceName_0=NULL;
 char* gBaseMACInterfaceName=NULL;
 char  gBoardReversionNo;
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * QoS Static Values variables
+ */
+int qosStaticFreq;
+int qosStaticBitRate;
+int qosStaticFrag;
+int qosStaticTxPower;
+int qosStaticCwMin;
+int qosStaticCwMax;
+int qosStaticAifs;
+int qosStaticWmeCwMin;
+int qosStaticWmeCwMax;
+int qosStaticWmeAifsn;
+
 int gHostapd_port;
 char*  gHostapd_unix_path;
 
@@ -191,6 +207,181 @@ CWBool CWParseSettingsFile()
 			continue;	
 		}
 
+
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * QoS Static Values variables
+		 */
+		if (!strncmp(startTag+1, "WTP_QOS_FREQ", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticFreq = atoi(port_str);
+			CWLog("qosStaticFreq: %d",qosStaticFreq);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_BITRATE", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticBitRate = atoi(port_str);
+			CWLog("qosStaticBitRate: %d",qosStaticBitRate);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_FRAG", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticFrag = atoi(port_str);
+			CWLog("qosStaticFrag: %d",qosStaticFrag);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_TXPOWER", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticTxPower = atoi(port_str);
+			CWLog("qosStaticTxPower: %d",qosStaticTxPower);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_CWMIN", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticCwMin = atoi(port_str);
+			CWLog("qosStaticCwMin: %d",qosStaticCwMin);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_CWMAX", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticCwMax = atoi(port_str);
+			CWLog("qosStaticCwMax: %d",qosStaticCwMax);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_AIFS", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticAifs = atoi(port_str);
+			CWLog("qosStaticAifs: %d",qosStaticAifs);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_WME_CWMIN", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticWmeCwMin = atoi(port_str);
+			CWLog("qosStaticWmeCwMin: %d",qosStaticWmeCwMin);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_WME_CWMAX", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticWmeCwMax = atoi(port_str);
+			CWLog("qosStaticWmeCwMax: %d",qosStaticWmeCwMax);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
+		if (!strncmp(startTag+1, "WTP_QOS_AIFSN", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			qosStaticWmeAifsn = atoi(port_str);
+			CWLog("qosStaticAifsn: %d",qosStaticWmeAifsn);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
 		CW_FREE_OBJECT(line);
 	}
 	return CW_TRUE;

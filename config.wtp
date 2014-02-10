@@ -32,7 +32,7 @@
 
 # If you uncomment the following line, the WTP will jump to Join State
 # (without doing Discovery) and the address will be considered the AC's address.
-</WTP_FORCE_AC_ADDRESS> 10.0.2.15
+#</WTP_FORCE_AC_ADDRESS> 10.0.2.15
 
 # Usually the WTP knows if the AC supports Certificate or Preshared-keys authentication
 # from the Discovery Response. If we jump to the Join State using </WTP_FORCE_AC_ADDRESS>,

@@ -59,6 +59,22 @@ extern char gBoardReversionNo;
 extern char **gCWACAddresses;
 extern int gCWACCount;
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * QoS Static Values variables
+ */
+extern int qosStaticFreq;
+extern int qosStaticBitRate;
+extern int qosStaticFrag;
+extern int qosStaticTxPower;
+extern int qosStaticCwMin;
+extern int qosStaticCwMax;
+extern int qosStaticAifs;
+extern int qosStaticWmeCwMin;
+extern int qosStaticWmeCwMax;
+extern int qosStaticWmeAifsn;
+
 extern int gHostapd_port;
 extern char*  gHostapd_unix_path;
 extern char  gRADIO_MAC[6];
@@ -166,31 +182,27 @@ CWBool CWUpdatePendingMsgBox(CWPendingRequestMessage *pendingRequestMsgs,
 			     CWProtocolMessage *msgElems,
 			     int fragmentsNum);
 			     
+//in WTPDriverInteraction.c
 
-#ifdef SOFTMAC
-//in WTPmacDriverInteraction.c
+/*
+ * Elena Agostini - 02/2014
+ * 
+ * No more ioctl() on wireless drivers.
+ * API coming soon..
+ */
+
+//#ifdef SOFTMAC
 int set_wme_cwmin(int acclass,int value);
 int set_wme_cwmax(int acclass,int value);
 int set_wme_aifsn(int acclass,int value);
-#else
-
-#ifndef BCM
-//in WTPDriverInteraction.c
+//#else
 int set_cwmin(int sock, struct iwreq wrq, int acclass, int sta, int value);
 int get_cwmin(int sock, struct iwreq* wrq, int acclass, int sta);
 int set_cwmax(int sock, struct iwreq wrq, int acclass, int sta, int value);
 int get_cwmax(int sock, struct iwreq* wrq, int acclass, int sta);
 int set_aifs(int sock, struct iwreq wrq, int acclass, int sta, int value);
 int get_aifs(int sock, struct iwreq* wrq, int acclass, int sta);
-
-#else
-
-//in WTPBcmDriverInteraction.c
-int set_wme_cwmin(int acclass,int value);
-int set_wme_cwmax(int acclass,int value);
-int set_wme_aifsn(int acclass,int value);
-#endif
-#endif
+//#endif
 
 /* in WTPDiscoveryState.c */
 CWStateTransition CWWTPEnterDiscovery();

@@ -67,7 +67,7 @@ WTP_OBJS = WTP.o WTPipcHostapd.o WTPmacFrameReceive.o WTPFreqStatsReceive.o WTPS
 	WTPDiscoveryState.o WTPJoinState.o WTPConfigureState.o WTPDataCheckState.o WTPRunState.o WTPRunStateCheck.o \
 	WTPRetransmission.o WTPSulkingState.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWSafeList.o CWList.o CWLog.o CWNetwork.o \
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
-	WTPmacDriverInteraction.o WTPSettingsFile.o timerlib.o WTPDriverInteraction.o
+	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o
 
 WUA_OBJS = WUA.o
  

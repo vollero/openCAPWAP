@@ -7,7 +7,7 @@
  * version 2 of the License, or (at your option) any later version.								*
  *																								*
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY				*
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A				*
+ * WARRANTY; without even the implied warranty of MERCHANTABILITYvalue or FITNESS FOR A				*
  * PARTICULAR PURPOSE. See the GNU General Public License for more details.						*
  *																								*
  * You should have received a copy of the GNU General Public License along with this			*
@@ -77,11 +77,14 @@ CWBool CWWTPInitBinding(int radioIndex){
 
 #else
 
-#ifndef BCM
+/*
+ * Elena Agostini - 02/2014
+ * 
+ * No more ioctl() on wireless drivers.
+ * API coming soon..
+ */
 CWBool CWWTPInitBinding(int radioIndex)
 {
-	
-
 	bindingValues* aux;
 	int i,sock;
 	struct iwreq wrq;
@@ -133,31 +136,6 @@ CWLog("wrq.ifr_name %s ",wrq.ifr_name);
 	return CW_TRUE;
 }
 
-#else
-CWBool CWWTPInitBinding(int radioIndex)
-{
-
-	bindingValues* aux;
-	int i;
-
-
-	CW_CREATE_OBJECT_ERR(aux, bindingValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-
-	gRadiosInfo.radiosInfo[radioIndex].bindingValuesPtr=(void*) aux;
-
-	CW_CREATE_ARRAY_ERR(aux->qosValues, NUM_QOS_PROFILES, WTPQosValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-
-	for(i=0; i<NUM_QOS_PROFILES; i++){
-		/*Daniele: i driver Broadcom non permettono get sulle WME: setto i parametri del Qos a valori costanti*/
-		aux->qosValues[i].cwMin = 2;
-		aux->qosValues[i].cwMax = 4;
-		aux->qosValues[i].AIFS = 3;
-	}
-
-	return CW_TRUE;
-}
-#endif
-
 #endif
 
 
@@ -187,11 +165,17 @@ CWBool CWBindingSetQosValues(int qosCount, RadioQosValues *radioQosValues, CWPro
 					if(j==0) burst_time = 15; 
 					else if(j==1) burst_time = 30;
 					
-					
+					/*
+					 * Elena Agostini - 02/2014
+					 * 
+					 * No more ioctl() on wireless drivers. Those function simulate ioctl() query to wireless drivers
+					 * returning settings file params.
+					 * API coming soon..
+					 */
 					if( set_txq(j, radioQosValues[i].qosValues[j].cwMin, radioQosValues[i].qosValues[j].cwMax, aifs, burst_time) ){
-						auxPtr->qosValues[j].cwMin = radioQosValues[i].qosValues[j].cwMin;
-						auxPtr->qosValues[j].cwMax = radioQosValues[i].qosValues[j].cwMax;
-						auxPtr->qosValues[j].AIFS = radioQosValues[i].qosValues[j].AIFS;
+						auxPtr->qosValues[j].cwMin = qosStaticCwMin; //radioQosValues[i].qosValues[j].cwMin;
+						auxPtr->qosValues[j].cwMax = qosStaticCwMax; //radioQosValues[i].qosValues[j].cwMax;
+						auxPtr->qosValues[j].AIFS = qosStaticAifs; //radioQosValues[i].qosValues[j].AIFS;
 					}else{
 						*resultCode=CW_PROTOCOL_FAILURE;
 					}
@@ -229,7 +213,6 @@ CWBool CWBindingSetQosValues(int qosCount, RadioQosValues *radioQosValues, CWPro
 
 #else
 
-#ifndef BCM
 CWBool CWBindingSetQosValues(int qosCount, RadioQosValues *radioQosValues, CWProtocolResultCode *resultCode)
 {
 	struct iwreq wrq;
@@ -264,24 +247,31 @@ CWBool CWBindingSetQosValues(int qosCount, RadioQosValues *radioQosValues, CWPro
 				
 				for(j=0; j<NUM_QOS_PROFILES; j++)
 				{
+					/*
+					 * Elena Agostini - 02/2014
+					 * 
+					 * No more ioctl() on wireless drivers. Those function simulate ioctl() query to wireless drivers
+					 * returning settings file params.
+					 * API coming soon..
+					 */
 					if(auxPtr->qosValues[j].cwMin!=radioQosValues[i].qosValues[j].cwMin)
 					{
 						if (set_cwmin(sock, wrq, CWTranslateQueueIndex(j), 0, radioQosValues[i].qosValues[j].cwMin))
-							{auxPtr->qosValues[j].cwMin=radioQosValues[i].qosValues[j].cwMin;}
+							{auxPtr->qosValues[j].cwMin= qosStaticCwMin; }
 						else {*resultCode=CW_PROTOCOL_FAILURE;}
 					}
 
 					if(auxPtr->qosValues[j].cwMax!=radioQosValues[i].qosValues[j].cwMax)
 					{
 						if (set_cwmax(sock, wrq, CWTranslateQueueIndex(j), 0, radioQosValues[i].qosValues[j].cwMax))
-							{auxPtr->qosValues[j].cwMax=radioQosValues[i].qosValues[j].cwMax;}
+							{auxPtr->qosValues[j].cwMax= qosStaticCwMax; }
 						else {*resultCode=CW_PROTOCOL_FAILURE;}
 					}
 
 					if(auxPtr->qosValues[j].AIFS!=radioQosValues[i].qosValues[j].AIFS)
 					{
 						if (set_aifs(sock, wrq, CWTranslateQueueIndex(j), 0, radioQosValues[i].qosValues[j].AIFS))
-							{auxPtr->qosValues[j].AIFS=radioQosValues[i].qosValues[j].AIFS;}
+							{auxPtr->qosValues[j].AIFS = qosStaticAifs; }
 						else {*resultCode=CW_PROTOCOL_FAILURE;}
 					}
 				}
@@ -294,61 +284,6 @@ CWBool CWBindingSetQosValues(int qosCount, RadioQosValues *radioQosValues, CWPro
 	close (sock);
 	return CW_TRUE;
 }
-
-#else
-
-CWBool CWBindingSetQosValues(int qosCount, RadioQosValues *radioQosValues, CWProtocolResultCode *resultCode)
-{
-
-	if (qosCount<=0) {return CW_TRUE;}
-	if (radioQosValues==NULL) {return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);}
-
-	*resultCode = CW_PROTOCOL_SUCCESS;
-
-		
-	int i,k,j;
-	
-	for(i=0;i<qosCount;i++)
-	{
-		for(k=0;k<gRadiosInfo.radioCount;k++)
-		{
-			if(radioQosValues[i].radioID==gRadiosInfo.radiosInfo[k].radioID)
-			{
-				bindingValues* auxPtr=(bindingValues*) gRadiosInfo.radiosInfo[k].bindingValuesPtr;	
-				
-				for(j=0; j<NUM_QOS_PROFILES; j++)
-				{
-					
-					if(auxPtr->qosValues[j].cwMin!=radioQosValues[i].qosValues[j].cwMin)
-					{
-						if (set_wme_cwmin(CWTranslateQueueIndex(j), radioQosValues[i].qosValues[j].cwMin))	
-							{auxPtr->qosValues[j].cwMin=radioQosValues[i].qosValues[j].cwMin;}
-						else {*resultCode=CW_PROTOCOL_FAILURE;}
-					}
-
-					if(auxPtr->qosValues[j].cwMax!=radioQosValues[i].qosValues[j].cwMax)
-					{
-						if (set_wme_cwmax(CWTranslateQueueIndex(j), radioQosValues[i].qosValues[j].cwMax))
-							{auxPtr->qosValues[j].cwMax=radioQosValues[i].qosValues[j].cwMax;}
-						else {*resultCode=CW_PROTOCOL_FAILURE;}
-					}
-
-					if(auxPtr->qosValues[j].AIFS!=radioQosValues[i].qosValues[j].AIFS)
-					{
-						if (set_wme_aifsn(CWTranslateQueueIndex(j), radioQosValues[i].qosValues[j].AIFS))
-							{auxPtr->qosValues[j].AIFS=radioQosValues[i].qosValues[j].AIFS;}
-						else {*resultCode=CW_PROTOCOL_FAILURE;}
-					}
-				}
-				break;
-			}
-		}
-	}
-
-	return CW_TRUE;
-}
-
-#endif
 
 #endif
 
