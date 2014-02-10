@@ -73,6 +73,19 @@ CWStateTransition CWWTPEnterJoin() {
 	gWTPSecurityContext = NULL;
 	gWTPSession = NULL;
 
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * If gWTPForceACAddress is NOT NULL and WTP jump Discovery state, 
+	 * object gACInfoPtr is not allocated. Set ACIPv4ListInfo without create object
+	 * generate Segmentation Fault.
+	 */
+	if(gWTPForceACAddress != NULL) {
+		CW_CREATE_OBJECT_ERR(gACInfoPtr, 
+				     CWACInfoValues,
+				     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
+	}
+
 	/* Initialize gACInfoPtr */
 	gACInfoPtr->ACIPv4ListInfo.ACIPv4ListCount=0;
 	gACInfoPtr->ACIPv4ListInfo.ACIPv4List=NULL;	
@@ -84,11 +97,12 @@ CWStateTransition CWWTPEnterJoin() {
 	}
 
 	if(gWTPForceACAddress != NULL) {
-		CW_CREATE_OBJECT_ERR(gACInfoPtr, 
-				     CWACInfoValues,
-				     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
 		CWNetworkGetAddressForHost(gWTPForceACAddress, 
 					   &(gACInfoPtr->preferredAddress));
+struct sockaddr_in *sin = (struct sockaddr_in *)&(gACInfoPtr->preferredAddress);
+unsigned char *ip = (unsigned char *)&sin->sin_addr.s_addr;
+CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
+	
 		gACInfoPtr->security = gWTPForceSecurity;
 	}
 	
@@ -466,19 +480,36 @@ CWBool CWSaveJoinResponseMessage(CWProtocolJoinResponseValues *joinResponse) {
 	gACInfoPtr->security = (joinResponse->ACInfoPtr).security;
 	gACInfoPtr->RMACField = (joinResponse->ACInfoPtr).RMACField;
 
-	/* BUG-ML07
-         * Before overwriting the field vendorInfos we'd better
-         * free it (it was allocated during the Discovery State by
-         * the function CWParseACDescriptor()).
-         *
-         * 19/10/2009 - Donato Capitella
-         */
-        int i;
-        for(i = 0; i < gACInfoPtr->vendorInfos.vendorInfosCount; i++) {
-                CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos[i].valuePtr);
-        }
-        CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos);
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * If gWTPForceACAddress is NOT NULL and WTP jump Discovery state, 
+	 * object gACInfoPtr hasn't all the information. If gACInfoPtr->name is NULL,
+	 * Configure State will get a Segmentation Fault.
+	 */
+	CW_CREATE_STRING_FROM_STRING_ERR((gACInfoPtr->name), ((joinResponse->ACInfoPtr).name), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * If gWTPForceACAddress is NOT NULL and WTP jump Discovery state, 
+	 * object gACInfoPtr hasn't all the information. gACInfoPtr->vendorInfos
+	 * wasn't initialized.
+	 */
+	if(gWTPForceACAddress == NULL) {
+		/* BUG-ML07
+		 * Before overwriting the field vendorInfos we'd better
+		 * free it (it was allocated during the Discovery State by
+		 * the function CWParseACDescriptor()).
+		 *
+		 * 19/10/2009 - Donato Capitella
+		 */
+		int i;
+		for(i = 0; i < gACInfoPtr->vendorInfos.vendorInfosCount; i++) {
+		        CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos[i].valuePtr);
+		}
+		CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos);
+	}
 
 	gACInfoPtr->vendorInfos = (joinResponse->ACInfoPtr).vendorInfos;
 	

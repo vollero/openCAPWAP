@@ -134,7 +134,7 @@ CWBool CWConfigFileDestroyLib() {
 		 */
 		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[5].value.str_value), indexBlank);
 		CW_CREATE_STRING_FROM_STRING_ERR(gACName,
-						 (gConfigValues[5].value.str_value),
+						 (gConfigValues[5].value.str_value)+indexBlank,
 						 return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		//CW_FREE_OBJECT(gACName);
 	}

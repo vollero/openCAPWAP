@@ -32,13 +32,12 @@
 
 # If you uncomment the following line, the WTP will jump to Join State
 # (without doing Discovery) and the address will be considered the AC's address.
-#</WTP_FORCE_AC_ADDRESS> 192.168.1.2
+</WTP_FORCE_AC_ADDRESS> 10.0.2.15
 
 # Usually the WTP knows if the AC supports Certificate or Preshared-keys authentication
 # from the Discovery Response. If we jump to the Join State using </WTP_FORCE_AC_ADDRESS>,
 # however, we must know how to behave. This setting can be X509_CERTIFICATE (default if you
 # leave the line commented) or PRESHARED. This setting is ignored if you don't use
-# </WTP_FORCE_AC_ADDRESS>.
 #</WTP_FORCE_SECURITY> PRESHARED
 </WTP_FORCE_SECURITY> X509_CERTIFICATE
 

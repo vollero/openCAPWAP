@@ -113,7 +113,7 @@ CWBool CWConfigFileDestroyLib() {
 		 * Ignore spaces in configuration values
 		 */
 		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[0].value.str_value), indexBlank);
-		CW_CREATE_STRING_FROM_STRING_ERR(gCWACAddresses[i], (gConfigValues[0].value.str_array_value)[i], return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		CW_CREATE_STRING_FROM_STRING_ERR(gCWACAddresses[i], ((gConfigValues[0].value.str_array_value)[i])+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	
 	gCWACCount = gConfigValues[0].count;
@@ -137,7 +137,7 @@ CWBool CWConfigFileDestroyLib() {
 		 * Ignore spaces in configuration values
 		 */
 		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[3].value.str_value), indexBlank);
-		CW_CREATE_STRING_FROM_STRING_ERR(gWTPName, (gConfigValues[3].value.str_value), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPName, (gConfigValues[3].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	if(gConfigValues[4].value.str_value != NULL) {
 		/*
@@ -146,7 +146,7 @@ CWBool CWConfigFileDestroyLib() {
 		 * Ignore spaces in configuration values
 		 */
 		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[4].value.str_value), indexBlank);
-		CW_CREATE_STRING_FROM_STRING_ERR(gWTPLocation, (gConfigValues[4].value.str_value), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPLocation, (gConfigValues[4].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	if(gConfigValues[5].value.str_value != NULL) {
 		/*
@@ -155,7 +155,7 @@ CWBool CWConfigFileDestroyLib() {
 		 * Ignore spaces in configuration values
 		 */
 		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[5].value.str_value), indexBlank);
-		CW_CREATE_STRING_FROM_STRING_ERR(gWTPForceACAddress, (gConfigValues[5].value.str_value), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPForceACAddress, (gConfigValues[5].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	
 	if(gConfigValues[6].value.str_value != NULL && !strcmp(gConfigValues[6].value.str_value, "PRESHARED")) {
