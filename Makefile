@@ -63,7 +63,7 @@ AC_OBJS = AC.o ACConfigFile.o ACMainLoop.o ACDiscoveryState.o ACJoinState.o \
 	ACBinding.o ACInterface.o ACSettingsFile.o timerlib.o tap.o ACipcHostapd.o
 
 # list of generated object files for WTP.
-WTP_OBJS = WTP.o WTPipcHostapd.o WTPmacFrameReceive.o WTPFreqStatsReceive.o WTPStatsReceive.o WTPConfigFile.o WTPProtocol.o WTPProtocol_User.o \
+WTP_OBJS = WTP.o WTPipcHostapd.o WTPFrameReceive.o WTPFreqStatsReceive.o WTPStatsReceive.o WTPConfigFile.o WTPProtocol.o WTPProtocol_User.o \
 	WTPDiscoveryState.o WTPJoinState.o WTPConfigureState.o WTPDataCheckState.o WTPRunState.o WTPRunStateCheck.o \
 	WTPRetransmission.o WTPSulkingState.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWSafeList.o CWList.o CWLog.o CWNetwork.o \
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
