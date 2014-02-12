@@ -26,7 +26,7 @@
  *******************************************************************************************/
 
 
-#include "WTPmacFrameReceive.h"
+#include "WTPFrameReceive.h"
 #include "common.h"
 #include "ieee802_11_defs.h"
 
