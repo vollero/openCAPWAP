@@ -174,16 +174,20 @@ CWBool CWConfigFileDestroyLib() {
 	gMaxLogFileSize=gConfigValues[8].value.int_value;
 
 	if(gConfigValues[9].value.str_value != NULL) {
-		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[9].value.str_array_value), indexBlank);
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[9].value.str_value), indexBlank);
 		CW_CREATE_STRING_FROM_STRING_ERR(gWTPCertificate, (gConfigValues[9].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+
 	}
 	if(gConfigValues[10].value.str_value != NULL) {
-		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[10].value.str_array_value), indexBlank);
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[10].value.str_value), indexBlank);
 		CW_CREATE_STRING_FROM_STRING_ERR(gWTPKeyfile, (gConfigValues[10].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
 	}
 	if(gConfigValues[11].value.str_value != NULL) {
-		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[11].value.str_array_value), indexBlank);
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[11].value.str_value), indexBlank);
 		CW_CREATE_STRING_FROM_STRING_ERR(gWTPPassword, (gConfigValues[11].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
 	}
 
 	for(i = 0; i < gConfigValuesCount; i++) {
