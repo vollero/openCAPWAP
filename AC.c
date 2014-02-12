@@ -182,7 +182,7 @@ void CWACInit() {
 		 * Dynamic OpenSSL params
 		 */
 		if(!CWErr(CWSecurityInitContext(&gACSecurityContext,
-						gACCerthificate,
+						gACCertificate,
 						gACKeyfile,
 						gACPassword,
 						CW_FALSE,
