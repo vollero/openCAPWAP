@@ -107,12 +107,6 @@ CWBool CWConfigFileDestroyLib() {
 	CW_CREATE_ARRAY_ERR(gCWACAddresses, gConfigValues[0].count, char*, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	for(i = 0; i < gConfigValues[0].count; i++) {
-		/*
-		 * Elena Agostini - 02/2014
-		 *
-		 * Ignore spaces in configuration values
-		 */
-		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[0].value.str_value), indexBlank);
 		CW_CREATE_STRING_FROM_STRING_ERR(gCWACAddresses[i], ((gConfigValues[0].value.str_array_value)[i])+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	
@@ -158,11 +152,23 @@ CWBool CWConfigFileDestroyLib() {
 		CW_CREATE_STRING_FROM_STRING_ERR(gWTPForceACAddress, (gConfigValues[5].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	
-	if(gConfigValues[6].value.str_value != NULL && !strcmp(gConfigValues[6].value.str_value, "PRESHARED")) {
-		gWTPForceSecurity = CW_PRESHARED;
-	} else { // default
-		gWTPForceSecurity = CW_X509_CERTIFICATE;
+	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Ignore spaces in configuration values
+	 */
+	if(gConfigValues[6].value.str_value != NULL)
+	{
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[6].value.str_value), indexBlank);
+		if(!strcmp((gConfigValues[6].value.str_value)+indexBlank, "PRESHARED")) {	
+			gWTPForceSecurity = CW_PRESHARED;
+		} else { 
+			/* default */
+			gWTPForceSecurity = CW_X509_CERTIFICATE;
+		}
 	}
+
 	
 	/*
 	 * Elena Agostini - 02/2014

@@ -119,13 +119,23 @@ CWBool CWConfigFileDestroyLib() {
 	gLimit = gConfigValues[2].value.int_value;
 	gMaxWTPs = gConfigValues[3].value.int_value;
 
-	if(gConfigValues[4].value.str_value != NULL && !strcmp(gConfigValues[4].value.str_value, "PRESHARED")) {
-		
-		gACDescriptorSecurity = CW_PRESHARED;
-	} else { 
-		/* default */
-		gACDescriptorSecurity = CW_X509_CERTIFICATE;
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Ignore spaces in configuration values
+	 */
+
+	if(gConfigValues[4].value.str_value != NULL)
+	{
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[4].value.str_value), indexBlank);
+		if(!strcmp((gConfigValues[4].value.str_value)+indexBlank, "PRESHARED")) {	
+			gACDescriptorSecurity = CW_PRESHARED;
+		} else { 
+			/* default */
+			gACDescriptorSecurity = CW_X509_CERTIFICATE;
+		}
 	}
+
 	if(gConfigValues[5].value.str_value != NULL) {
 		/*
 		 * Elena Agostini - 02/2014

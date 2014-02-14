@@ -111,8 +111,13 @@ typedef struct
 typedef struct
 {
 	unsigned char queueDepth;
-	int cwMin;
-	int cwMax;
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * RFC 5415 set cwMin and cwMax 16-bit field
+	 */
+	short int cwMin;
+	short int cwMax;
 	unsigned char  AIFS;
 	unsigned char dot1PTag;
 	unsigned char DSCPTag;	

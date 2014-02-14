@@ -75,7 +75,12 @@ CWBool CWAssembleDataMessage(CWProtocolMessage **completeMsgPtr, int *fragmentsN
 	
 	transportVal.bindingValuesPtr = bindingValuesPtr;
 	
-	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: transportVal.type not initialized
+	 */
+	transportVal.type=0;
 	if( frame->data_msgType == CW_IEEE_802_11_FRAME_TYPE ) transportVal.type = 1;
 	
 	if(*fragmentsNumPtr == 1) {

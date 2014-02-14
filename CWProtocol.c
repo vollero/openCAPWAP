@@ -621,6 +621,13 @@ CWBool CWAssembleMessage(CWProtocolMessage **completeMsgPtr, int *fragmentsNumPt
 		transportVal.isFragment = transportVal.last = transportVal.fragmentOffset = transportVal.fragmentID = 0;
 		transportVal.payloadType = is_crypted;
 //		transportVal.last = 1;
+		
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * BUG Valgrind: Missing inizialization
+		 */
+		transportVal.type = 0;
 
 		// Assemble Message Elements
 		if	(!(CWAssembleTransportHeader(&transportHdr, &transportVal))) {

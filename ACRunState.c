@@ -194,7 +194,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			CWParseFormatMsgElem(msgPtr, &elemType, &elemLen);
 			valPtr = CWParseSessionID(msgPtr, elemLen);
 			CWAssembleMsgElemSessionID(&sessionIDmsgElem, valPtr);
-			
+			/*
+			 * Elena Agostini - 02/2014
+			 *
+			 * BUG Valgrind: sessionIDmsgElem.data_msgType not initialized
+			 */
+			sessionIDmsgElem.data_msgType = CW_DATA_MSG_KEEP_ALIVE_TYPE;
 			if (!CWAssembleDataMessage(&messages, 
 				  &fragmentsNum, 
 				  gWTPs[WTPIndex].pathMTU, 

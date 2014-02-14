@@ -440,9 +440,15 @@ typedef struct {
 
 } CWDiscoveryRequestValues;
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * There are the correct values to save in Discovery Response and Join Response
+ * flag Security as described in RFC 5415
+ */
 typedef enum {
-	CW_X509_CERTIFICATE = 1,
-	CW_PRESHARED = 0
+	CW_PRESHARED = 4,
+	CW_X509_CERTIFICATE = 2
 } CWAuthSecurity;
 
 typedef struct {

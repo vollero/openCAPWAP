@@ -237,6 +237,7 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 			      CWLog("Data channel bound %s (%d, %s)", str, ifi->ifi_index, ifi->ifi_name););
 			      
 		CW_COPY_NET_ADDR_PTR(&(p->dataAddr), ifi->ifi_addr);
+		
 		p->dataSock = sock;
 
 		if(!CWAddElementToList(&interfaceList, p)) {
@@ -289,6 +290,12 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 			
 			CW_CREATE_OBJECT_ERR(p, CWMultiHomedInterface, 
 					     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+			/*
+			 * Elena Agostini - 02/2014
+			 *
+			 * BUG Valgrind: Missing inizialization dataSock
+			 */
+			p->dataSock=0;
 			p->sock = sock;
 			p->kind = CW_BROADCAST_OR_ALIAS;
 			p->systemIndex = ifi->ifi_index;
@@ -409,6 +416,12 @@ success:
 	);
 	
 	CW_CREATE_OBJECT_ERR(p, CWMultiHomedInterface, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: Missing inizialization dataSock
+	 */
+	p->dataSock=0;
 	p->sock = sock;
 	p->kind = CW_BROADCAST_OR_ALIAS;
 	p->systemIndex = -1; /* make sure this can't be 
@@ -473,6 +486,13 @@ success:
 		
 		CW_CREATE_OBJECT_ERR(p, CWMultiHomedInterface, 
 				     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * BUG Valgrind: Missing inizialization dataSock
+		 */		
+		p->dataSock=0;
 		p->sock = sock;
 		p->kind = CW_BROADCAST_OR_ALIAS;
 		p->systemIndex = -1;
@@ -499,10 +519,12 @@ success:
 	CW_CREATE_ARRAY_ERR((sockPtr->interfaces), sockPtr->count, CWMultiHomedInterface,
 					return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
+	
 	/* create array from list */
 	for(el = interfaceList, i = 0; el != NULL; el = el->next, i++) {
 		CW_COPY_MH_INTERFACE_PTR(&((sockPtr->interfaces)[i]), ((CWMultiHomedInterface*)(el->data)));
 	}
+
 	
 	/* delete the list */
 	CWDeleteList(&interfaceList, CWNetworkDeleteMHInterface);

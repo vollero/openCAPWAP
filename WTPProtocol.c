@@ -258,7 +258,14 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr) {
 	size = GENERIC_RADIO_INFO_LENGTH;
 	for(i = 0; i < infos.vendorInfosCount; i++) 
 		{size += (VENDOR_ID_LENGTH + TLV_HEADER_LENGTH + ((infos.vendorInfos)[i]).length);}
-		
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: Real size of msgPrt is 42, not 40. With 40 bytes there's
+	 * an heap overrun.
+	 */
+	size += 2;
+
 	// create message
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, size, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
@@ -281,10 +288,10 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr) {
 	
 		CWProtocolStoreRawBytes(msgPtr, (char*) ((infos.vendorInfos)[i].valuePtr), (infos.vendorInfos)[i].length);
 
-//		CWDebugLog("WTP Descriptor Vendor ID: %d", (infos.vendorInfos)[i].vendorIdentifier);
-//		CWDebugLog("WTP Descriptor Type: %d", (infos.vendorInfos)[i].type);
-//		CWDebugLog("WTP Descriptor Length: %d", (infos.vendorInfos)[i].length);
-//		CWDebugLog("WTP Descriptor Value: %d", *((infos.vendorInfos)[i].valuePtr));
+		CWDebugLog("WTP Descriptor Vendor ID: %d", (infos.vendorInfos)[i].vendorIdentifier);
+		CWDebugLog("WTP Descriptor Type: %d", (infos.vendorInfos)[i].type);
+		CWDebugLog("WTP Descriptor Length: %d", (infos.vendorInfos)[i].length);
+		CWDebugLog("WTP Descriptor Value: %d", *((infos.vendorInfos)[i].valuePtr));
 
 		//CWDebugLog("Vendor Info \"%d\" = %d - %d - %d", i, (infos.vendorInfos)[i].vendorIdentifier, (infos.vendorInfos)[i].type, (infos.vendorInfos)[i].length);
 	}
