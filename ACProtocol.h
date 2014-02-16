@@ -60,7 +60,12 @@ typedef struct {
 	struct sockaddr_in addr;
 	CWframeTunnelMode frameTunnelMode;
 	CWMACType MACType;
-
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+	 */
+	int ECNSupport;
 	
 } CWProtocolJoinRequestValues;
 
@@ -142,7 +147,12 @@ CWBool CWAssembleMsgElemCWTimer(CWProtocolMessage *msgPtr);				//12
 CWBool CWAssembleMsgElemDecryptErrorReportPeriod(CWProtocolMessage *msgPtr);		//16
 CWBool CWAssembleMsgElemIdleTimeout(CWProtocolMessage *msgPtr);				//23
 CWBool CWAssembleMsgElemWTPFallback(CWProtocolMessage *msgPtr);				//37
-
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr);
 //---------------------------------------------------------/
 
 //CWBool CWParseACName(CWProtocolMessage *msgPtr, int len, char **valPtr);
@@ -168,7 +178,12 @@ CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, unsigned c
 CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr);	//1040
 CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, char *valPtr);	//1032
 //CWBool CWParseWTPRadioInfo(CWProtocolMessage *msgPtr, int len, CWRadiosInformation *valPtr, int radioIndex);	
-
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWParseWTPECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr);
 //---------------------------------------------------------/
 CWBool CWACGetACIPv4List(int **listPtr, int *countPtr);
 CWBool CWACGetACIPv6List(struct in6_addr **listPtr, int *countPtr);

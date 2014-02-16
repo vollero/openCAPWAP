@@ -239,6 +239,13 @@
 #define 	CW_MSG_ELEMENT_WTP_RADIO_STATISTICS_CW_TYPE		47
 #define 	CW_MSG_ELEMENT_WTP_REBOOT_STATISTICS_CW_TYPE		48
 #define 	CW_MSG_ELEMENT_WTP_STATIC_IP_CW_TYPE			49
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+#define 	CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE			53
+
 /*Update 2009:
 		Message type to return a payload together with the 
 		configuration update response*/

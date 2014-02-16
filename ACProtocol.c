@@ -110,6 +110,21 @@ CWBool CWAssembleMsgElemACWTPRadioInformation(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
 }
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr) {
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 1, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+	CWProtocolStore8(msgPtr, CWACGetECNSupport());
+
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE);
+}
+
 CWBool CWAssembleMsgElemACDescriptor(CWProtocolMessage *msgPtr) {
 	CWACVendorInfos infos;
 	int i=0, size=0;
@@ -572,6 +587,20 @@ CWBool CWParseWTPStatisticsTimer (CWProtocolMessage *msgPtr, int len, int *valPt
 	
 	CWParseMessageElementEnd();
 }
+
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWParseWTPECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr) {
+	CWParseMessageElementStart();
+	
+	*valPtr = CWProtocolRetrieve8(msgPtr);
+	
+	CWParseMessageElementEnd();
+}
+
 
 CWBool CWParseWTPBoardData (CWProtocolMessage *msgPtr, int len, CWWTPVendorInfos *valPtr)
 {

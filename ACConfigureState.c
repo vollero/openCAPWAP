@@ -203,6 +203,12 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 					return CW_FALSE;
 				break;
 			
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
+		 * Now it does not works: only 5 bytes of 0
+		 */
 			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
 				if(!(CWParseWTPRadioInformation(&completeMsg, elemLen, tmp_RadioInformationABGN)))return CW_FALSE;
 				break;

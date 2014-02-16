@@ -67,6 +67,12 @@ typedef struct {
 	CWProtocolResultCode code;
 	ACIPv4ListValues ACIPv4ListInfo;
 	ACIPv6ListValues ACIPv6ListInfo;
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+	 */
+	int ECNSupport;
 } CWProtocolJoinResponseValues;
 
 typedef struct {
@@ -110,8 +116,13 @@ CWBool CWAssembleMsgElemWTPName(CWProtocolMessage *msgPtr);				//41
 CWBool CWAssembleMsgElemWTPOperationalStatistics(CWProtocolMessage *msgPtr,int radio);	//42
 CWBool CWAssembleMsgElemWTPRadioStatistics(CWProtocolMessage *msgPtr,int radio);	//43
 CWBool CWAssembleMsgElemWTPRebootStatistics(CWProtocolMessage *msgPtr);			//44
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr);
 //CWBool CWAssembleMsgElemWTPStaticIPInfo(CWProtocolMessage *msgPtr);			//45
-
 //CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr);	
 
 //---------------------------------------------------------/
@@ -127,6 +138,12 @@ CWBool CWParseDecryptErrorReportPeriod (CWProtocolMessage *msgPtr, int len, WTPD
 CWBool CWParseIdleTimeout (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);		//26 
 CWBool CWParseWTPFallback (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);		//37 
 CWBool CWParseWTPRadioInformation_FromAC(CWProtocolMessage *msgPtr, int len, char *valPtr);					// 1048
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWParseACECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr);
 
 //si trova in CWProtocol.h
 //CWBool CWParseACName(CWProtocolMessage *msgPtr, int len, char **valPtr);						// 4

@@ -205,6 +205,12 @@ extern WTPQosValues* gDefaultQosValues;
 extern int gHostapd_port;
 extern char* gHostapd_unix_path;
 extern unsigned char WTPRadioInformationType;
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+extern int gACECNSupport;
 
 /*
  * Elena Agostini - 02/2014

@@ -348,6 +348,16 @@ int CWWTPGetStatisticsTimer ()
 	return gWTPStatisticsTimer;
 }
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+int CWWTPGetECNSupport ()
+{
+	return gWTPECNSupport;
+}
+
 CWBool CWWTPGetACNameWithIndex (CWACNamesWithIndex *ACsInfo)
 {
 	if(ACsInfo == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);

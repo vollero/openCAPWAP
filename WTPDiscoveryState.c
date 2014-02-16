@@ -427,7 +427,14 @@ CWBool CWAssembleDiscoveryRequest(CWProtocolMessage **messagesPtr, int seqNum) {
 	   (!(CWAssembleMsgElemWTPBoardData(&(msgElems[++k]))))	 ||
 	   (!(CWAssembleMsgElemWTPDescriptor(&(msgElems[++k])))) ||
 	   (!(CWAssembleMsgElemWTPFrameTunnelMode(&(msgElems[++k])))) ||
-	   (!(CWAssembleMsgElemWTPMACType(&(msgElems[++k]))))  ||
+	   (!(CWAssembleMsgElemWTPMACType(&(msgElems[++k]))))  
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
+		 * Now it does not works: only 5 bytes of 0
+		 */
+		||
 	   (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k]))))
 	){
 		int i;

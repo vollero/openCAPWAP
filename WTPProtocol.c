@@ -137,6 +137,21 @@ CWBool CWAssembleMsgElemDiscoveryType(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_DISCOVERY_TYPE_CW_TYPE);
 }
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr) {
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 1, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+	CWProtocolStore8(msgPtr, CWWTPGetECNSupport());
+
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE);
+}
+
 CWBool CWAssembleMsgElemLocationData(CWProtocolMessage *msgPtr) {
 	char *location;
 	
@@ -287,12 +302,12 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr) {
 		}
 	
 		CWProtocolStoreRawBytes(msgPtr, (char*) ((infos.vendorInfos)[i].valuePtr), (infos.vendorInfos)[i].length);
-
+/*
 		CWDebugLog("WTP Descriptor Vendor ID: %d", (infos.vendorInfos)[i].vendorIdentifier);
 		CWDebugLog("WTP Descriptor Type: %d", (infos.vendorInfos)[i].type);
 		CWDebugLog("WTP Descriptor Length: %d", (infos.vendorInfos)[i].length);
 		CWDebugLog("WTP Descriptor Value: %d", *((infos.vendorInfos)[i].valuePtr));
-
+*/
 		//CWDebugLog("Vendor Info \"%d\" = %d - %d - %d", i, (infos.vendorInfos)[i].vendorIdentifier, (infos.vendorInfos)[i].type, (infos.vendorInfos)[i].length);
 	}
 	
@@ -346,15 +361,17 @@ CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr) {
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 5, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	unsigned char wtp_r_info;
-	wtp_r_info = CWTP_get_WTP_Radio_Information();
+	//wtp_r_info = CWTP_get_WTP_Radio_Information();
 	int radioID = 0;
 	
 	
-	CWProtocolStore8(msgPtr, radioID); 
+//	CWProtocolStore8(msgPtr, radioID); 
 	CWProtocolStore8(msgPtr, 0); 
 	CWProtocolStore8(msgPtr, 0); 
-	CWProtocolStore8(msgPtr, 0); 
-	CWProtocolStore8(msgPtr, wtp_r_info); 
+	CWProtocolStore8(msgPtr, 0);
+CWProtocolStore8(msgPtr, 0);
+CWProtocolStore8(msgPtr, 0);
+//	CWProtocolStore8(msgPtr, wtp_r_info); 
 
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
@@ -1160,6 +1177,19 @@ CWBool CWParseCWTimers (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureR
 //	CWDebugLog("Discovery Timer: %d", valPtr->discoveryTimer);
 	valPtr->echoRequestTimer = CWProtocolRetrieve8(msgPtr);
 //	CWDebugLog("Echo Timer: %d", valPtr->echoRequestTimer);
+	
+	CWParseMessageElementEnd();
+}
+
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWParseACECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr) {
+	CWParseMessageElementStart();
+	
+	*valPtr = CWProtocolRetrieve8(msgPtr);
 	
 	CWParseMessageElementEnd();
 }

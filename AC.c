@@ -74,6 +74,12 @@ int gActiveStations = 0;
 char *gACCertificate=NULL;
 char *gACKeyfile=NULL;
 char *gACPassword=NULL;
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+int gACECNSupport=0;
 
 /* max stations */
 int gLimit;

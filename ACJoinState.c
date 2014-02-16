@@ -147,7 +147,7 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 	/* Result code is not included because it's already
 	 * in msgElemList. Control IPv6 to be added.
 	 */
-	const int mandatoryMsgElemCount=4;
+	const int mandatoryMsgElemCount=5;
 	CWProtocolMessage *msgElemsBinding= NULL;
 	const int msgElemBindingCount=0;
 	int i;
@@ -168,7 +168,22 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 	if(
 	   (!(CWAssembleMsgElemACDescriptor(&(msgElems[++k])))) ||
 	   (!(CWAssembleMsgElemACName(&(msgElems[++k])))) ||
-	   (!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k])))) || 
+		/*
+		 * Elena Agostini - 02/2014
+	 	 *
+	 	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+	 	 */
+	     (!(CWAssembleMsgElemECNSupport(&(msgElems[++k])))) ||
+
+	   (!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k]))))
+
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
+		 * Now it does not works: only 5 bytes of 0
+		 */
+ 		|| 
 	   (!(CWAssembleMsgElemACWTPRadioInformation(&(msgElems[++k]))))
 	) {
 		CWErrorHandleLast();
@@ -264,7 +279,7 @@ CWBool CWParseJoinRequestMessage(char *msg,
 	
 	completeMsg.msg = msg;
 	completeMsg.offset = 0;
-		
+
 	if(!(CWParseControlHeader(&completeMsg, &controlVal)))
 		/* will be handled by the caller */
 		return CW_FALSE;
@@ -286,7 +301,7 @@ CWBool CWParseJoinRequestMessage(char *msg,
 		
 		CWParseFormatMsgElem(&completeMsg,&elemType,&elemLen);
 		
-		/* CWDebugLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen); */
+		/* CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen); */
 									
 		switch(elemType) {
 			case CW_MSG_ELEMENT_LOCATION_DATA_CW_TYPE:
@@ -334,11 +349,22 @@ CWBool CWParseJoinRequestMessage(char *msg,
 					/* will be handled by the caller */
 					return CW_FALSE;
 				break;
-				
+			
 			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
 				if(!(CWParseWTPRadioInformation(&completeMsg, elemLen,&RadioInfoABGN)))	return CW_FALSE;
 				break;
-				
+			
+			/*
+			 * Elena Agostini - 02/2014
+		 	 *
+		 	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+		 	 */
+			case CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE:
+				if(!(CWParseWTPECNSupport(&completeMsg, elemLen, &(valuesPtr->ECNSupport))))
+					/* will be handled by the caller */
+					return CW_FALSE;
+				break;
+	
 			default:
 				completeMsg.offset += elemLen;
 				CWLog("Unrecognized Message Element(%d) in Discovery response",elemType);

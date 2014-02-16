@@ -73,8 +73,16 @@ CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum) 
 	if (
 		(!(CWAssembleMsgElemACDescriptor(&(msgElems[++k])))) ||
 		(!(CWAssembleMsgElemACName(&(msgElems[++k])))) ||
-		(!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k])))) ||
+		(!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k]))))
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
+		 * Now it does not works: only 5 bytes of 0
+		 */		
+		 ||
 		(!(CWAssembleMsgElemACWTPRadioInformation(&(msgElems[++k]))))
+
 		/*(CWACSupportIPv6() && (!(CWAssembleMsgElemCWControlIPv6Addresses(&(msgElems[++k])))))*/
 	) {
 		CWErrorHandleLast();

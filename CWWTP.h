@@ -75,6 +75,13 @@ extern int qosStaticWmeCwMin;
 extern int qosStaticWmeCwMax;
 extern int qosStaticWmeAifsn;
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+extern int gWTPECNSupport;
+
 extern int gHostapd_port;
 extern char*  gHostapd_unix_path;
 extern char  gRADIO_MAC[6];

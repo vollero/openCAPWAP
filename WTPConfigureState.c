@@ -124,10 +124,10 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 		/*
 		 * Elena Agostini - 02/2014
 		 *
-		 * Valgrind BUG: this is an optionl msg elem as described in RFC 5416 section 6.23
-		 * Now it have some problem in fields' values.
+		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
+		 * Now it does not works: only 5 bytes of 0
 		 */
-	    //(!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k])))) ||
+	    (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemMultiDomainCapability(&(msgElems[++k]))))   )
 	{

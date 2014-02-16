@@ -249,7 +249,7 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 			     CWList msgElemList) {
 
 	CWProtocolMessage	*msgElems= NULL;
-	const int 		msgElemCount = 9;
+	const int 		msgElemCount = 10;
 	CWProtocolMessage 	*msgElemsBinding= NULL;
 	const int 		msgElemBindingCount=0;
 	int 			k = -1;
@@ -273,6 +273,19 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 	     (!(CWAssembleMsgElemSessionID(&(msgElems[++k]), &gWTPSessionID[0]))) ||
 	     (!(CWAssembleMsgElemWTPFrameTunnelMode(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPMACType(&(msgElems[++k])))) ||
+		/*
+		 * Elena Agostini - 02/2014
+	 	 *
+	 	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+	 	 */
+	     (!(CWAssembleMsgElemECNSupport(&(msgElems[++k])))) ||
+	
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
+		 * Now it does not works: only 5 bytes of 0
+		 */
 	     (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k]))))
 	) {
 		int i;
@@ -396,6 +409,16 @@ CWBool CWParseJoinResponseMessage(char *msg,
 				 */
 				valuesPtr->ACInfoPtr.IPv6AddressesCount++;
 				completeMsg.offset += len;
+				break;
+			/*
+			 * Elena Agostini - 02/2014
+		 	 *
+		 	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+		 	 */
+			case CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE:
+				if(!(CWParseACECNSupport(&completeMsg, len, &(valuesPtr->ECNSupport))))
+					/* will be handled by the caller */
+					return CW_FALSE;
 				break;
  			/*
  			case CW_MSG_ELEMENT_SESSION_ID_CW_TYPE:

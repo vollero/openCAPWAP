@@ -75,6 +75,13 @@ char *gWTPCertificate=NULL;
 char *gWTPKeyfile=NULL;
 char *gWTPPassword=NULL;
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+int gWTPECNSupport=0;
+
 /* list used to pass frames from wireless interface to main thread */
 CWSafeList 		gFrameList;
 
