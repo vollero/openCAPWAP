@@ -159,6 +159,13 @@ CWBool CWAssembleMsgElem(CWProtocolMessage *msgPtr, unsigned int type) {
 
 	msgPtr->msg = completeMsg.msg;
 	msgPtr->offset = completeMsg.offset;
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: if msgPtr->data_Type is not initialized here,
+	 * it may be a problem in CWBinding.c:84
+	 */
+	msgPtr->data_msgType = type;
 
 	return CW_TRUE;
 }

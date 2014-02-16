@@ -120,7 +120,14 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	    (!(CWAssembleMsgElemRadioAdminState(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemStatisticsTimer(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k])))) ||
+		
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * Valgrind BUG: this is an optionl msg elem as described in RFC 5416 section 6.23
+		 * Now it have some problem in fields' values.
+		 */
+	    //(!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemMultiDomainCapability(&(msgElems[++k]))))   )
 	{

@@ -107,7 +107,7 @@ CWBool CWWTPGetVendorInfos(CWWTPVendorInfos *valPtr) {
 	(valPtr->vendorInfos)[2].type = CW_BOOT_VERSION;
 	(valPtr->vendorInfos)[2].length = sizeof(long int); // just one int
 	CW_CREATE_OBJECT_SIZE_ERR(( ( (valPtr->vendorInfos)[2] ).valuePtr), (valPtr->vendorInfos)[2].length, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	*(int *)(((valPtr->vendorInfos)[2]).valuePtr) = 1234568; // Boot version
+	*(int *)(((valPtr->vendorInfos)[2]).valuePtr) = 1234568; //1234568; // Boot version
 	
 	return CW_TRUE;
 }
@@ -376,9 +376,15 @@ int getInterfaceMacAddr(char* interface, unsigned char* macAddr)
 		CWLog("Error Creating Socket for ioctl"); 
 		return -1;
 	}
-	
+
 	memset(&ethreq, 0, sizeof(ethreq));
 	strncpy(ethreq.ifr_name, interface, IFNAMSIZ);
+	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Eliminare interrogazione diretta del mac address?
+	 */
 	if (ioctl(sock, SIOCGIFHWADDR, &ethreq)==-1) {
 		return -1;
 	}
@@ -396,6 +402,15 @@ int initWTPSessionID(char * sessionID)
 	unsigned char macAddr1[MAC_ADDR_LEN];
 	int i,randomInteger;
 	char *buffer=sessionID;
+	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: if getInterfaceMacAddr fail, macAddr0 and macAddr1
+	 * aren't initialized
+	 */
+	memset(macAddr0, 0, MAC_ADDR_LEN);
+	memset(macAddr1, 0, MAC_ADDR_LEN);
 
 	getInterfaceMacAddr(gEthInterfaceName,macAddr0);
 	getInterfaceMacAddr(gRadioInterfaceName_0,macAddr1);

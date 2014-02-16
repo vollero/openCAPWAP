@@ -127,10 +127,15 @@ CWLog("wrq.ifr_name %s ",wrq.ifr_name);
 		//if(!get_aifs(sock, &wrq, CWTranslateQueueIndex(i), 0)){return CW_FALSE;}
 		//aux->qosValues[i].AIFS = wrq.u.param.value;
 
-/*##		aux->qosValues[i].cwMin = 2;
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * BUG Valgrind: values not initialized
+		 */
+		aux->qosValues[i].cwMin = 2;
 		aux->qosValues[i].cwMax = 4;
 		aux->qosValues[i].AIFS = 3;
-*/
+
 	}
 
 	return CW_TRUE;
