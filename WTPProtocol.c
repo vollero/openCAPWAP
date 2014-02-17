@@ -356,23 +356,22 @@ CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr) {
 CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr) {
 
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-
 	
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 5, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-	unsigned char wtp_r_info;
-	//wtp_r_info = CWTP_get_WTP_Radio_Information();
-	int radioID = 0;
-	
-	
-//	CWProtocolStore8(msgPtr, radioID); 
-	CWProtocolStore8(msgPtr, 0); 
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * WTP Radio Info: temporary values
+	 */
+	//RadioID - 1 byte
+	CWProtocolStore8(msgPtr, 1);
+	//Reserved - 3 byte
 	CWProtocolStore8(msgPtr, 0); 
 	CWProtocolStore8(msgPtr, 0);
-CWProtocolStore8(msgPtr, 0);
-CWProtocolStore8(msgPtr, 0);
-//	CWProtocolStore8(msgPtr, wtp_r_info); 
-
+	CWProtocolStore8(msgPtr, 0);
+	//Radio Type - 1 byte (802.11 n)
+	CWProtocolStore8(msgPtr, 8);
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
 }

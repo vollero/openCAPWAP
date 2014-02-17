@@ -458,6 +458,7 @@ typedef enum {
 	CW_X509_CERTIFICATE = 2
 } CWAuthSecurity;
 
+
 typedef struct {
 	CWNetworkLev4Address addr;
 	struct sockaddr_in addrIPv4;

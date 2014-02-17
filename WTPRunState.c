@@ -748,6 +748,12 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 	CWProtocolMessage sessionIDmsgElem;
 	int fragmentsNum = 0;
 
+/*
+elena agostini
+int k = -1;
+	CWAssembleMsgElemLength(&(sessionIDmsgElem[++k]));
+	CWAssembleMsgElemSessionID(&(sessionIDmsgElem[++k]), &gWTPSessionID[0]);
+*/
 	CWAssembleMsgElemSessionID(&sessionIDmsgElem, &gWTPSessionID[0]);
 	
 	/* Send WTP Event Request */

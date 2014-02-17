@@ -191,7 +191,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			unsigned short int elemLen = 0;
 			CWNetworkLev4Address address;
 
-			CWParseFormatMsgElem(msgPtr, &elemType, &elemLen);
 			valPtr = CWParseSessionID(msgPtr, elemLen);
 			CWAssembleMsgElemSessionID(&sessionIDmsgElem, valPtr);
 			/*

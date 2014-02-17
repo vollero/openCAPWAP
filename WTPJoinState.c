@@ -265,7 +265,7 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 	
 	/* Assemble Message Elements */
 	if ( 
-		 (!(CWAssembleMsgElemLocationData(&(msgElems[++k])))) ||
+	     (!(CWAssembleMsgElemLocationData(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPBoardData(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPDescriptor(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPIPv4Address(&(msgElems[++k])))) ||
