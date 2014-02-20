@@ -54,7 +54,12 @@ CWThreadMutex gActiveWTPsMutex;
 /* max WTPs */
 int gMaxWTPs;
 /* The Radio MAC Field of the discovery response */
-int gRMACField = 0;
+/*
+ * Elena Agostini - 02/2014
+ *
+ * Radio MAC Field is not reserved
+ */
+int gRMACField = 2;
 /* The Wireless Field of the discovery response */
 int gWirelessField = 0;
 /* DTLS Policy for data channel */
