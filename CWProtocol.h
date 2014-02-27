@@ -84,8 +84,12 @@
 #define 	CW_CONTROL_HEADER_OFFSET_FOR_MSG_ELEMS			3		//Offset "Seq Num" - "Message Elements"
 #define		CW_MAX_SEQ_NUM						255
 #define 	CW_MAX_FRAGMENT_ID					65535
-#define 	CLEAR_DATA						1
-#define		DTLS_ENABLED_DATA					2
+/*
+ * Elena Agostini - 02/2014
+ * DTLS_ENABLED DATA hasn't right value
+ */
+#define 	CLEAR_DATA						2
+#define		DTLS_ENABLED_DATA					4
 #define		CW_PACKET_PLAIN						0
 #define		CW_PACKET_CRYPT						1
 #define 	CW_DATA_MSG_FRAME_TYPE					1
