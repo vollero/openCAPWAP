@@ -464,15 +464,18 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			CWThreadMutexLock(&gWTPs[i].interfaceMutex);
 			pBuffer = (char *)CWGetHeadElementFromSafeList(gWTPs[i].packetReceiveList, NULL);
 			
-			
-			if (((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT) && ((gWTPs[i].buf[0] & 0x0f) == CW_PACKET_CRYPT))
+			/*
+			 * Elena Agostini - 03/2014
+			 * 
+			 * If && bCrypt will be 0 even if packet is DTLS
+			 */
+			if (((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT) || ((gWTPs[i].buf[0] & 0x0f) == CW_PACKET_CRYPT))
 			  bCrypt = CW_TRUE;
 
 			
 			CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
 
 			if (bCrypt) {
-
 
 			  if(!CWErr(CWSecurityReceive(gWTPs[i].session,
 										  gWTPs[i].buf,
