@@ -227,6 +227,14 @@ CWBool CWStartNeighborDeadTimer();
 CWBool CWStopNeighborDeadTimer();
 CWBool CWResetTimers();
 
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DataChannel Dead Timer
+ */
+CWBool CWStartDataChannelDeadTimer();
+CWBool CWStopDataChannelDeadTimer();
+
 void CWWTPHeartBeatTimerExpiredHandler(void *arg); 
 void CWWTPRetransmitTimerExpiredHandler(CWTimerArg arg);
 

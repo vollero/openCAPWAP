@@ -87,6 +87,12 @@ extern const char *CW_CONFIG_FILE;
 extern int gCWForceMTU;
 extern int gCWRetransmitTimer;
 extern int gCWNeighborDeadInterval;
+/*
+ * Elena Agostini - 03/2014
+ *
+ * Data Channel Dead Interval
+ */
+extern int gDataChannelDeadInterval;
 extern int gCWMaxRetransmit; 
 extern int gMaxLogFileSize;
 extern int gEnabledLog;

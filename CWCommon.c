@@ -37,7 +37,6 @@ int gCWRetransmitTimer = CW_RETRANSMIT_INTERVAL_DEFAULT;	//Default value for Ret
 int gCWNeighborDeadInterval = CW_NEIGHBORDEAD_INTERVAL_DEFAULT; //Default value for NeighbourDeadInterval (no less than 2*EchoInterval and no greater than 240) 
 int gCWMaxRetransmit = CW_MAX_RETRANSMIT_DEFAULT;		//Default value for MaxRetransmit 
 
-
 int CWTimevalSubtract(struct timeval *res, const struct timeval *x, const struct timeval *y){
 	int nsec;
 	struct timeval z=*y;

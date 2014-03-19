@@ -34,7 +34,7 @@ LDFLAGS = -lssl -lcrypto -lpthread -ldl -D_REENTRANT
 #LDFLAGS = ./static/libssl.a ./static/libcrypto.a -lpthread -ldl -D_REENTRANT
 
 CFLAGS =  -Wall -g -O0 -D_REENTRANT  
-CFLAGS += -DCW_NO_DTLS -DCW_NO_DTLSCWParseConfigurationUpdateRequest
+#CFLAGS += -DCW_NO_DTLS -DCW_NO_DTLSCWParseConfigurationUpdateRequest
 
 OPENSSL_INCLUDE = -I./include/  #Openssl include files
 

@@ -101,6 +101,14 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg);
 CWTimerID gCWHeartBeatTimerID;
 CWTimerID gCWKeepAliveTimerID;
 CWTimerID gCWNeighborDeadTimerID;
+/*
+ * Elena Agostini - 03/2014
+ * DataChannel Dead Timer
+ */
+CWTimerID gCWDataChannelDeadTimerID;
+CWBool gDataChannelDeadTimerSet=CW_FALSE;
+int gDataChannelDeadInterval = CW_DATACHANNELDEAD_INTERVAL_DEFAULT;
+
 CWBool gNeighborDeadTimerSet=CW_FALSE;
 	
 int gEchoInterval = CW_ECHO_INTERVAL_DEFAULT;
@@ -231,6 +239,12 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 				msgPtr.offset=0;				
 				CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
 				valPtr = CWParseSessionID(&msgPtr, elemLen);
+				
+				if (!CWResetTimers()) {
+					//CWFreeMessageFragments(msgPtr, fragmentsNum);
+					//CW_FREE_OBJECT(messages);
+					return CW_FALSE;
+				}
 	
 
 			}else if (msgPtr.data_msgType == CW_IEEE_802_3_FRAME_TYPE) {
@@ -328,7 +342,7 @@ CWStateTransition CWWTPEnterRun() {
 		/* Wait packet */
 		timenow.tv_sec = time(0) + CW_NEIGHBORDEAD_RESTART_DISCOVERY_DELTA_DEFAULT;	 /* greater than NeighborDeadInterval */
 		timenow.tv_nsec = 0;
-
+		
 		CWThreadMutexLock(&gInterfaceMutex);
 
 		/*
@@ -712,7 +726,7 @@ void CWWTPHeartBeatTimerExpiredHandler(void *arg) {
 		CW_FREE_OBJECT(messages);
 		return;
 	}
-	
+
 	int i;
 	for(i = 0; i < fragmentsNum; i++) {
 #ifdef CW_NO_DTLS
@@ -739,6 +753,7 @@ void CWWTPHeartBeatTimerExpiredHandler(void *arg) {
 	if(!CWStartHeartbeatTimer()) {
 		return;
 	}
+	
 }
 
 
@@ -748,15 +763,23 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 	CWProtocolMessage sessionIDmsgElem;
 	int fragmentsNum = 0;
 
-/*
-elena agostini
-int k = -1;
-	CWAssembleMsgElemLength(&(sessionIDmsgElem[++k]));
-	CWAssembleMsgElemSessionID(&(sessionIDmsgElem[++k]), &gWTPSessionID[0]);
-*/
+	/*
+	 * Elena Agostini - 03/2014
+	 * 
+	 * DataChannel Dead Timer
+	 */
+	if(!gDataChannelDeadTimerSet) {
+
+		if (!CWStartDataChannelDeadTimer()) {
+			CWStopHeartbeatTimer();
+			CWStopDataChannelDeadTimer();
+			return;
+		}
+	}
+	
 	CWAssembleMsgElemSessionID(&sessionIDmsgElem, &gWTPSessionID[0]);
 	
-	/* Send WTP Event Request */
+	//Send WTP Event Request
 	if (!CWAssembleDataMessage(&messages, 
 			    &fragmentsNum, 
 			    gWTPPathMTU, 
@@ -779,8 +802,8 @@ int k = -1;
 	
 	int i;
 	for(i = 0; i < fragmentsNum; i++) {
-
-		if(!CWNetworkSendUnsafeConnected(gWTPDataSocket, messages[i].msg, messages[i].offset)) {
+//Elena Agostini: add here DTLS Data Channel Session
+ 		if(!CWNetworkSendUnsafeConnected(gWTPDataSocket, messages[i].msg, messages[i].offset)) {
 			CWLog("Failure sending  KeepAlive Request");
 			int k;
 			for(k = 0; k < fragmentsNum; k++) {
@@ -796,6 +819,10 @@ int k = -1;
 		CW_FREE_PROTOCOL_MESSAGE(messages[k]);
 	}	
 	CW_FREE_OBJECT(messages);
+	
+	if(!CWStartHeartbeatTimer()) {
+		return;
+	}
 }
 
 
@@ -810,6 +837,21 @@ void CWWTPNeighborDeadTimerExpired(void *arg) {
 	return;
 }
 
+/*
+ * Elena Agostini - 03/2014
+ *
+ * DataChannel Dead Timer
+ */
+void CWWTPDataChannelDeadTimerExpired(void *arg) {
+
+	CWLog("WTP DataChannel Timer Expired... we consider Peer Dead.");
+
+#ifdef DMALLOC
+	dmalloc_shutdown(); 
+#endif
+
+	return;
+}
 
 CWBool CWStartHeartbeatTimer() {
 	
@@ -852,7 +894,7 @@ CWBool CWStartNeighborDeadTimer() {
 	
 	if (gCWNeighborDeadTimerID == -1)	return CW_FALSE;
 
-	CWDebugLog("NeighborDead Timer Started");
+	CWLog("NeighborDead Timer Started");
 	gNeighborDeadTimerSet = CW_TRUE;
 	return CW_TRUE;
 }
@@ -861,17 +903,55 @@ CWBool CWStartNeighborDeadTimer() {
 CWBool CWStopNeighborDeadTimer() {
 	
 	timer_rem(gCWNeighborDeadTimerID, NULL);
-	CWDebugLog("NeighborDead Timer Stopped");
+	CWLog("NeighborDead Timer Stopped");
 	gNeighborDeadTimerSet = CW_FALSE;
+	return CW_TRUE;
+}
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DataChannel Dead Timer
+ */
+
+CWBool CWStartDataChannelDeadTimer() {
+
+	gCWDataChannelDeadTimerID = timer_add(gDataChannelDeadInterval,
+					   0,
+					   &CWWTPDataChannelDeadTimerExpired,
+					   NULL);
+	
+	if (gCWDataChannelDeadTimerID == -1)	return CW_FALSE;
+
+	CWDebugLog("DataChannel Dead Timer Started");
+	gDataChannelDeadTimerSet = CW_TRUE;
+	return CW_TRUE;
+}
+
+CWBool CWStopDataChannelDeadTimer() {
+	
+	timer_rem(gCWDataChannelDeadTimerID, NULL);
+	CWDebugLog("DataChannel Timer Stopped");
+	gDataChannelDeadTimerSet = CW_FALSE;
 	return CW_TRUE;
 }
 
 
 CWBool CWResetTimers() {
 
-	if(gNeighborDeadTimerSet) {
-	
+	if(gNeighborDeadTimerSet) {	
+		CWLog("Restart NeighborDeadTimer\n");
 		if (!CWStopNeighborDeadTimer()) return CW_FALSE;
+	}
+	
+	/*
+	 * Elena Agostini - 03/2014
+	 * 
+	 * DataChannel Dead Timer
+	 */
+	if(gDataChannelDeadTimerSet) {
+		CWLog("Restart DataChannelDeadTimer\n");
+		if (!CWStopDataChannelDeadTimer()) return CW_FALSE;
 	}
 	
 	if(!CWStopHeartbeatTimer()) 

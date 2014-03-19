@@ -469,8 +469,9 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			 * 
 			 * If && bCrypt will be 0 even if packet is DTLS
 			 */
-			if (((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT) || ((gWTPs[i].buf[0] & 0x0f) == CW_PACKET_CRYPT))
-			  bCrypt = CW_TRUE;
+			//if (((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT) || ((gWTPs[i].buf[0] & 0x0f) == CW_PACKET_CRYPT))
+			if((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT)  
+				bCrypt = CW_TRUE;
 
 			
 			CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
