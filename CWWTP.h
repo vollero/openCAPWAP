@@ -223,9 +223,6 @@ CWStateTransition CWWTPEnterRun();
 
 CWBool CWStartHeartbeatTimer();
 CWBool CWStopHeartbeatTimer();
-CWBool CWStartNeighborDeadTimer();
-CWBool CWStopNeighborDeadTimer();
-CWBool CWResetTimers();
 
 /*
  * Elena Agostini - 03/2014
@@ -234,6 +231,23 @@ CWBool CWResetTimers();
  */
 CWBool CWStartDataChannelDeadTimer();
 CWBool CWStopDataChannelDeadTimer();
+CWBool CWResetDataChannelDeadTimer();
+CWBool CWStartKeepAliveTimer();
+CWBool CWStopKeepAliveTimer();
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * Echo Request Timer
+ */
+CWBool CWStartEchoRequestTimer();
+CWBool CWStopEchoRequestsTimer();
+CWBool CWResetEchoRequestRetransmit();
+void CWWTPEchoRequestTimerExpiredHandler(void *arg);
+
+CWBool CWStartNeighborDeadTimer();
+CWBool CWStopNeighborDeadTimer();
+void CWWTPNeighborDeadTimerExpired();
 
 void CWWTPHeartBeatTimerExpiredHandler(void *arg); 
 void CWWTPRetransmitTimerExpiredHandler(CWTimerArg arg);

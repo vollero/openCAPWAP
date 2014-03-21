@@ -337,6 +337,163 @@ cw_failure:
 	return CW_FALSE;
 }
 
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * Retransmission Request Messages with custom interval
+ */
+
+CWBool CWWTPRequestPacketRetransmissionCustomTimeInterval(int retransmissionTimeInterval, 
+				int seqNum, 
+				CWProtocolMessage *messages,
+				CWBool (parseFunc)(char*, int, int, void*), 
+				CWBool (saveFunc)(void*),
+				void *valuesPtr) {
+
+	CWProtocolMessage msg;
+	int fragmentsNum = 0, i;
+
+	struct timespec timewait;
+	
+	int gTimeToSleep = retransmissionTimeInterval;
+	int gMaxTimeToSleep = CW_ECHO_INTERVAL_DEFAULT/2;
+
+	gWTPRetransmissionCount= 0;
+	
+	while(gWTPRetransmissionCount < gCWMaxRetransmit) 
+	{
+		CWDebugLog("Transmission Num:%d", gWTPRetransmissionCount);
+		for(i = 0; i < fragmentsNum; i++) 
+		{
+#ifdef CW_NO_DTLS
+			if(!CWNetworkSendUnsafeConnected(gWTPSocket, 
+							 messages[i].msg,
+							 messages[i].offset))
+#else
+			if(!CWSecuritySend(gWTPSession,
+					   messages[i].msg, 
+					   messages[i].offset))
+#endif
+			{
+				CWDebugLog("Failure sending Request");
+				goto cw_failure;
+			}
+		}
+		
+		timewait.tv_sec = time(0) + gTimeToSleep;
+		timewait.tv_nsec = 0;
+
+		CW_REPEAT_FOREVER 
+		{
+			CWThreadMutexLock(&gInterfaceMutex);
+
+			if (CWGetCountElementFromSafeList(gPacketReceiveList) > 0)
+				CWErrorRaise(CW_ERROR_SUCCESS, NULL);
+			else {
+				if (CWErr(CWWaitThreadConditionTimeout(&gInterfaceWait, &gInterfaceMutex, &timewait)))
+					CWErrorRaise(CW_ERROR_SUCCESS, NULL);
+			}
+
+			CWThreadMutexUnlock(&gInterfaceMutex);
+
+			switch(CWErrorGetLastErrorCode()) {
+
+				case CW_ERROR_TIME_EXPIRED:
+				{
+					gWTPRetransmissionCount++;
+					goto cw_continue_external_loop;
+					break;
+				}
+
+				case CW_ERROR_SUCCESS:
+				{
+					/* there's something to read */
+					if(!(CWReceiveMessage(&msg))) 
+					{
+						CW_FREE_PROTOCOL_MESSAGE(msg);
+						CWDebugLog("Failure Receiving Response");
+						goto cw_failure;
+					}
+					
+					if(!(parseFunc(msg.msg, msg.offset, seqNum, valuesPtr))) 
+					{
+						if(CWErrorGetLastErrorCode() != CW_ERROR_INVALID_FORMAT) {
+
+							CW_FREE_PROTOCOL_MESSAGE(msg);
+							CWDebugLog("Failure Parsing Response");
+							goto cw_failure;
+						}
+						else {
+							CWErrorHandleLast();
+							{ 
+								gWTPRetransmissionCount++;
+								goto cw_continue_external_loop;
+							}
+							break;
+						}
+					}
+					
+					if((saveFunc(valuesPtr))) {
+
+						goto cw_success;
+					} 
+					else {
+						if(CWErrorGetLastErrorCode() != CW_ERROR_INVALID_FORMAT) {
+							CW_FREE_PROTOCOL_MESSAGE(msg);
+							CWDebugLog("Failure Saving Response");
+							goto cw_failure;
+						} 
+					}
+					break;
+				}
+
+				case CW_ERROR_INTERRUPTED: 
+				{
+					gWTPRetransmissionCount++;
+					goto cw_continue_external_loop;
+					break;
+				}	
+				default:
+				{
+					CWErrorHandleLast();
+					CWDebugLog("Failure");
+					goto cw_failure;
+					break;
+				}
+			}
+		}
+		
+		cw_continue_external_loop:
+			CWDebugLog("Retransmission time is over");
+			
+			gTimeToSleep<<=1;
+			if ( gTimeToSleep > gMaxTimeToSleep ) gTimeToSleep = gMaxTimeToSleep;
+	}
+
+	/* too many retransmissions */
+	return CWErrorRaise(CW_ERROR_NEED_RESOURCE, "Peer Dead");
+	
+cw_success:	
+	for(i = 0; i < fragmentsNum; i++) {
+		CW_FREE_PROTOCOL_MESSAGE(messages[i]);
+	}
+	
+	CW_FREE_OBJECT(messages);
+	CW_FREE_PROTOCOL_MESSAGE(msg);
+	
+	return CW_TRUE;
+	
+cw_failure:
+	if(messages != NULL) {
+		for(i = 0; i < fragmentsNum; i++) {
+			CW_FREE_PROTOCOL_MESSAGE(messages[i]);
+		}
+		CW_FREE_OBJECT(messages);
+	}
+	CWDebugLog("Failure");
+	return CW_FALSE;
+}
+
 int main (int argc, const char * argv[]) {
 	
 

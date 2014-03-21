@@ -94,6 +94,8 @@ extern int gCWNeighborDeadInterval;
  */
 extern int gDataChannelDeadInterval;
 extern int gCWMaxRetransmit; 
+extern int gWTPMaxRetransmitEcho;
+
 extern int gMaxLogFileSize;
 extern int gEnabledLog;
 

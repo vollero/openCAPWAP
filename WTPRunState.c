@@ -99,6 +99,7 @@ void CWConfirmRunStateToACWithEchoRequest();
 void CWWTPKeepAliveDataTimerExpiredHandler(void *arg);
 
 CWTimerID gCWHeartBeatTimerID;
+CWTimerID gCWEchoRequestTimerID;
 CWTimerID gCWKeepAliveTimerID;
 CWTimerID gCWNeighborDeadTimerID;
 /*
@@ -108,6 +109,14 @@ CWTimerID gCWNeighborDeadTimerID;
 CWTimerID gCWDataChannelDeadTimerID;
 CWBool gDataChannelDeadTimerSet=CW_FALSE;
 int gDataChannelDeadInterval = CW_DATACHANNELDEAD_INTERVAL_DEFAULT;
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * Echo Retransmission Count
+ */
+int gWTPEchoRetransmissionCount=0;
+int gWTPMaxRetransmitEcho=CW_ECHO_MAX_RETRANSMIT_DEFAULT;
+CWBool gWTPExitRunEcho=CW_FALSE;
 
 CWBool gNeighborDeadTimerSet=CW_FALSE;
 	
@@ -240,12 +249,12 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 				CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
 				valPtr = CWParseSessionID(&msgPtr, elemLen);
 				
-				if (!CWResetTimers()) {
+				if (!CWResetDataChannelDeadTimer()) {
 					//CWFreeMessageFragments(msgPtr, fragmentsNum);
 					//CW_FREE_OBJECT(messages);
 					return CW_FALSE;
 				}
-	
+
 
 			}else if (msgPtr.data_msgType == CW_IEEE_802_3_FRAME_TYPE) {
 
@@ -326,11 +335,11 @@ CWStateTransition CWWTPEnterRun() {
 		CWResetPendingMsgBox(gPendingRequestMsgs + k);
 
 
-	if (!CWErr(CWStartHeartbeatTimer())) {
+	if (!CWErr(CWStartEchoRequestTimer())) {
 
 		return CW_ENTER_RESET;
 	}
-	
+	CWLog("CWStartHeartbeatTimer ok");
 	wtpInRunState=1;
 
 	CW_REPEAT_FOREVER
@@ -339,6 +348,18 @@ CWStateTransition CWWTPEnterRun() {
 		CWBool bReceivePacket = CW_FALSE;
 		CWBool bReveiveBinding = CW_FALSE;
 	
+		/*
+		 * Elena Agostini - 03/2014
+		 * 
+		 * If gWTPExitRunEcho == CW_TRUE, no Echo Response has been received
+		 * so we consider peer dead and WTP goes in RESET
+		 */
+		if(gWTPExitRunEcho == CW_TRUE)
+		{
+			CWLog("*** Max Num Retransmit Echo Request reached. We consider peer dead..\n");
+			break;
+		}
+			
 		/* Wait packet */
 		timenow.tv_sec = time(0) + CW_NEIGHBORDEAD_RESTART_DISCOVERY_DELTA_DEFAULT;	 /* greater than NeighborDeadInterval */
 		timenow.tv_nsec = 0;
@@ -451,7 +472,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				/*Update 2009:
 					check to see if a time-out on session occur...
 					In case it happens it should go back to CW_ENTER_RESET*/
-				if (!CWResetTimers()) {
+				if (!CWResetEchoRequestRetransmit()) {
 					CWFreeMessageFragments(messages, fragmentsNum);
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
@@ -512,7 +533,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				/*Update 2009:
 					check to see if a time-out on session occur...
 					In case it happens it should go back to CW_ENTER_RESET*/
-				if (!CWResetTimers()) {
+				if (!CWResetEchoRequestRetransmit()) {
 					CWFreeMessageFragments(messages, fragmentsNum);
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
@@ -536,7 +557,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				/*Update 2009:
 					check to see if a time-out on session occur...
 					In case it happens it should go back to CW_ENTER_RESET*/
-				if (!CWResetTimers()) {
+				if (!CWResetEchoRequestRetransmit()) {
 					CWFreeMessageFragments(messages, fragmentsNum);
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
@@ -556,7 +577,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				
 				CWProtocolResultCode resultCode = CW_PROTOCOL_SUCCESS;
 				
-				if (!CWResetTimers()) {
+				if (!CWResetEchoRequestRetransmit()) {
 					CWFreeMessageFragments(messages, fragmentsNum);
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
@@ -578,7 +599,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				/*Update 2009:
 					check to see if a time-out on session occur...
 					In case it happens it should go back to CW_ENTER_RESET*/
-				if (!CWResetTimers()) {
+				if (!CWResetEchoRequestRetransmit()) {
 					CWFreeMessageFragments(messages, fragmentsNum);
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
@@ -597,7 +618,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				/*Update 2009:
 					check to see if a time-out on session occur...
 					In case it happens it should go back to CW_ENTER_RESET*/
-				if (!CWResetTimers()) {
+				if (!CWResetEchoRequestRetransmit()) {
 					CWFreeMessageFragments(messages, fragmentsNum);
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
@@ -652,7 +673,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 		/*Update 2009:
 		  		check to see if a time-out on session occur...
 		 		 In case it happens it should go back to CW_ENTER_RESET*/
-		if (!CWResetTimers())
+		if (!CWResetEchoRequestRetransmit())
 			return CW_FALSE;
 
 		switch(controlVal.messageTypeValue) 
@@ -694,7 +715,6 @@ void CWWTPHeartBeatTimerExpiredHandler(void *arg) {
 	int seqNum;
 
 	if(!gNeighborDeadTimerSet) {
-
 		if (!CWStartNeighborDeadTimer()) {
 			CWStopHeartbeatTimer();
 			CWStopNeighborDeadTimer();
@@ -702,11 +722,90 @@ void CWWTPHeartBeatTimerExpiredHandler(void *arg) {
 		}
 	}
 
-
 	CWLog("WTP HeartBeat Timer Expired... we send an ECHO Request");
-	
+
 	CWLog("\n");
 	CWLog("#________ Echo Request Message (Run) ________#");
+
+	/* Send WTP Event Request */
+	seqNum = CWGetSeqNum();
+
+	if(!CWAssembleEchoRequest(&messages,
+	&fragmentsNum,
+	gWTPPathMTU,
+	seqNum,
+	msgElemList)){
+		int i;
+
+		CWDebugLog("Failure Assembling Echo Request");
+		if(messages)
+		for(i = 0; i < fragmentsNum; i++) {
+			CW_FREE_PROTOCOL_MESSAGE(messages[i]);
+		}	
+		CW_FREE_OBJECT(messages);
+		return;
+	}
+
+		int i;
+		for(i = 0; i < fragmentsNum; i++) {
+			#ifdef CW_NO_DTLS
+			if(!CWNetworkSendUnsafeConnected(gWTPSocket, messages[i].msg, messages[i].offset)) {
+			#else
+			if(!CWSecuritySend(gWTPSession, messages[i].msg, messages[i].offset)){
+				#endif
+				CWLog("Failure sending Request");
+				int k;
+				for(k = 0; k < fragmentsNum; k++) {
+					CW_FREE_PROTOCOL_MESSAGE(messages[k]);
+				}	
+				CW_FREE_OBJECT(messages);
+				break;
+			}
+		}
+
+		int k;
+		for(k = 0; messages && k < fragmentsNum; k++) {
+		CW_FREE_PROTOCOL_MESSAGE(messages[k]);
+	}	
+	CW_FREE_OBJECT(messages);
+
+	if(!CWStartHeartbeatTimer()) {
+		return;
+	}
+}
+
+void CWWTPNeighborDeadTimerExpired(void *arg) {
+
+CWLog("WTP NeighborDead Timer Expired... we consider Peer Dead.");
+
+#ifdef DMALLOC
+dmalloc_shutdown();
+#endif
+
+return;
+}
+
+/*
+ * Elena Agostini 03/2014
+ * 
+ * Only Echo Retransmit Timer
+ */
+void CWWTPEchoRequestTimerExpiredHandler(void *arg) {
+
+	CWList msgElemList = NULL;
+	CWProtocolMessage *messages = NULL;
+	int fragmentsNum = 0;
+	int seqNum;
+
+	if(gWTPEchoRetransmissionCount >= gWTPMaxRetransmitEcho)
+	{
+		gWTPExitRunEcho=CW_TRUE;
+		return;
+	}
+
+	CWLog("WTP HeartBeat Timer Expired... we send an ECHO Request");
+	CWLog("\n");
+	CWLog("#________ Echo Request Message [%d] (Run) ________#", gWTPEchoRetransmissionCount);
 	
 	/* Send WTP Event Request */
 	seqNum = CWGetSeqNum();
@@ -744,18 +843,19 @@ void CWWTPHeartBeatTimerExpiredHandler(void *arg) {
 		}
 	}
 
+	gWTPEchoRetransmissionCount++;
+
 	int k;
 	for(k = 0; messages && k < fragmentsNum; k++) {
 		CW_FREE_PROTOCOL_MESSAGE(messages[k]);
 	}	
 	CW_FREE_OBJECT(messages);
 
-	if(!CWStartHeartbeatTimer()) {
+	if(!CWStartEchoRequestTimer()) {
 		return;
 	}
 	
 }
-
 
 void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 
@@ -768,10 +868,10 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 	 * 
 	 * DataChannel Dead Timer
 	 */
+	 
 	if(!gDataChannelDeadTimerSet) {
 
 		if (!CWStartDataChannelDeadTimer()) {
-			CWStopHeartbeatTimer();
 			CWStopDataChannelDeadTimer();
 			return;
 		}
@@ -820,21 +920,9 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 	}	
 	CW_FREE_OBJECT(messages);
 	
-	if(!CWStartHeartbeatTimer()) {
+	if(!CWStartKeepAliveTimer()) {
 		return;
 	}
-}
-
-
-void CWWTPNeighborDeadTimerExpired(void *arg) {
-
-	CWLog("WTP NeighborDead Timer Expired... we consider Peer Dead.");
-
-#ifdef DMALLOC
-	dmalloc_shutdown(); 
-#endif
-
-	return;
 }
 
 /*
@@ -853,6 +941,8 @@ void CWWTPDataChannelDeadTimerExpired(void *arg) {
 	return;
 }
 
+
+
 CWBool CWStartHeartbeatTimer() {
 	
 	gCWHeartBeatTimerID = timer_add(gEchoInterval,
@@ -863,17 +953,50 @@ CWBool CWStartHeartbeatTimer() {
 	if (gCWHeartBeatTimerID == -1)	return CW_FALSE;
 
 	CWDebugLog("Echo Heartbeat Timer Started");
-	gCWKeepAliveTimerID = timer_add(gDataChannelKeepAlive,
-					0,
-					&CWWTPKeepAliveDataTimerExpiredHandler,
-					NULL);
-	
-	if (gCWKeepAliveTimerID == -1)	return CW_FALSE;
 
-	CWDebugLog("Keepalive Heartbeat Timer Started");
 	return CW_TRUE;
 }
 
+CWBool CWStartNeighborDeadTimer() {
+
+gCWNeighborDeadTimerID = timer_add(gCWNeighborDeadInterval,
+0,
+&CWWTPNeighborDeadTimerExpired,
+NULL);
+
+if (gCWNeighborDeadTimerID == -1)	return CW_FALSE;
+
+CWDebugLog("NeighborDead Timer Started");
+gNeighborDeadTimerSet = CW_TRUE;
+return CW_TRUE;
+
+}
+
+
+CWBool CWStopNeighborDeadTimer() {
+
+timer_rem(gCWNeighborDeadTimerID, NULL);
+CWDebugLog("NeighborDead Timer Stopped");
+gNeighborDeadTimerSet = CW_FALSE;
+return CW_TRUE;
+}
+
+
+CWBool CWResetTimers() {
+
+if(gNeighborDeadTimerSet) {
+
+if (!CWStopNeighborDeadTimer()) return CW_FALSE;
+}
+
+if(!CWStopHeartbeatTimer())
+return CW_FALSE;
+
+if(!CWStartHeartbeatTimer())
+return CW_FALSE;
+
+return CW_TRUE;
+}
 
 CWBool CWStopHeartbeatTimer(){
 	
@@ -884,47 +1007,81 @@ CWBool CWStopHeartbeatTimer(){
 	return CW_TRUE;
 }
 
-
-CWBool CWStartNeighborDeadTimer() {
-
-	gCWNeighborDeadTimerID = timer_add(gCWNeighborDeadInterval,
-					   0,
-					   &CWWTPNeighborDeadTimerExpired,
-					   NULL);
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * Add Echo Request Retransmission
+ */
+CWBool CWStartEchoRequestTimer() {
 	
-	if (gCWNeighborDeadTimerID == -1)	return CW_FALSE;
+	gCWHeartBeatTimerID = timer_add(gEchoInterval,
+					0,
+					&CWWTPEchoRequestTimerExpiredHandler,
+					NULL);
+	
+	if (gCWHeartBeatTimerID == -1)	return CW_FALSE;
 
-	CWLog("NeighborDead Timer Started");
-	gNeighborDeadTimerSet = CW_TRUE;
+	CWDebugLog("Echo Request Timer Started");
+
 	return CW_TRUE;
 }
 
 
-CWBool CWStopNeighborDeadTimer() {
+CWBool CWStopEchoRequestsTimer(){
 	
-	timer_rem(gCWNeighborDeadTimerID, NULL);
-	CWLog("NeighborDead Timer Stopped");
-	gNeighborDeadTimerSet = CW_FALSE;
+ 	timer_rem(gCWHeartBeatTimerID, NULL);
+	CWDebugLog("Echo Heartbeat Timer Stopped");
+	return CW_TRUE;
+}
+
+CWBool CWResetEchoRequestRetransmit() {
+	/*
+	 * Elena Agostini - 03/2014
+	 * 
+	 * If Echo Response received, Echo Retransmission Count = 0
+	 */
+	gWTPEchoRetransmissionCount=0;
+
 	return CW_TRUE;
 }
 
 /*
  * Elena Agostini - 03/2014
  * 
- * DataChannel Dead Timer
+ * KeepAlive & DataChannel Dead Timer
  */
 
-CWBool CWStartDataChannelDeadTimer() {
-
-	gCWDataChannelDeadTimerID = timer_add(gDataChannelDeadInterval,
-					   0,
-					   &CWWTPDataChannelDeadTimerExpired,
-					   NULL);
+CWBool CWStartKeepAliveTimer() {
+	gCWKeepAliveTimerID = timer_add(gDataChannelKeepAlive,
+					0,
+					&CWWTPKeepAliveDataTimerExpiredHandler,
+					NULL);
 	
-	if (gCWDataChannelDeadTimerID == -1)	return CW_FALSE;
+	if (gCWKeepAliveTimerID == -1)	return CW_FALSE;
 
-	CWDebugLog("DataChannel Dead Timer Started");
-	gDataChannelDeadTimerSet = CW_TRUE;
+	CWDebugLog("Keepalive Heartbeat Timer Started");
+	
+	return CW_TRUE;
+}
+
+CWBool CWStopKeepAliveTimer() {
+	
+	timer_rem(gCWKeepAliveTimerID, NULL);
+	CWDebugLog("KeepAlive Timer Stopped");
+	return CW_TRUE;
+}
+
+CWBool CWStartDataChannelDeadTimer() {
+	
+	gCWHeartBeatTimerID = timer_add(gEchoInterval,
+					0,
+					&CWWTPDataChannelDeadTimerExpired,
+					NULL);
+	
+	if (gCWHeartBeatTimerID == -1)	return CW_FALSE;
+
+	CWDebugLog("Echo DataChannel Dead Timer Started");
+
 	return CW_TRUE;
 }
 
@@ -936,29 +1093,16 @@ CWBool CWStopDataChannelDeadTimer() {
 	return CW_TRUE;
 }
 
-
-CWBool CWResetTimers() {
-
-	if(gNeighborDeadTimerSet) {	
-		CWLog("Restart NeighborDeadTimer\n");
-		if (!CWStopNeighborDeadTimer()) return CW_FALSE;
-	}
-	
+CWBool CWResetDataChannelDeadTimer() {
 	/*
 	 * Elena Agostini - 03/2014
 	 * 
 	 * DataChannel Dead Timer
 	 */
 	if(gDataChannelDeadTimerSet) {
-		CWLog("Restart DataChannelDeadTimer\n");
+		CWLog("Restart DataChannelDead Timer\n");
 		if (!CWStopDataChannelDeadTimer()) return CW_FALSE;
 	}
-	
-	if(!CWStopHeartbeatTimer()) 
-		return CW_FALSE;
-	
-	if(!CWStartHeartbeatTimer()) 
-		return CW_FALSE;
 	
 	return CW_TRUE;
 }
