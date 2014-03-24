@@ -66,6 +66,12 @@ CWSocket 		gWTPDataSocket;
 /* DTLS session vars */
 CWSecurityContext	gWTPSecurityContext;
 CWSecuritySession 	gWTPSession;
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DTLS Data Session WTP
+ */
+CWSecuritySession gWTPSessionData;
 
 /*
  * Elena Agostini - 02/2014
@@ -87,6 +93,13 @@ CWSafeList 		gFrameList;
 
 /* list used to pass CAPWAP packets from AC to main thread */
 CWSafeList 		gPacketReceiveList;
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * Liste used to pass CAPWAP DATA packets from AC to DataThread
+ */
+CWSafeList gPacketReceiveDataList;
 
 /* used to synchronize access to the lists */
 CWThreadCondition    gInterfaceWait;
@@ -173,6 +186,72 @@ CWBool CWReceiveMessage(CWProtocolMessage *msgPtr) {
 	
 	return CW_TRUE;
 }
+
+/*
+ * Elena Agostini - 03/2014
+ * DTLS Data Session WTP
+ */
+
+CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
+	CWList fragments = NULL;
+	int readBytes;
+	char buf[CW_BUFFER_SIZE];
+	CWBool dataFlag = CW_TRUE;
+	CWNetworkLev4Address	addr;
+	
+	CW_REPEAT_FOREVER {
+		CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
+		
+#ifdef CW_DTLS_DATA_CHANNEL
+	
+	if(!CWSecurityReceive(gWTPSessionData, buf, CW_BUFFER_SIZE, &readBytes)) {return CW_FALSE;}
+
+#else
+
+	if(!CWErr(CWNetworkReceiveUnsafe(gWTPDataSocket,
+						buf, 
+						CW_BUFFER_SIZE - 1,
+						0,
+						&addr,
+						&readBytes))) {
+
+			if (CWErrorGetLastErrorCode() == CW_ERROR_INTERRUPTED)
+				continue;
+			
+			break;
+	}
+	
+#endif
+
+	if(!CWProtocolParseFragment(buf, readBytes, &fragments, msgPtr, &dataFlag, NULL)) {
+			if(CWErrorGetLastErrorCode()){
+				CWErrorCode error;
+				error=CWErrorGetLastErrorCode();
+				switch(error)
+				{
+					case CW_ERROR_SUCCESS: {CWDebugLog("ERROR: Success"); break;}
+					case CW_ERROR_OUT_OF_MEMORY: {CWDebugLog("ERROR: Out of Memory"); break;}
+					case CW_ERROR_WRONG_ARG: {CWDebugLog("ERROR: Wrong Argument"); break;}
+					case CW_ERROR_INTERRUPTED: {CWDebugLog("ERROR: Interrupted"); break;}
+					case CW_ERROR_NEED_RESOURCE: {CWDebugLog("ERROR: Need Resource"); break;}
+					case CW_ERROR_COMUNICATING: {CWDebugLog("ERROR: Comunicating"); break;}
+					case CW_ERROR_CREATING: {CWDebugLog("ERROR: Creating"); break;}
+					case CW_ERROR_GENERAL: {CWDebugLog("ERROR: General"); break;}
+					case CW_ERROR_OPERATION_ABORTED: {CWDebugLog("ERROR: Operation Aborted"); break;}
+					case CW_ERROR_SENDING: {CWDebugLog("ERROR: Sending"); break;}
+					case CW_ERROR_RECEIVING: {CWDebugLog("ERROR: Receiving"); break;}
+					case CW_ERROR_INVALID_FORMAT: {CWDebugLog("ERROR: Invalid Format"); break;}
+					case CW_ERROR_TIME_EXPIRED: {CWDebugLog("ERROR: Time Expired"); break;}
+					case CW_ERROR_NONE: {CWDebugLog("ERROR: None"); break;}
+				}
+			}
+		}
+		else break; // the message is fully reassembled
+	}
+	
+	return CW_TRUE;
+}
+
 
 CWBool CWWTPSendAcknowledgedPacket(int seqNum, 
 				   CWList msgElemlist,
@@ -640,6 +719,14 @@ int main (int argc, const char * argv[]) {
 				nextState = CWWTPEnterRun();
 				break;
 			case CW_ENTER_RESET:
+				/*
+				 * Elena Agostini - 03/2014
+				 * 
+				 * Flag DataChannel Dead - From RUN STATE
+				 */
+				CWThreadMutexLock(&gInterfaceMutex);
+				gWTPDataChannelDeadFlag = CW_FALSE;
+				CWThreadMutexUnlock(&gInterfaceMutex);
 				/*
 				 * CWStopHeartbeatTimer();
 				 * CWStopNeighborDeadTimer();

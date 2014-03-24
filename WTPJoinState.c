@@ -116,8 +116,11 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 	if(!CWErr(CWNetworkInitSocketClientDataChannel(&gWTPDataSocket, &(gACInfoPtr->preferredAddress))) ) {
 		return CW_ENTER_DISCOVERY;
 	}
+	
+	
 	CWLog("Initiate Data Channel");
-	CWDebugLog("gWTPSocket:%d, gWTPDataSocket:%d", gWTPSocket,gWTPDataSocket);
+	CWLog("+++++++++++++++++++++ gWTPSocket:%d, gWTPDataSocket:%d", gWTPSocket,gWTPDataSocket);
+
 
 #ifndef CW_NO_DTLS
 	if(gACInfoPtr->security == CW_X509_CERTIFICATE) {
@@ -153,6 +156,10 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 		}
 	}
 #endif
+
+//elena
+CWLog("++++ creo thread thread_receiveFrame");
+
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, 
 				 CWWTPReceiveDtlsPacket,
@@ -169,6 +176,8 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 		return CW_ENTER_DISCOVERY;
 	}
 
+//elena
+CWLog("++++ creo thread thread_receiveDataFrame");
 	CWThread thread_receiveDataFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveDataFrame, 
 				 CWWTPReceiveDataPacket,

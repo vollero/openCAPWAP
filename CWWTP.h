@@ -110,10 +110,18 @@ extern WTPRebootStatisticsInfo gWTPRebootStatistics;
 extern CWWTPRadiosInfo gRadiosInfo;
 extern CWSecurityContext gWTPSecurityContext;
 extern CWSecuritySession gWTPSession;
-
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DTLS Data Session WTP
+ */
+extern CWSecuritySession gWTPSessionData;
+ 
 extern CWPendingRequestMessage gPendingRequestMsgs[MAX_PENDING_REQUEST_MSGS];
 
 extern CWSafeList gPacketReceiveList;
+/* Elena Agostini - 03/2014 */
+extern CWSafeList gPacketReceiveDataList;
 extern CWSafeList gFrameList;
 extern CWThreadCondition gInterfaceWait;
 extern CWThreadMutex gInterfaceMutex;
@@ -134,6 +142,11 @@ CWBool CWWTPLoadConfiguration();
 CWBool CWWTPInitConfiguration();
 void CWWTPResetRadioStatistics(WTPRadioStatisticsInfo *radioStatistics);
 CWBool CWReceiveMessage(CWProtocolMessage *msgPtr);
+/*
+ * Elena Agostini - 03/2014
+ * DTLS Data Session WTP
+ */
+CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr);
 CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 				   CWList msgElemlist, 
 				   CWBool (assembleFunc)(CWProtocolMessage **, int *, int, int, CWList),

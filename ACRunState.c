@@ -217,6 +217,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				return CW_FALSE;
 			}
 
+#ifndef CW_DTLS_DATA_CHANNEL
 			for(i = 0; i < gACSocket.count; i++) {
 			    if (gACSocket.interfaces[i].sock == gWTPs[WTPIndex].socket){
 				dataSocket = gACSocket.interfaces[i].dataSock;
@@ -229,13 +230,23 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			      CWLog("data socket of WTP %d isn't ready.");
 			      return CW_FALSE;
 			}
+#endif
 
 			for(i = 0; i < fragmentsNum; i++) {
-				if(!CWNetworkSendUnsafeUnconnected(	dataSocket, 
-									&(address), 
-									messages[i].msg, 
-									 messages[i].offset))
-				{
+
+			/*
+			 * Elena Agostini - 03/2014
+			 * 
+			 * DTLS Data Session AC
+			 */
+			 
+#ifdef CW_DTLS_DATA_CHANNEL
+				
+				if(!(CWSecuritySend(gWTPs[WTPIndex].sessionData, messages[i].msg, messages[i].offset))) {
+#else
+				if(!CWNetworkSendUnsafeUnconnected(	dataSocket, &(address), messages[i].msg, messages[i].offset)) {
+#endif
+
 					CWLog("Failure sending  KeepAlive Request");
 					int k;
 					for(k = 0; k < fragmentsNum; k++) {
@@ -244,6 +255,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CW_FREE_OBJECT(messages);
 					break;
 				}
+
 			}
 
 			int k;
@@ -251,6 +263,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				CW_FREE_PROTOCOL_MESSAGE(messages[k]);
 			}	
 			CW_FREE_OBJECT(messages);
+
 			
 		}else if(msgPtr->data_msgType == CW_IEEE_802_3_FRAME_TYPE){
 			

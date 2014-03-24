@@ -103,6 +103,12 @@ typedef struct {
 	CWNetworkLev4Address dataaddress;
 	CWThread thread;
 	CWSecuritySession session;
+	/*
+	 * Elena Agostini - 03/2014
+	 * 
+	 * DTLS Data Session AC
+	 */
+	CWSecuritySession sessionData;
 	CWBool isNotFree;
 	CWBool isRequestClose;
 	CWStateTransition currentState;

@@ -136,6 +136,9 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	CWNetworkLev4Address	addr;
 	char* 			pData;
 
+//elena
+CWLog("+++++ AVVIATO thread CWWTPReceiveDtlsPacket");
+
 	CW_REPEAT_FOREVER 
 	{
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
@@ -189,7 +192,10 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	CWList 			fragments = NULL;
 	CWProtocolMessage 	msgPtr;
 	CWBool 			dataFlag = CW_TRUE;
-
+	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
+	
+	char* 			pData;
+	
     memset(&rawSockaddr, 0, sizeof(rawSockaddr));
 	
 	rawSockaddr.sll_family		= AF_PACKET;
@@ -197,50 +203,123 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	rawSockaddr.sll_ifindex		= if_nametoindex(gRadioInterfaceName_0);
 	rawSockaddr.sll_pkttype		= PACKET_OTHERHOST;
 	rawSockaddr.sll_halen		= ETH_ALEN;	
-
 	
+CWLog("++++ PARTITO thread thread_receiveDataFrame");
+
 	CW_REPEAT_FOREVER 
 	{
-		if(!CWErr(CWNetworkReceiveUnsafe(gWTPDataSocket,
-						buf, 
-						CW_BUFFER_SIZE - 1,
-						0,
-						&addr,
-						&readBytes))) {
+		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
+							buf, 
+							CW_BUFFER_SIZE - 1,
+							0,
+							&addr,
+							&readBytes))) {
 
-			if (CWErrorGetLastErrorCode() == CW_ERROR_INTERRUPTED)
-				continue;
-			
-			break;
+				if (CWErrorGetLastErrorCode() == CW_ERROR_INTERRUPTED)
+					continue;
+				
+				break;
 		}
+		
+		/* Clone data packet */
+		CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return NULL; });
+		memcpy(pData, buf, readBytes);
 
+		CWLockSafeList(gPacketReceiveList);
+		CWAddElementToSafeListTailwitDataFlag(gPacketReceiveDataList, pData, readBytes,CW_TRUE);
+		CWUnlockSafeList(gPacketReceiveList);
+	}
+	
+	return NULL;
+}
+
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * Manage RUN State WTPDataChannel 
+ */
+ CW_THREAD_RETURN_TYPE CWWTPManageDataPacket(void *arg) {
+	
+	int 			n,readBytes;
+	char 			buf[CW_BUFFER_SIZE];
+	struct sockaddr_ll 	rawSockaddr;	
+	CWNetworkLev4Address	addr;
+	CWList 			fragments = NULL;
+	CWProtocolMessage 	msgPtr;
+	CWBool 			dataFlag = CW_TRUE;
+	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;	
+	int k, msg_len;
+	
+CWLog("++++ PARTITO thread CWWTPManageDataPacket");
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DTLS Data Session WTP
+ */
+
+#ifdef CW_DTLS_DATA_CHANNEL
+
+CWLog("Prima di CWSecurityInitSessionClient, socket: %d", gWTPDataSocket);
+
+	if(!CWErr(CWSecurityInitSessionClient(gWTPDataSocket,
+					      &(gACInfoPtr->preferredAddress),
+					      gPacketReceiveDataList,
+					      gWTPSecurityContext,
+					      &gWTPSessionData,
+					      &gWTPPathMTU))) { 
+		
+		/* error setting up DTLS session */
+		CWSecurityDestroyContext(gWTPSecurityContext);
+		gWTPSecurityContext = NULL;
+		gWTPSession = NULL;
+		
+		CWThreadMutexLock(&gInterfaceMutex);
+		gWTPDataChannelDeadFlag=CW_TRUE;
+		CWThreadMutexUnlock(&gInterfaceMutex);
+		
+		return NULL;
+	}
+	
+	CWLog("Dopo di CWSecurityInitSessionClient");
+
+	
+	
+#endif
+
+CWWTPKeepAliveDataTimerExpiredHandler(NULL);
+
+	CW_REPEAT_FOREVER 
+	{
+		/*
+		 * Elena Agostini - 03/2014
+		 * 
+		 * Flag DataChannel Dead
+		 */
+		CWThreadMutexLock(&gInterfaceMutex);
+		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
+		CWThreadMutexUnlock(&gInterfaceMutex);
+		if(gWTPDataChannelLocalFlag == CW_TRUE)
+			break;
+	
 		msgPtr.msg = NULL;
 		msgPtr.offset = 0;
-
-		if(!CWProtocolParseFragment(buf, readBytes, &fragments, &msgPtr, &dataFlag, NULL)) {
-			if(CWErrorGetLastErrorCode()){
-				CWErrorCode error;
-				error=CWErrorGetLastErrorCode();
-				switch(error)
-				{
-					case CW_ERROR_SUCCESS: {CWDebugLog("ERROR: Success"); break;}
-					case CW_ERROR_OUT_OF_MEMORY: {CWDebugLog("ERROR: Out of Memory"); break;}
-					case CW_ERROR_WRONG_ARG: {CWDebugLog("ERROR: Wrong Argument"); break;}
-					case CW_ERROR_INTERRUPTED: {CWDebugLog("ERROR: Interrupted"); break;}
-					case CW_ERROR_NEED_RESOURCE: {CWDebugLog("ERROR: Need Resource"); break;}
-					case CW_ERROR_COMUNICATING: {CWDebugLog("ERROR: Comunicating"); break;}
-					case CW_ERROR_CREATING: {CWDebugLog("ERROR: Creating"); break;}
-					case CW_ERROR_GENERAL: {CWDebugLog("ERROR: General"); break;}
-					case CW_ERROR_OPERATION_ABORTED: {CWDebugLog("ERROR: Operation Aborted"); break;}
-					case CW_ERROR_SENDING: {CWDebugLog("ERROR: Sending"); break;}
-					case CW_ERROR_RECEIVING: {CWDebugLog("ERROR: Receiving"); break;}
-					case CW_ERROR_INVALID_FORMAT: {CWDebugLog("ERROR: Invalid Format"); break;}
-					case CW_ERROR_TIME_EXPIRED: {CWDebugLog("ERROR: Time Expired"); break;}
-					case CW_ERROR_NONE: {CWDebugLog("ERROR: None"); break;}
-				}
-			}
-		}else{
-			if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
+		
+		/*
+		 * Elena Agostini - 03/2014
+		 * 
+		 * DTLS Data Session WTP
+		 */
+		 
+		if(!CWReceiveDataMessage(&msgPtr))
+		{
+			CW_FREE_PROTOCOL_MESSAGE(msgPtr);
+			CWDebugLog("Failure Receiving DTLS Data Channel");
+			break;		
+		}
+		
+		if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
 
 				char *valPtr=NULL;
 				unsigned short int elemType = 0;
@@ -250,13 +329,15 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 				msgPtr.offset=0;				
 				CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
 				valPtr = CWParseSessionID(&msgPtr, elemLen);
+				/*
+				 * Elena Agostini - 03/2014
+				 * 
+				 * Reset DataChannel Dead Timer
+				 */
 				if (!CWResetDataChannelDeadTimer()) {
-					//CWFreeMessageFragments(msgPtr, fragmentsNum);
-					//CW_FREE_OBJECT(messages);
-					return CW_FALSE;
+					CW_FREE_PROTOCOL_MESSAGE(msgPtr);
+					break;
 				}
-
-
 			}else if (msgPtr.data_msgType == CW_IEEE_802_3_FRAME_TYPE) {
 
 				CWDebugLog("Got 802.3 len:%d from AC",msgPtr.offset);
@@ -310,12 +391,23 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 				CWLog("Unknow data_msgType");
 			}
 			CW_FREE_PROTOCOL_MESSAGE(msgPtr);
-		}
 	}
 
+#ifdef CW_DTLS_DATA_CHANNEL
+	CWSecurityDestroyContext(gWTPSecurityContext);
+	gWTPSecurityContext = NULL;
+	gWTPSession = NULL;
+#endif
+
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPDataChannelDeadFlag=CW_TRUE;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	
 	return NULL;
 }
+ 
 
+ 
 /* 
  * Manage Run State.
  */
@@ -330,7 +422,22 @@ CWStateTransition CWWTPEnterRun() {
 	CWLog("\n");
 	CWLog("######### WTP enters in RUN State #########");
 	
-	CWWTPKeepAliveDataTimerExpiredHandler(NULL);
+	CWLog("+++++ START THREAD thread_manageDataPacket");
+	CWThread thread_manageDataPacket;
+	if(!CWErr(CWCreateThread(&thread_manageDataPacket, 
+				 CWWTPManageDataPacket,
+				 (void*)gWTPDataSocket))) {
+		
+		CWLog("Error starting Thread that receive DTLS DATA packet");
+		CWNetworkCloseSocket(gWTPDataSocket);
+#ifndef CW_NO_DTLS
+		CWSecurityDestroyContext(gWTPSecurityContext);
+		gWTPSecurityContext = NULL;
+		gWTPSession = NULL;
+#endif
+		return CW_ENTER_RESET;
+	}
+	
 
 	for (k = 0; k < MAX_PENDING_REQUEST_MSGS; k++)
 		CWResetPendingMsgBox(gPendingRequestMsgs + k);
@@ -373,7 +480,6 @@ CWStateTransition CWWTPEnterRun() {
 		 * Flag DataChannel Dead
 		 */
 		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
-		gWTPDataChannelDeadFlag=CW_FALSE;
 		
 		/*
 		 * if there are no frames from stations
@@ -921,8 +1027,20 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 	
 	int i;
 	for(i = 0; i < fragmentsNum; i++) {
-//Elena Agostini: add here DTLS Data Channel Session
- 		if(!CWNetworkSendUnsafeConnected(gWTPDataSocket, messages[i].msg, messages[i].offset)) {
+		
+	   /*
+		* Elena Agostini - 03/2014
+		* 
+		* DTLS Data Session AC
+		*/
+		
+#ifdef CW_DTLS_DATA_CHANNEL
+				
+				if(!(CWSecuritySend(gWTPSessionData, messages[i].msg, messages[i].offset))) {
+#else
+				if(!CWNetworkSendUnsafeConnected(gWTPDataSocket, messages[i].msg, messages[i].offset)) {
+#endif
+ 		
 			CWLog("Failure sending  KeepAlive Request");
 			int k;
 			for(k = 0; k < fragmentsNum; k++) {

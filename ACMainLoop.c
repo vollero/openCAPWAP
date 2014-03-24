@@ -580,6 +580,45 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							CWCloseThread();
 						}
 					}
+					
+					CWLog("++++++++++++++++++++++ Eseguito DataCheck\n");
+					/*
+					 * Elena Agostini - 03/2014
+					 * 
+					 * DTLS Data Session AC
+					 */
+					#ifdef CW_DTLS_DATA_CHANNEL
+						CWLog("Init DTLS Session Data");
+						int dataSocket=0;
+						int indexLocal=0;
+						CWNetworkLev4Address address;
+						for(indexLocal = 0; indexLocal < gACSocket.count; indexLocal++) {
+							if (gACSocket.interfaces[indexLocal].sock == gWTPs[i].socket){
+							dataSocket = gACSocket.interfaces[indexLocal].dataSock;
+							CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[i].dataaddress));
+							break;
+							}
+						}
+
+						if (dataSocket == 0){
+							  CWLog("data socket of WTP isn't ready.");
+							 /* critical error, close session */
+							CWErrorHandleLast();
+							CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+							CWCloseThread();
+						}
+						
+						if(!CWErr(CWSecurityInitSessionServer(&gWTPs[i],
+											  dataSocket,
+											  gACSecurityContext,
+											  &((gWTPs[i]).sessionData),
+											  &(gWTPs[i].pathMTU)))) {
+							
+							CWErrorHandleLast();
+							CWTimerCancel(&(gWTPs[i].currentTimer));
+							CWCloseThread();
+						}
+					#endif
 					break;
 				}	
 				case CW_ENTER_RUN:
@@ -598,6 +637,13 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							CWLog("--> Critical Error... closing thread");
 							CWErrorHandleLast();
 							CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+							/*
+							 * Elena Agostini - 03/2014
+							 * 
+							 * DTLS Data Session AC
+							 */
+							//TODO
+							
 							CWCloseThread();
 						}
 					}
