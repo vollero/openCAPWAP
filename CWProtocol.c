@@ -347,46 +347,43 @@ CWBool CWAssembleTransportHeaderKeepAliveData(CWProtocolMessage *transportHdrPtr
 	unsigned int val = 0;
 	if(transportHdrPtr == NULL || valuesPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
-	if(valuesPtr->bindingValuesPtr != NULL)
+/*	if(valuesPtr->bindingValuesPtr != NULL)
 		{CW_CREATE_PROTOCOL_MESSAGE(*transportHdrPtr,gMaxCAPWAPHeaderSizeBinding, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););}
 	else {CW_CREATE_PROTOCOL_MESSAGE(*transportHdrPtr,8 , return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););}	 // meaningful bytes of the header (no wirless header and MAC address)
+*/
+
+CW_CREATE_PROTOCOL_MESSAGE(*transportHdrPtr,8 , return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
 	CWSetField32(val, 
 		     CW_TRANSPORT_HEADER_VERSION_START,
 		     CW_TRANSPORT_HEADER_VERSION_LEN,
 		     CW_PROTOCOL_VERSION); // current version of CAPWAP
-
 	CWSetField32(val,
 		     CW_TRANSPORT_HEADER_TYPE_START,
 		     CW_TRANSPORT_HEADER_TYPE_LEN,
 		     (valuesPtr->payloadType == CW_PACKET_PLAIN) ? 0 : 1);
-	
-	if(valuesPtr->bindingValuesPtr != NULL)
-		CWSetField32(val,
-			     CW_TRANSPORT_HEADER_HLEN_START,
-			     CW_TRANSPORT_HEADER_HLEN_LEN,
-			     CW_BINDING_HLEN);
-	else 
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ *Try to fix Malformed KeepAlive 
+ */
+ 
 		CWSetField32(val,
 			     CW_TRANSPORT_HEADER_HLEN_START,
 			     CW_TRANSPORT_HEADER_HLEN_LEN,
 			     2);
 
-	CWSetField32(val,
+		CWSetField32(val,
 		     CW_TRANSPORT_HEADER_RID_START,
 		     CW_TRANSPORT_HEADER_RID_LEN,
 		     0); // only one radio per WTP?
 	
-	CWSetField32(val,
+		CWSetField32(val,
 		     CW_TRANSPORT_HEADER_WBID_START,
 		     CW_TRANSPORT_HEADER_WBID_LEN,
-		     1); // Wireless Binding ID
-
-	if(valuesPtr->bindingValuesPtr != NULL)
-		CWSetField32(val,
-		     CW_TRANSPORT_HEADER_T_START,
-		     CW_TRANSPORT_HEADER_T_LEN,
-		     1);
-	else 
+		     0); // Wireless Binding ID
+	
 		CWSetField32(val,
 		     CW_TRANSPORT_HEADER_T_START,
 		     CW_TRANSPORT_HEADER_T_LEN,
@@ -402,12 +399,7 @@ CWBool CWAssembleTransportHeaderKeepAliveData(CWProtocolMessage *transportHdrPtr
 		     CW_TRANSPORT_HEADER_L_LEN,
 		     valuesPtr->last); // last fragment
 	
-	if(valuesPtr->bindingValuesPtr != NULL)
-		CWSetField32(val,
-			     CW_TRANSPORT_HEADER_W_START,
-			     CW_TRANSPORT_HEADER_W_LEN,
-			     1); //wireless header
-	else 
+
 		CWSetField32(val,
 			     CW_TRANSPORT_HEADER_W_START,
 			     CW_TRANSPORT_HEADER_W_LEN,
@@ -450,12 +442,12 @@ CWBool CWAssembleTransportHeaderKeepAliveData(CWProtocolMessage *transportHdrPtr
 
 	CWProtocolStore32(transportHdrPtr, val);
 	// end of second 32 bits
-
+/*
 	if(valuesPtr->bindingValuesPtr != NULL){
 		if (!CWAssembleTransportHeaderBinding(transportHdrPtr, valuesPtr->bindingValuesPtr))
 			return CW_FALSE;
 	}
-
+*/
 	return CW_TRUE;
 }
 

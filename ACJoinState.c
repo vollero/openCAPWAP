@@ -102,6 +102,7 @@ CWBool ACEnterJoin(int WTPIndex, CWProtocolMessage *msgPtr)
                 auxData->value = resultCodeValue;
                 CWAddElementToList(&msgElemList,auxData);
 	}
+	
 	/*
  	if(sessionID){
  		CW_CREATE_OBJECT_ERR(auxData, CWMsgElemData, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););

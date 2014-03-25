@@ -288,7 +288,7 @@ CWLog("Prima di CWSecurityInitSessionClient, socket: %d", gWTPDataSocket);
 
 CWWTPKeepAliveDataTimerExpiredHandler(NULL);
 
-	CW_REPEAT_FOREVER 
+	CW_REPEAT_FOREVER
 	{
 		/*
 		 * Elena Agostini - 03/2014
@@ -998,8 +998,12 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 			return;
 		}
 	}
+			/*
+			 * Elena Agostini - 03/2014
+			 */
 	
 	CWAssembleMsgElemSessionID(&sessionIDmsgElem, &gWTPSessionID[0]);
+	sessionIDmsgElem.data_msgType = CW_DATA_MSG_KEEP_ALIVE_TYPE;
 	
 	//Send WTP Event Request
 	if (!CWAssembleDataMessage(&messages, 
