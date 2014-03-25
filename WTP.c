@@ -72,6 +72,7 @@ CWSecuritySession 	gWTPSession;
  * DTLS Data Session WTP
  */
 CWSecuritySession gWTPSessionData;
+CWSecurityContext gWTPSecurityContextData;
 
 /*
  * Elena Agostini - 02/2014

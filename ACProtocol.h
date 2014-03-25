@@ -141,6 +141,10 @@ CWBool CWAssembleMsgElemACIPv6List(CWProtocolMessage *msgPtr);				// 3
 CWBool CWAssembleMsgElemACName(CWProtocolMessage *msgPtr);				// 4
 CWBool CWAssembleMsgElemAddStation(int radioID,CWProtocolMessage *msgPtr,unsigned char* StationMacAddr);		// 8
 CWBool CWAssembleMsgElemDeleteStation(int radioID,CWProtocolMessage *msgPtr,unsigned char* StationMacAddr);		// 8
+/*
+ * Elena Agostini - 03/2014: Add AC local IPv4 Address Msg. Elem.
+ */
+CWBool CWAssembleMsgElemCWLocalIPv4Addresses(CWProtocolMessage *msgPtr); //4
 CWBool CWAssembleMsgElemCWControlIPv4Addresses(CWProtocolMessage *msgPtr);		//10
 CWBool CWAssembleMsgElemCWControlIPv6Addresses(CWProtocolMessage *msgPtr);		//11
 CWBool CWAssembleMsgElemCWTimer(CWProtocolMessage *msgPtr);				//12

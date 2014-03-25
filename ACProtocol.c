@@ -133,6 +133,46 @@ CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE);
 }
 
+/*
+ * Elena Agostini - 03/2014: Add AC local IPv4 Address Msg. Elem.
+ */
+CWBool CWAssembleMsgElemCWLocalIPv4Addresses(CWProtocolMessage *msgPtr) {
+	int count, i;
+	
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+	count = CWACGetInterfacesCount();
+	
+	if(count <= 0) {
+		return CWErrorRaise(CW_ERROR_NEED_RESOURCE, "No Interfaces Configured");
+	}
+	
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 4, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CWProtocolStore32(msgPtr, CWACGetInterfaceIPv4AddressAtIndex(0));
+	
+	/*
+	for(i = 0; i < count; i++) { // one Message Element for each interface
+		CWProtocolMessage temp;
+		// create message
+		CW_CREATE_PROTOCOL_MESSAGE(temp, 6, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		
+		CWProtocolStore32(&temp, CWACGetInterfaceIPv4AddressAtIndex(i));
+		CWProtocolStore16(&temp, CWACGetInterfaceWTPCountAtIndex(i));
+		
+		CWAssembleMsgElem(&temp, CW_MSG_ELEMENT_CW_CONTROL_IPV4_ADDRESS_CW_TYPE);
+		
+		if(i == 0) {
+			CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, (temp.offset)*count, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		}
+		
+		CWProtocolStoreMessage(msgPtr, &temp);
+		CW_FREE_PROTOCOL_MESSAGE(temp);
+	}
+	*/
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_LOCAL_IPV4_ADDRESS_CW_TYPE);
+}
+
+
 CWBool CWAssembleMsgElemACDescriptor(CWProtocolMessage *msgPtr) {
 	CWACVendorInfos infos;
 	int i=0, size=0;

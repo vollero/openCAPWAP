@@ -403,6 +403,13 @@ CWBool CWParseJoinResponseMessage(char *msg,
 				/* will be handled by the caller */
 				if(!(CWParseACName(&completeMsg, len, &(valuesPtr->ACInfoPtr.name)))) return CW_FALSE;
 				break;
+			case CW_MSG_ELEMENT_LOCAL_IPV4_ADDRESS_CW_TYPE:
+				/*
+				 * Elena Agostini - 03/2014: Add AC local IPv4 Address Msg. Elem.
+				 */
+				//valuesPtr->ACInfoPtr.IPv4AddressesCount++;
+				completeMsg.offset += len;
+				break;
 			case CW_MSG_ELEMENT_CW_CONTROL_IPV4_ADDRESS_CW_TYPE:
 				/* 
 				 * just count how many interfacess we

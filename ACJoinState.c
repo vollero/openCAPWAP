@@ -147,7 +147,7 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 	/* Result code is not included because it's already
 	 * in msgElemList. Control IPv6 to be added.
 	 */
-	const int mandatoryMsgElemCount=5;
+	const int mandatoryMsgElemCount=6;
 	CWProtocolMessage *msgElemsBinding= NULL;
 	const int msgElemBindingCount=0;
 	int i;
@@ -175,7 +175,12 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 	 	 */
 	     (!(CWAssembleMsgElemECNSupport(&(msgElems[++k])))) ||
 
-	   (!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k]))))
+		/*
+		 * Elena Agostini - 03/2014: Add AC local IPv4 Address Msg. Elem.
+		 */
+		(!(CWAssembleMsgElemCWLocalIPv4Addresses(&(msgElems[++k])))) ||
+
+	   (!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k])))) ||
 
 		/*
 		 * Elena Agostini - 02/2014
@@ -183,7 +188,7 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
 		 * Now it does not works: only 5 bytes of 0
 		 */
- 		|| 
+ 		
 	   (!(CWAssembleMsgElemACWTPRadioInformation(&(msgElems[++k]))))
 	) {
 		CWErrorHandleLast();
@@ -326,7 +331,7 @@ CWBool CWParseJoinRequestMessage(char *msg,
 					return CW_FALSE;
 				break;
 				
-			case CW_MSG_ELEMENT_WTP_IPV4_ADDRESS_CW_TYPE:
+			case CW_MSG_ELEMENT_LOCAL_IPV4_ADDRESS_CW_TYPE:
 				if(!(CWParseWTPIPv4Address(&completeMsg, elemLen, valuesPtr)))
 					/* will be handled by the caller */
 					return CW_FALSE;

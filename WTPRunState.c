@@ -268,7 +268,7 @@ CWLog("Prima di CWSecurityInitSessionClient, socket: %d", gWTPDataSocket);
 					      gPacketReceiveDataList,
 					      gWTPSecurityContext,
 					      &gWTPSessionData,
-					      &gWTPPathMTU))) { 
+					      &gWTPPathMTU))) {
 		
 		/* error setting up DTLS session */
 		CWSecurityDestroyContext(gWTPSecurityContext);
@@ -284,8 +284,6 @@ CWLog("Prima di CWSecurityInitSessionClient, socket: %d", gWTPDataSocket);
 	
 	CWLog("Dopo di CWSecurityInitSessionClient");
 
-	
-	
 #endif
 
 CWWTPKeepAliveDataTimerExpiredHandler(NULL);

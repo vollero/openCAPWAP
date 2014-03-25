@@ -337,7 +337,7 @@ CWBool CWAssembleMsgElemWTPIPv4Address(CWProtocolMessage *msgPtr) {
 //	CWDebugLog("WTP IPv4 Address: %d", CWWTPGetIPv4Address());
 	CWProtocolStore32(msgPtr, CWWTPGetIPv4Address());
 
-	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_WTP_IPV4_ADDRESS_CW_TYPE);
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_LOCAL_IPV4_ADDRESS_CW_TYPE);
 }
 
 CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr) {

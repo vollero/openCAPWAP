@@ -115,8 +115,9 @@ extern CWSecuritySession gWTPSession;
  * 
  * DTLS Data Session WTP
  */
+extern CWSecurityContext gWTPSecurityContextData;
 extern CWSecuritySession gWTPSessionData;
- 
+
 extern CWPendingRequestMessage gPendingRequestMsgs[MAX_PENDING_REQUEST_MSGS];
 
 extern CWSafeList gPacketReceiveList;
