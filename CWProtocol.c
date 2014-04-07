@@ -382,7 +382,7 @@ CW_CREATE_PROTOCOL_MESSAGE(*transportHdrPtr,8 , return CWErrorRaise(CW_ERROR_OUT
 		CWSetField32(val,
 		     CW_TRANSPORT_HEADER_WBID_START,
 		     CW_TRANSPORT_HEADER_WBID_LEN,
-		     0); // Wireless Binding ID
+		     1); // Wireless Binding ID
 	
 		CWSetField32(val,
 		     CW_TRANSPORT_HEADER_T_START,
@@ -709,7 +709,7 @@ CWBool CWCompareFragment(void *newFrag, void *oldFrag)
 	return CW_FALSE;
 }
 
-// parse a sigle fragment. If it is the last fragment we need or the only fragment, return the reassembled message in
+// parse a sigle fragment. If it is the last fragment we need or thCWAssembleTransportHeaderKeepAliveDatae only fragment, return the reassembled message in
 // *reassembleMsg. If we need at lest one more fragment, save this fragment in the list. You then call this function again
 // with a new fragment and the same list untill we got all the fragments.
 CWBool CWProtocolParseFragment(char *buf, int readBytes, CWList *fragmentsListPtr, CWProtocolMessage *reassembledMsg, CWBool *dataFlagPtr, char *RadioMAC) {
@@ -866,7 +866,7 @@ CWBool CWParseTransportHeader(CWProtocolMessage *msgPtr, CWProtocolTransportHead
 	int optionalWireless = 0;
 	int version, rid;
 	int m=0;
-	
+	int KeepAliveLenght=0;
 
 	if(msgPtr == NULL || valuesPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
@@ -924,6 +924,11 @@ CWBool CWParseTransportHeader(CWProtocolMessage *msgPtr, CWProtocolTransportHead
 		if (valuesPtr->keepAlive){	// Keep Alive packet
 			CWDebugLog("Keep-Alive packet");
 			msgPtr->data_msgType=CW_DATA_MSG_KEEP_ALIVE_TYPE;
+			/*
+			 * Elena Agostini - 04/2014
+			 * Added Message Length Element
+			 */
+			KeepAliveLenght = CWProtocolRetrieve16(msgPtr);
 		}else if (valuesPtr->type==0){	//IEEE 802.3 frame
 			CWDebugLog("802.3 frame");
 			if (optionalWireless){

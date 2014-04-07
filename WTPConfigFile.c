@@ -36,7 +36,7 @@ const char *CW_CONFIG_FILE = "config.wtp";
 
 CWBool CWConfigFileInitLib() {
 	
-	gConfigValuesCount = 12;
+	gConfigValuesCount = 14;
 
 	CW_CREATE_ARRAY_ERR(gConfigValues, gConfigValuesCount, CWConfigValue, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
@@ -95,6 +95,20 @@ CWBool CWConfigFileInitLib() {
 	gConfigValues[11].type = CW_STRING;
 	gConfigValues[11].code = "</WTP_SECURITY_PASSWORD>";
 	gConfigValues[11].value.str_value = NULL;
+
+
+	/*
+	* Elena Agostini - 02/2014
+	*
+	* Port number params config.wtp
+	*/
+	gConfigValues[12].type = CW_INTEGER;
+	gConfigValues[12].code = "</WTP_PORT_CONTROL>";
+	gConfigValues[12].value.int_value = -1;
+
+	gConfigValues[13].type = CW_INTEGER;
+	gConfigValues[13].code = "</WTP_PORT_DATA>";
+	gConfigValues[13].value.int_value = -1;
 
 	return CW_TRUE;
 }
@@ -193,9 +207,12 @@ CWBool CWConfigFileDestroyLib() {
 	if(gConfigValues[11].value.str_value != NULL) {
 		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[11].value.str_value), indexBlank);
 		CW_CREATE_STRING_FROM_STRING_ERR(gWTPPassword, (gConfigValues[11].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-
 	}
 
+	/* Elena Agostini - 02/2014: Port number params config.wtp */
+	WTP_PORT_CONTROL=gConfigValues[12].value.int_value;
+	WTP_PORT_DATA=gConfigValues[13].value.int_value;
+	
 	for(i = 0; i < gConfigValuesCount; i++) {
 		if(gConfigValues[i].type == CW_STRING) {
 			CW_FREE_OBJECT(gConfigValues[i].value.str_value);

@@ -104,13 +104,24 @@ CWBool CWAssembleDataMessage(CWProtocolMessage **completeMsgPtr, int *fragmentsN
 		}
 				
 		CW_CREATE_OBJECT_ERR(*completeMsgPtr, CWProtocolMessage, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-		CW_CREATE_PROTOCOL_MESSAGE(((*completeMsgPtr)[0]), transportHdr.offset + frame->offset + 2, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		
+		/*
+		 * Elena Agostini - 04/2014
+		 * 
+		 * KeepAlive Packet was malformed without message element length field
+		 */
+		if(keepAlive) {
+			CW_CREATE_PROTOCOL_MESSAGE(((*completeMsgPtr)[0]), transportHdr.offset + frame->offset + 2, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		}
+		else {
+			CW_CREATE_PROTOCOL_MESSAGE(((*completeMsgPtr)[0]), transportHdr.offset + frame->offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		}
+			
 		CWProtocolStoreMessage(&((*completeMsgPtr)[0]), &transportHdr);
-		//Elena
+		
 		if(keepAlive){
-			CWLog("Assegno il message element length");
-			int messageElementLength = 4;
-			CWProtocolStore16(&((*completeMsgPtr)[0]), &messageElementLength);
+			unsigned short int messageElementLength = 22;
+			CWProtocolStore16(&((*completeMsgPtr)[0]), messageElementLength);
 		}
 	
 		CWProtocolStoreMessage(&((*completeMsgPtr)[0]), frame);

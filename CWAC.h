@@ -122,6 +122,12 @@ typedef struct {
 	} subState;		
 	CWSafeList packetReceiveList;
 	
+	/*
+	 * Elena Agostini - 03/2014: DTLS Data Channel
+	 */
+	CWSafeList packetReceiveDataList;
+	CWBool sessionDataActive;
+	
 	/* depends on the current state: WaitJoin, NeighborDead */
 	CWTimerID currentTimer;
 	CWTimerID heartbeatTimer; 
@@ -226,6 +232,10 @@ extern char *gACCertificate;
 extern char *gACKeyfile;
 extern char *gACPassword;
 
+/*
+ * Elena Agostini - 03/2014: DTLS Data Channel
+ */
+extern CWBool ACSessionDataActive;
 
 /*________________________________________________________________*/
 
@@ -259,6 +269,11 @@ CWBool CWSaveChangeStateEventRequestMessage(CWProtocolChangeStateEventRequestVal
 
 
 CW_THREAD_RETURN_TYPE CWACipc_with_ac_hostapd(void *arg);
+
+/*
+ * Elena Agostini - 03/2014: DTLS Data Channel Receive Packet
+ */
+CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg);
 //send_data_to_hostapd(unsigned char *, int);
 /****************************************************************
  * 2009 Updates:												*

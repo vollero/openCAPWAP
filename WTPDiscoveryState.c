@@ -71,7 +71,7 @@ CWBool CWParseDiscoveryResponseMessage(char *msg,
  */
 CWStateTransition CWWTPEnterDiscovery() {
 	int i;
-	CWBool j;	
+	CWBool j;
 
 	CWLog("\n");	
 	CWLog("######### Discovery State #########");
@@ -79,7 +79,9 @@ CWStateTransition CWWTPEnterDiscovery() {
 	/* reset Discovery state */
 	gCWDiscoveryCount = 0;
 	CWNetworkCloseSocket(gWTPSocket);
-	if(!CWErr(CWNetworkInitSocketClient(&gWTPSocket, NULL))) {
+	CWLog("+++++++ WTP_PORT_CONTROL: %d", WTP_PORT_CONTROL);
+	/* Elena Agostini - 04/2014: make control port always the same inside each WTP */
+	if(!CWErr(CWNetworkInitSocketClientWithPort(&gWTPSocket, NULL, WTP_PORT_CONTROL))) {
 		return CW_QUIT;
 	}
 

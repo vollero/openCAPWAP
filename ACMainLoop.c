@@ -54,7 +54,7 @@ void _CWCloseThread(int i);
 void CWResetWTPProtocolManager(CWWTPProtocolManager *WTPProtocolManager);
 __inline__ CWWTPManager *CWWTPByName(const char *addr);
 __inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr,
-					CWSocket sock);
+					CWSocket sock, CWBool dataFlag, char * sessionID);
 
 
 void CWACEnterMainLoop() {
@@ -140,22 +140,77 @@ void CWACManageIncomingPacket(CWSocket sock,
  
 	CWWTPManager *wtpPtr = NULL;
 	char* pData;
+	CWBool dataFlagTmp;
+	CWProtocolMessage msgDataChannel;
+	char *valSessionIDPtr=NULL;
+	int KeepAliveLenght=0, elemType, elemLen;
+
+	/*
+	 * Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs
+	 */
+	if(dataFlag == CW_TRUE)
+	{
+		CWProtocolMessage msg;
+		CWProtocolTransportHeaderValues values;
 		
+		msgDataChannel.msg = buf;
+		msgDataChannel.offset = 0;
+		
+		if(!CWParseTransportHeader(&msgDataChannel, &values, &dataFlag, NULL)){
+			CWDebugLog("CWParseTransportHeader failed");
+			return CW_FALSE;
+		}
+		
+		if(msgDataChannel.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE)
+		{
+			CWParseFormatMsgElem(&msgDataChannel, &elemType, &elemLen);
+			valSessionIDPtr = CWParseSessionID(&msgDataChannel, 16);
+			wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, valSessionIDPtr);
+		}
+		else
+		{
+			wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
+		}
+	}
+	else
+		wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
+	
+
 	/* check if sender address is known */
-	wtpPtr = CWWTPByAddress(addrPtr, sock);
+	
 	if ((wtpPtr != NULL) && dataFlag && (wtpPtr->dataaddress.ss_family == AF_UNSPEC)) {
 		CW_COPY_NET_ADDR_PTR(&(wtpPtr->dataaddress), addrPtr);
 	}
-
+	
 	if(wtpPtr != NULL) {
 		/* known WTP */
 		/* Clone data packet */
 		CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return; });
 		memcpy(pData, buf, readBytes);
-
+		
+		/*
+		 * Elena Agostini - 03/2014
+		 * DTLS Data Packet List
+		 */
+#ifdef CW_DTLS_DATA_CHANNEL
+		if(dataFlag)
+		{
+			CWLockSafeList(wtpPtr->packetReceiveDataList);
+			CWAddElementToSafeListTailwitDataFlag(wtpPtr->packetReceiveDataList, pData, readBytes,dataFlag);
+			CWUnlockSafeList(wtpPtr->packetReceiveDataList);
+		}
+		else
+		{
+			CWLockSafeList(wtpPtr->packetReceiveList);
+			CWAddElementToSafeListTailwitDataFlag(wtpPtr->packetReceiveList, pData, readBytes,dataFlag);
+			CWUnlockSafeList(wtpPtr->packetReceiveList);
+		}
+#else
 		CWLockSafeList(wtpPtr->packetReceiveList);
 		CWAddElementToSafeListTailwitDataFlag(wtpPtr->packetReceiveList, pData, readBytes,dataFlag);
-		CWUnlockSafeList(wtpPtr->packetReceiveList);
+		CWUnlockSafeList(wtpPtr->packetReceiveList);	
+#endif
+		
 	} else { 
 		/* unknown WTP */
 		int seqNum, tmp;
@@ -231,6 +286,8 @@ void CWACManageIncomingPacket(CWSocket sock,
 			gWTPs[i].dataaddress.ss_family = AF_UNSPEC;
 			gWTPs[i].isNotFree = CW_TRUE;
 			gWTPs[i].isRequestClose = CW_FALSE;
+			/* Elena Agostini - 03/2014: DTLS Data Packet List */
+			gWTPs[i].sessionDataActive = CW_FALSE;
 			CWThreadMutexUnlock(&gWTPsMutex);
 
 			/* Capwap receive packets list */
@@ -248,6 +305,22 @@ void CWACManageIncomingPacket(CWSocket sock,
 			CWSetConditionSafeList(gWTPs[i].packetReceiveList,
 					       &gWTPs[i].interfaceWait);
 
+			/*
+			 * Elena Agostini - 03/2014
+			 * DTLS Data Packet List
+			 */
+			#ifdef CW_DTLS_DATA_CHANNEL
+				if (!CWErr(CWCreateSafeList(&gWTPs[i].packetReceiveDataList))) {
+					if(!CWErr(CWThreadMutexLock(&gWTPsMutex))) exit(1);
+					gWTPs[i].isNotFree = CW_FALSE;
+					CWThreadMutexUnlock(&gWTPsMutex);
+					return;
+				}
+			
+				CWSetMutexSafeList(gWTPs[i].packetReceiveDataList, &gWTPs[i].interfaceMutex);
+				CWSetConditionSafeList(gWTPs[i].packetReceiveDataList, &gWTPs[i].interfaceWait);
+			#endif
+			
 			CW_CREATE_OBJECT_ERR(argPtr, CWACThreadArg, { CWLog("Out Of Memory"); return; });
 
 			argPtr->index = i;
@@ -271,7 +344,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 			 * increment WTPCount for that interface instead of 0-indexed one.
 			 */
 			if (argPtr->interfaceIndex < 0) argPtr->interfaceIndex = 0; 
-			
+	
 			/* create the thread that will manage this WTP */
 			if(!CWErr(CWCreateThread(&(gWTPs[i].thread), CWManageWTP, argPtr))) {
 
@@ -286,6 +359,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 				return;
 			}
 	
+	//ELENA - DA LEVARE CON DTLS DATI?
 			/* Clone data packet */
 			CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return; });
 			memcpy(pData, buf, readBytes);
@@ -302,31 +376,52 @@ void CWACManageIncomingPacket(CWSocket sock,
 
 /*
  * Simple job: see if we have a thread that is serving address *addressPtr
+ * 
+ * Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs
  */
-__inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr, CWSocket sock) {
+__inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr, CWSocket sock, CWBool dataFlag, char * sessionID) {
 
 	int i;
 	if(addressPtr == NULL) return NULL;
-	
+	/*
+	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) addressPtr;
+	CWLog("CWWTPManager ADDRESS: %s", inet_ntoa(tmpAdd->sin_addr));
+	CWLog("CWWTPManager Porta handshake: %d", ntohs(tmpAdd->sin_port));
+	*/
 	CWThreadMutexLock(&gWTPsMutex);
 	for(i = 0; i < gMaxWTPs; i++) {
-
 		if(gWTPs[i].isNotFree && 
-		   &(gWTPs[i].address) != NULL &&
-		   !sock_cmp_addr((struct sockaddr*)addressPtr, 
-			   	  (struct sockaddr*)&(gWTPs[i].address), 
-				  sizeof(CWNetworkLev4Address)) )
+		   &(gWTPs[i].address) != NULL 
+		   && 
+		  (
+				(
+					(dataFlag == CW_FALSE) && 
+					(!sock_cmp_addr((struct sockaddr*)addressPtr, (struct sockaddr*)&(gWTPs[i].address),sizeof(CWNetworkLev4Address))) &&
+					(!sock_cmp_port((struct sockaddr*)addressPtr, (struct sockaddr*)&(gWTPs[i].address), sizeof(CWNetworkLev4Address)))
+				)
+				||
+				(
+					(dataFlag == CW_TRUE) && 
+					(sessionID != NULL) &&
+					(strcmp(gWTPs[i].WTPProtocolManager.sessionID, sessionID) == 0)
+				)			
+		  )
+		)
 		{ 
 		
 			/* we treat a WTP that sends packet to a different 
 			 * AC's interface as a new WTP
 			 */
+			
 			CWThreadMutexUnlock(&gWTPsMutex);
+			CWLog("WTP GIA GESTITO dal thread %d ", i);
 			return &(gWTPs[i]);
 		}
 	}
 	
 	CWThreadMutexUnlock(&gWTPsMutex);
+	
+	CWLog("WTP MAI GESTITO");
 	
 	return NULL;
 }
@@ -422,6 +517,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 
 	CWDebugLog("Path MTU for this Session: %d",  gWTPs[i].pathMTU);
 	
+	
 	CW_REPEAT_FOREVER {
 		int readBytes;
 		CWProtocolMessage msg;
@@ -477,7 +573,6 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
 
 			if (bCrypt) {
-
 			  if(!CWErr(CWSecurityReceive(gWTPs[i].session,
 										  gWTPs[i].buf,
 										  CW_BUFFER_SIZE - 1,
@@ -498,7 +593,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			  memcpy(gWTPs[i].buf, pBuffer, readBytes);
 			  CW_FREE_OBJECT(pBuffer);
 			}
-
+			
 			if(!CWProtocolParseFragment(gWTPs[i].buf,
 						    readBytes,
 						    &(gWTPs[i].fragmentsList),
@@ -540,6 +635,8 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							CWCloseThread();
 						}
 					}
+					
+					CWLog("========== Dopo JOIN, sessionID: %u", gWTPs[i].WTPProtocolManager.sessionID);
 					break;
 				}
 				case CW_ENTER_CONFIGURE:
@@ -581,43 +678,28 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 						}
 					}
 					
-					CWLog("++++++++++++++++++++++ Eseguito DataCheck\n");
 					/*
 					 * Elena Agostini - 03/2014
 					 * 
 					 * DTLS Data Session AC
 					 */
 					#ifdef CW_DTLS_DATA_CHANNEL
-						CWLog("Init DTLS Session Data");
-						int dataSocket=0;
-						int indexLocal=0;
-						CWNetworkLev4Address address;
-						for(indexLocal = 0; indexLocal < gACSocket.count; indexLocal++) {
-							if (gACSocket.interfaces[indexLocal].sock == gWTPs[i].socket){
-							dataSocket = gACSocket.interfaces[indexLocal].dataSock;
-							CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[i].dataaddress));
-							break;
-							}
-						}
-
-						if (dataSocket == 0){
-							  CWLog("data socket of WTP isn't ready.");
-							 /* critical error, close session */
-							CWErrorHandleLast();
-							CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
-							CWCloseThread();
-						}
+						CWACThreadArg *argPtrDataThread;
+						CW_CREATE_OBJECT_ERR(argPtrDataThread, CWACThreadArg, { CWLog("Out Of Memory"); return; });
+						argPtrDataThread->index = i;
+						argPtrDataThread->sock = sock;
+						argPtrDataThread->interfaceIndex = 0;
 						
-						if(!CWErr(CWSecurityInitSessionServer(&gWTPs[i],
-											  dataSocket,
-											  gACSecurityContext,
-											  &((gWTPs[i]).sessionData),
-											  &(gWTPs[i].pathMTU)))) {
-							
-							CWErrorHandleLast();
-							CWTimerCancel(&(gWTPs[i].currentTimer));
-							CWCloseThread();
+						CWThreadMutexLock(&gWTPs[i].interfaceMutex);
+						gWTPs[i].sessionDataActive=CW_TRUE;
+						CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
+						
+						CWThread thread_receiveDataChannel;
+						if(!CWErr(CWCreateThread(&thread_receiveDataChannel, CWACReceiveDataChannel, argPtrDataThread))) {
+							CWLog("Error starting Thread that receive data channel");
+							exit(1);
 						}
+										
 					#endif
 					break;
 				}	

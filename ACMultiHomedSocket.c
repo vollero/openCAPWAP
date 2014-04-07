@@ -678,7 +678,8 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				for(k = 0; k < sockPtr->count; k++) {
 				      if (sockPtr->interfaces[k].sock == gWTPs[i].socket){
 					  dataSocket = sockPtr->interfaces[k].dataSock;
-					  CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[i].dataaddress));
+					  //Elena
+					  CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[i].dataaddress));
 					  break;
 				      }
 				}
@@ -713,8 +714,9 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 	}
 
-	for(i = 0; i < sockPtr->count; i++) {
+struct sockaddr_in *tmpAdd;
 
+	for(i = 0; i < sockPtr->count; i++) {
 		if(FD_ISSET(sockPtr->interfaces[i].sock, &fset)) {
 			int readBytes;
 
@@ -732,7 +734,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				sleep(1);
 				continue;
 			}
-			
+		
 			CWManageIncomingPacket(sockPtr->interfaces[i].sock, 
 					       buf, 
 					       readBytes,
@@ -744,7 +746,6 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		if(FD_ISSET(sockPtr->interfaces[i].dataSock, &fset)) {						//Todd: Bridge 802.3 packets of WTPs into AC
 			int readBytes;
 
-	
 			CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
 			
 			/* message */
@@ -753,7 +754,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				sleep(1);
 				continue;
 			}
-
+			
 			CWManageIncomingPacket(sockPtr->interfaces[i].dataSock, 
 					       buf, 
 					       readBytes,

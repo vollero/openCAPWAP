@@ -136,9 +136,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	CWNetworkLev4Address	addr;
 	char* 			pData;
 
-//elena
-CWLog("+++++ AVVIATO thread CWWTPReceiveDtlsPacket");
-
 	CW_REPEAT_FOREVER 
 	{
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
@@ -193,19 +190,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	CWProtocolMessage 	msgPtr;
 	CWBool 			dataFlag = CW_TRUE;
 	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
-	
 	char* 			pData;
 	
-    memset(&rawSockaddr, 0, sizeof(rawSockaddr));
-	
-	rawSockaddr.sll_family		= AF_PACKET;
-	rawSockaddr.sll_protocol	= htons(ETH_P_ALL);
-	rawSockaddr.sll_ifindex		= if_nametoindex(gRadioInterfaceName_0);
-	rawSockaddr.sll_pkttype		= PACKET_OTHERHOST;
-	rawSockaddr.sll_halen		= ETH_ALEN;	
-	
-CWLog("++++ PARTITO thread thread_receiveDataFrame");
-
 	CW_REPEAT_FOREVER 
 	{
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
@@ -224,10 +210,10 @@ CWLog("++++ PARTITO thread thread_receiveDataFrame");
 		/* Clone data packet */
 		CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return NULL; });
 		memcpy(pData, buf, readBytes);
-
-		CWLockSafeList(gPacketReceiveList);
+		//CWLog("pData: %s, readBytes: %d", pData, readBytes);
+		CWLockSafeList(gPacketReceiveDataList);
 		CWAddElementToSafeListTailwitDataFlag(gPacketReceiveDataList, pData, readBytes,CW_TRUE);
-		CWUnlockSafeList(gPacketReceiveList);
+		CWUnlockSafeList(gPacketReceiveDataList);
 	}
 	
 	return NULL;
@@ -248,10 +234,9 @@ CWLog("++++ PARTITO thread thread_receiveDataFrame");
 	CWList 			fragments = NULL;
 	CWProtocolMessage 	msgPtr;
 	CWBool 			dataFlag = CW_TRUE;
-	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;	
+	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
+	CWBool			gWTPExitRunEchoLocal = CW_FALSE;
 	int k, msg_len;
-	
-CWLog("++++ PARTITO thread CWWTPManageDataPacket");
 
 /*
  * Elena Agostini - 03/2014
@@ -262,9 +247,14 @@ CWLog("++++ PARTITO thread CWWTPManageDataPacket");
 #ifdef CW_DTLS_DATA_CHANNEL
 
 CWLog("Prima di CWSecurityInitSessionClient, socket: %d", gWTPDataSocket);
-
+struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);
+tmpAdd->sin_port = htons(5247);
+CWLog("Porta handshake: %d", ntohs(tmpAdd->sin_port));
+CWLog("ADDRESS: %s", inet_ntoa(tmpAdd->sin_addr));
+CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
+	
 	if(!CWErr(CWSecurityInitSessionClient(gWTPDataSocket,
-					      &(gACInfoPtr->preferredAddress),
+					      gACAddressDataChannel,
 					      gPacketReceiveDataList,
 					      gWTPSecurityContext,
 					      &gWTPSessionData,
@@ -282,24 +272,23 @@ CWLog("Prima di CWSecurityInitSessionClient, socket: %d", gWTPDataSocket);
 		return NULL;
 	}
 	
-	CWLog("Dopo di CWSecurityInitSessionClient");
-
 #endif
 
-CWWTPKeepAliveDataTimerExpiredHandler(NULL);
+	CWWTPKeepAliveDataTimerExpiredHandler(NULL);
 
 	CW_REPEAT_FOREVER
 	{
 		/*
-		 * Elena Agostini - 03/2014
-		 * 
-		 * Flag DataChannel Dead
+		 * Flag DataChannel & ControlChannel Dead
 		 */
+		 
 		CWThreadMutexLock(&gInterfaceMutex);
 		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
+		gWTPExitRunEchoLocal=gWTPExitRunEcho;
 		CWThreadMutexUnlock(&gInterfaceMutex);
-		if(gWTPDataChannelLocalFlag == CW_TRUE)
-			break;
+		
+		if(gWTPDataChannelLocalFlag == CW_TRUE) break;
+		if(gWTPExitRunEchoLocal == CW_TRUE) return;
 	
 		msgPtr.msg = NULL;
 		msgPtr.offset = 0;
@@ -309,27 +298,26 @@ CWWTPKeepAliveDataTimerExpiredHandler(NULL);
 		 * 
 		 * DTLS Data Session WTP
 		 */
-		 
 		if(!CWReceiveDataMessage(&msgPtr))
 		{
 			CW_FREE_PROTOCOL_MESSAGE(msgPtr);
 			CWDebugLog("Failure Receiving DTLS Data Channel");
 			break;		
 		}
-		
+				
 		if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
 
 				char *valPtr=NULL;
 				unsigned short int elemType = 0;
 				unsigned short int elemLen = 0;
 
-				CWLog("***** KeepAlive len:%d from AC",msgPtr.offset);
-				msgPtr.offset=0;				
+				CWLog("+++++++++ KeepAlive from AC +++++++++ [%d byte]",msgPtr.offset);
+				msgPtr.offset=0;	
 				CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
-				valPtr = CWParseSessionID(&msgPtr, elemLen);
+				valPtr = CWParseSessionID(&msgPtr, 16);
+				
 				/*
 				 * Elena Agostini - 03/2014
-				 * 
 				 * Reset DataChannel Dead Timer
 				 */
 				if (!CWResetDataChannelDeadTimer()) {
@@ -420,7 +408,6 @@ CWStateTransition CWWTPEnterRun() {
 	CWLog("\n");
 	CWLog("######### WTP enters in RUN State #########");
 	
-	CWLog("+++++ START THREAD thread_manageDataPacket");
 	CWThread thread_manageDataPacket;
 	if(!CWErr(CWCreateThread(&thread_manageDataPacket, 
 				 CWWTPManageDataPacket,
@@ -436,13 +423,10 @@ CWStateTransition CWWTPEnterRun() {
 		return CW_ENTER_RESET;
 	}
 	
-
 	for (k = 0; k < MAX_PENDING_REQUEST_MSGS; k++)
 		CWResetPendingMsgBox(gPendingRequestMsgs + k);
 
-
 	if (!CWErr(CWStartEchoRequestTimer())) {
-
 		return CW_ENTER_RESET;
 	}
 
@@ -454,13 +438,29 @@ CWStateTransition CWWTPEnterRun() {
 		CWBool bReceivePacket = CW_FALSE;
 		CWBool bReveiveBinding = CW_FALSE;
 		CWBool gWTPDataChannelLocalFlag = CW_FALSE;
+		CWBool gWTPExitRunEchoLocal = CW_FALSE;
+		
 		/*
 		 * Elena Agostini - 03/2014
 		 * 
 		 * If gWTPExitRunEcho == CW_TRUE, no Echo Response has been received
 		 * so we consider peer dead and WTP goes in RESET
+		 * 
+		 * If gWTPDataChannelDeadFlag == CW_TRUE DataChannel is Dead
 		 */
-		if(gWTPExitRunEcho == CW_TRUE)
+		 
+		CWThreadMutexLock(&gInterfaceMutex);
+		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
+		gWTPExitRunEchoLocal=gWTPExitRunEcho;
+		CWThreadMutexUnlock(&gInterfaceMutex);
+		
+		if(gWTPDataChannelLocalFlag == CW_TRUE)
+		{
+			CWLog("*** Data Channel is dead... restart Discovery State\n");
+			break;
+		}
+		
+		if(gWTPExitRunEchoLocal == CW_TRUE)
 		{
 			CWLog("*** Max Num Retransmit Echo Request reached. We consider peer dead..\n");
 			break;
@@ -469,24 +469,17 @@ CWStateTransition CWWTPEnterRun() {
 		/* Wait packet */
 		timenow.tv_sec = time(0) + CW_NEIGHBORDEAD_RESTART_DISCOVERY_DELTA_DEFAULT;	 /* greater than NeighborDeadInterval */
 		timenow.tv_nsec = 0;
-				
-		CWThreadMutexLock(&gInterfaceMutex);
-		
-		/*
-		 * Elena Agostini - 03/2014
-		 * 
-		 * Flag DataChannel Dead
-		 */
-		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
 		
 		/*
 		 * if there are no frames from stations
 		 * and no packets from AC...
 		 */
+		 
+		CWThreadMutexLock(&gInterfaceMutex);
+		/*
 		if ((CWGetCountElementFromSafeList(gPacketReceiveList) == 0) && (CWGetCountElementFromSafeList(gFrameList) == 0)) {
-			/*
-			 * ...wait at most 4 mins for a frame or packet.
-			 */
+			//...wait at most 4 mins for a frame or packet.
+			 
 			if (!CWErr(CWWaitThreadConditionTimeout(&gInterfaceWait, &gInterfaceMutex, &timenow))) {
 
 				CWThreadMutexUnlock(&gInterfaceMutex);
@@ -498,13 +491,7 @@ CWStateTransition CWWTPEnterRun() {
 				}
 				continue;
 			}
-		}
-		
-		if(gWTPDataChannelLocalFlag == CW_TRUE)
-		{
-			CWLog("*** Data Channel is dead... restart Discovery State\n");
-			break;
-		}
+		}*/
 		
 		bReceivePacket = ((CWGetCountElementFromSafeList(gPacketReceiveList) != 0) ? CW_TRUE : CW_FALSE);
 		bReveiveBinding = ((CWGetCountElementFromSafeList(gFrameList) != 0) ? CW_TRUE : CW_FALSE);
@@ -548,9 +535,10 @@ CWStateTransition CWWTPEnterRun() {
 
 	wtpInRunState=0;
 	CWStopEchoRequestsTimer();
+	gWTPEchoRetransmissionCount=gWTPMaxRetransmitEcho;
 	CWStopKeepAliveTimer();
 	CWStopDataChannelDeadTimer();
-	//CWStopHeartbeatTimer();
+//	CWStopHeartbeatTimer();
 
 	return CW_ENTER_RESET;
 }
@@ -918,13 +906,28 @@ void CWWTPEchoRequestTimerExpiredHandler(void *arg) {
 	CWProtocolMessage *messages = NULL;
 	int fragmentsNum = 0;
 	int seqNum;
-
+	CWBool gWTPDataChannelDeadFlagLocal = CW_FALSE;
+	
+	/*
+	 * Check retransmission ECHO condition
+	 */
 	if(gWTPEchoRetransmissionCount >= gWTPMaxRetransmitEcho)
 	{
+		CWThreadMutexLock(&gInterfaceMutex);
 		gWTPExitRunEcho=CW_TRUE;
+		CWThreadMutexUnlock(&gInterfaceMutex);
+		CWLog("Massimo numero di Echo Raggiunto");
 		return;
 	}
-
+	
+	/*
+	 * Check Data Channel condition
+	 */
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPDataChannelDeadFlagLocal=gWTPDataChannelDeadFlag;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	if(gWTPDataChannelDeadFlagLocal == CW_TRUE) return;
+	
 	CWLog("WTP HeartBeat Timer Expired... we send an ECHO Request");
 	CWLog("\n");
 	CWLog("#________ Echo Request Message [%d] (Run) ________#", gWTPEchoRetransmissionCount);
@@ -972,25 +975,38 @@ void CWWTPEchoRequestTimerExpiredHandler(void *arg) {
 		CW_FREE_PROTOCOL_MESSAGE(messages[k]);
 	}	
 	CW_FREE_OBJECT(messages);
-
+	
 	if(!CWStartEchoRequestTimer()) {
 		return;
 	}
-	
 }
 
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DataChannel KeepAlive Timer
+ */	 
 void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 
 	CWProtocolMessage *messages = NULL;
 	CWProtocolMessage sessionIDmsgElem;
 	int fragmentsNum = 0;
-
+	CWBool gWTPDataChannelDeadFlagLocal=CW_FALSE;
+	CWBool gWTPExitRunEchoLocal=CW_FALSE;
+	
 	/*
-	 * Elena Agostini - 03/2014
-	 * 
-	 * DataChannel Dead Timer
+	 * Check Data Channel Condition && Control Channel Condition
 	 */
-	 
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPDataChannelDeadFlagLocal=gWTPDataChannelDeadFlag;
+	gWTPExitRunEchoLocal=gWTPExitRunEcho;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	if(gWTPDataChannelDeadFlagLocal == CW_TRUE) return;
+	if(gWTPExitRunEchoLocal == CW_TRUE) return;
+	
+	/*
+	 * If not, set Dead Timer 
+	 */
 	if(!gDataChannelDeadTimerSet) {
 
 		if (!CWStartDataChannelDeadTimer()) {
@@ -998,9 +1014,6 @@ void CWWTPKeepAliveDataTimerExpiredHandler(void *arg) {
 			return;
 		}
 	}
-			/*
-			 * Elena Agostini - 03/2014
-			 */
 	
 	CWAssembleMsgElemSessionID(&sessionIDmsgElem, &gWTPSessionID[0]);
 	sessionIDmsgElem.data_msgType = CW_DATA_MSG_KEEP_ALIVE_TYPE;
@@ -1158,12 +1171,12 @@ CWBool CWStopHeartbeatTimer(){
  */
 CWBool CWStartEchoRequestTimer() {
 	
-	gCWHeartBeatTimerID = timer_add(gEchoInterval,
+	gCWEchoRequestTimerID = timer_add(gEchoInterval,
 					0,
 					&CWWTPEchoRequestTimerExpiredHandler,
 					NULL);
 	
-	if (gCWHeartBeatTimerID == -1)	return CW_FALSE;
+	if (gCWEchoRequestTimerID == -1)	return CW_FALSE;
 
 	CWDebugLog("Echo Request Timer Started");
 
@@ -1173,18 +1186,18 @@ CWBool CWStartEchoRequestTimer() {
 
 CWBool CWStopEchoRequestsTimer(){
 	
- 	timer_rem(gCWHeartBeatTimerID, NULL);
+ 	timer_rem(gCWEchoRequestTimerID, NULL);
 	CWDebugLog("Echo Heartbeat Timer Stopped");
 	return CW_TRUE;
 }
 
 CWBool CWResetEchoRequestRetransmit() {
 	/*
-	 * Elena Agostini - 03/2014
-	 * 
 	 * If Echo Response received, Echo Retransmission Count = 0
 	 */
+	if(!CWStopEchoRequestsTimer()) return CW_FALSE;
 	gWTPEchoRetransmissionCount=0;
+	if(!CWStartEchoRequestTimer()) return CW_FALSE;
 
 	return CW_TRUE;
 }

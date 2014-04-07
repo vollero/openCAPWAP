@@ -102,6 +102,13 @@ CWSafeList 		gPacketReceiveList;
  */
 CWSafeList gPacketReceiveDataList;
 
+/*
+ * Elena Agostini - 02/2014
+ * Port number params config.wtp
+ */
+int WTP_PORT_CONTROL;
+int WTP_PORT_DATA;
+
 /* used to synchronize access to the lists */
 CWThreadCondition    gInterfaceWait;
 CWThreadMutex 		gInterfaceMutex;
@@ -190,7 +197,8 @@ CWBool CWReceiveMessage(CWProtocolMessage *msgPtr) {
 
 /*
  * Elena Agostini - 03/2014
- * DTLS Data Session WTP
+ * 
+ * PacketDataList + DTLS Data Session WTP
  */
 
 CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
@@ -198,17 +206,25 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 	int readBytes;
 	char buf[CW_BUFFER_SIZE];
 	CWBool dataFlag = CW_TRUE;
-	CWNetworkLev4Address	addr;
 	
 	CW_REPEAT_FOREVER {
 		CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
 		
 #ifdef CW_DTLS_DATA_CHANNEL
-	
 	if(!CWSecurityReceive(gWTPSessionData, buf, CW_BUFFER_SIZE, &readBytes)) {return CW_FALSE;}
-
 #else
+		char *pkt_buffer = NULL;
+		CWLockSafeList(gPacketReceiveDataList);
+		while (CWGetCountElementFromSafeList(gPacketReceiveDataList) == 0)
+			CWWaitElementFromSafeList(gPacketReceiveDataList);
 
+		pkt_buffer = (char*)CWRemoveHeadElementFromSafeListwithDataFlag(gPacketReceiveDataList, &readBytes,&dataFlag);
+
+		CWUnlockSafeList(gPacketReceiveDataList);
+
+		CW_COPY_MEMORY(buf, pkt_buffer, readBytes);
+		CW_FREE_OBJECT(pkt_buffer);
+	/*	
 	if(!CWErr(CWNetworkReceiveUnsafe(gWTPDataSocket,
 						buf, 
 						CW_BUFFER_SIZE - 1,
@@ -221,6 +237,7 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 			
 			break;
 	}
+	*/
 	
 #endif
 
@@ -619,6 +636,13 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	}
 
+	/* Capwap receive packets list */
+	if (!CWErr(CWCreateSafeList(&gPacketReceiveDataList)))
+	{
+		CWLog("Can't start WTP");
+		exit(1);
+	}
+	
 	/* Capwap receive frame list */
 	if (!CWErr(CWCreateSafeList(&gFrameList)))
 	{
@@ -725,6 +749,7 @@ int main (int argc, const char * argv[]) {
 				 * 
 				 * Flag DataChannel Dead - From RUN STATE
 				 */
+				CWLog("------ Enter Reset State ------");
 				CWThreadMutexLock(&gInterfaceMutex);
 				gWTPDataChannelDeadFlag = CW_FALSE;
 				CWThreadMutexUnlock(&gInterfaceMutex);
@@ -738,6 +763,7 @@ int main (int argc, const char * argv[]) {
 				 * gWTPSession = NULL;
 				 */
 				nextState = CW_ENTER_DISCOVERY;
+				CWLog("----------CW_ENTER_DISCOVERY");
 				break;
 			case CW_QUIT:
 				CWWTPDestroy();
@@ -813,8 +839,8 @@ CWBool CWWTPInitConfiguration() {
 	int i;
 
 	//Generate 128-bit Session ID,
-	initWTPSessionID(&gWTPSessionID[0]);
-
+	initWTPSessionID(gWTPSessionID);
+	
 	CWWTPResetRebootStatistics(&gWTPRebootStatistics);
 
 	gRadiosInfo.radioCount = CWWTPGetMaxRadios();

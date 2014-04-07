@@ -162,6 +162,7 @@ CWBool CWNetworkInitSocketClient(CWSocket *sockPtr, CWNetworkLev4Address *addrPt
 #else
 	sockaddr.sin_family = AF_INET;
 #endif
+
 	if (bind(*sockPtr, (const struct sockaddr *)&sockaddr, addrlen) < 0) { 
 		close(*sockPtr);
 		CWDebugLog("failed to bind Client socket in <%s> line:%d.\n", __func__,__LINE__);
@@ -223,6 +224,12 @@ CWBool CWNetworkInitSocketClientDataChannel(CWSocket *sockPtr, CWNetworkLev4Addr
 #else
 	sockaddr.sin_family == AF_INET;
 #endif
+
+	/*
+	 * Elena Agostini - 04/2014
+	 */
+	//sockaddr.sin_port = WTP_PORT_DATA;
+
 	if (bind(*sockPtr, (const struct sockaddr *)&sockaddr, addrlen) < 0) {
 		close(*sockPtr);
 		CWDebugLog("failed to bind Client socket in <%s> line:%d.\n", __func__,__LINE__);
@@ -252,6 +259,132 @@ CWBool CWNetworkInitSocketClientDataChannel(CWSocket *sockPtr, CWNetworkLev4Addr
 	}
 
 	
+	return CW_TRUE;
+}
+
+/*
+ * Elena Agostini - 04/2014: specify port number to bind socket
+ */
+CWBool CWNetworkInitSocketClientWithPort(CWSocket *sockPtr, CWNetworkLev4Address *addrPtr, int portSocket) {
+	int yes = 1;
+#ifdef IPv6
+	struct sockaddr_in6 sockaddr;
+#else
+	struct sockaddr_in sockaddr;
+#endif
+	socklen_t addrlen = sizeof(sockaddr); 
+	
+	/* NULL addrPtr means that we don't want to connect to a 
+	 * specific address
+	 */
+	if(sockPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+#ifdef IPv6
+	if(((*sockPtr)=socket((gNetworkPreferredFamily == CW_IPv4) ? AF_INET : AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+#else
+	if(((*sockPtr)=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+#endif
+		CWNetworkRaiseSystemError(CW_ERROR_CREATING);
+	}
+
+	memset(&sockaddr, 0, addrlen);
+#ifdef IPv6
+	sockaddr.sin6_family = (gNetworkPreferredFamily == CW_IPv4) ? AF_INET : AF_INET6;
+#else
+	sockaddr.sin_family = AF_INET;
+#endif
+
+	/* Elena Agostini - 04/2014 */
+	sockaddr.sin_port = ntohs(portSocket);
+	if (bind(*sockPtr, (const struct sockaddr *)&sockaddr, addrlen) < 0) { 
+		close(*sockPtr);
+		CWDebugLog("failed to bind Client socket in <%s> line:%d.\n", __func__,__LINE__);
+		return CW_FALSE;
+	}
+
+	if (getsockname(*sockPtr, (struct sockaddr *)&sockaddr, &addrlen) < 0)
+		CWNetworkRaiseSystemError(CW_ERROR_GENERAL);
+
+#ifdef IPv6
+	CWLog("Created Client socket on %s UDP port %d\n", sockaddr.sin6_family == AF_INET6 ? "IPv6" : "IPv4", sockaddr.sin6_port);
+#else
+	CWLog("Created Client socket on IPv4 UDP port %d\n", sockaddr.sin_port);
+#endif
+
+	/* NULL addrPtr means that we don't want to connect to a
+	 * specific address */ 
+	if(addrPtr != NULL) {
+		CWUseSockNtop(((struct sockaddr*)addrPtr), CWDebugLog(str););
+
+		if(connect((*sockPtr), ((struct sockaddr*)addrPtr), CWNetworkGetAddressSize(addrPtr)) < 0) {
+
+			CWNetworkRaiseSystemError(CW_ERROR_CREATING);
+		}
+	}
+	/* allow sending broadcast packets */
+	setsockopt(*sockPtr, SOL_SOCKET, SO_BROADCAST, &yes, sizeof(yes));
+	
+	return CW_TRUE;
+}
+
+CWBool CWNetworkInitSocketClientDataChannelWithPort(CWSocket *sockPtr, CWNetworkLev4Address *addrPtr, int portSocket) {
+	
+	int yes = 1;
+#ifdef IPv6
+	struct sockaddr_in6 sockaddr;
+#else
+	struct sockaddr_in sockaddr;
+#endif
+	socklen_t addrlen = sizeof(sockaddr); 
+	CWNetworkLev4Address addrPtrDataChannel;
+
+	if(sockPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+#ifdef IPv6
+	if(((*sockPtr)=socket((gNetworkPreferredFamily == CW_IPv4) ? AF_INET : AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+#else
+	if(((*sockPtr)=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+#endif
+		CWNetworkRaiseSystemError(CW_ERROR_CREATING);
+	}
+
+	memset(&sockaddr, 0, addrlen);
+#ifdef IPv6
+	sockaddr.sin6_family = (gNetworkPreferredFamily == CW_IPv4) ? AF_INET : AF_INET6;
+#else
+	sockaddr.sin_family == AF_INET;
+#endif
+
+	/* Elena Agostini - 04/2014 */
+	sockaddr.sin_port = ntohs(portSocket);
+	if (bind(*sockPtr, (const struct sockaddr *)&sockaddr, addrlen) < 0) {
+		close(*sockPtr);
+		CWDebugLog("failed to bind Client socket in <%s> line:%d.\n", __func__,__LINE__);
+		return CW_FALSE;
+	}
+	
+	if (getsockname(*sockPtr, (struct sockaddr *)&sockaddr, &addrlen) < 0)
+		CWNetworkRaiseSystemError(CW_ERROR_GENERAL);
+ 
+#ifdef IPv6
+	CWLog("Created Client socket on %s UDP data port %d\n", sockaddr.sin6_family == AF_INET6 ? "IPv6" : "IPv4", sockaddr.sin6_port);
+#else
+	CWLog("Created Client socket on IPv4 UDP data port %d\n", sockaddr.sin_port);
+#endif
+
+	/* NULL addrPtr means that we don't want to connect to a
+	 * specific address */ 
+	if(addrPtr != NULL) {
+		CW_COPY_NET_ADDR_PTR(&addrPtrDataChannel,addrPtr);
+		sock_set_port_cw((struct sockaddr*)&addrPtrDataChannel, htons(CW_DATA_PORT));
+		CWUseSockNtop((struct sockaddr*)&addrPtrDataChannel, CWDebugLog(str););
+
+		if(connect((*sockPtr), (struct sockaddr*)&addrPtrDataChannel, CWNetworkGetAddressSize(&addrPtrDataChannel)) < 0) {
+
+			CWNetworkRaiseSystemError(CW_ERROR_CREATING);
+		}
+	}
+
 	return CW_TRUE;
 }
 

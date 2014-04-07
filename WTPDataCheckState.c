@@ -57,9 +57,9 @@ CWStateTransition CWWTPEnterDataCheck() {
 	/* Send Change State Event Request */
 	seqNum = CWGetSeqNum();
 	
-	if(!CWErr(CWStartHeartbeatTimer())) {
+	/*if(!CWErr(CWStartHeartbeatTimer())) {
 		return CW_ENTER_RESET;
-	}
+	}*/
 		if(!CWErr(CWWTPSendAcknowledgedPacket(seqNum, 
 					      NULL,
 					      CWAssembleChangeStateEventRequest,
@@ -69,12 +69,12 @@ CWStateTransition CWWTPEnterDataCheck() {
 		return CW_ENTER_RESET;
 	}
 
-	if(!CWErr(CWStopHeartbeatTimer())) {
+/*	if(!CWErr(CWStopHeartbeatTimer())) {
 
 		return CW_ENTER_RESET;
 	}
-	//elena
-	CWLog("+++++++ DataCheck: return CW_ENTER_RUN");
+	*/
+	
 	return CW_ENTER_RUN;
 }
 

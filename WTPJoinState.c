@@ -106,21 +106,21 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 		gACInfoPtr->security = gWTPForceSecurity;
 	}
 	
-	/* Init DTLS session */
-	if(!CWErr(CWNetworkInitSocketClient(&gWTPSocket,
-					    &(gACInfoPtr->preferredAddress))) ) {
-		
+	/* Elena Agostini - 04/2014: make control port always the same inside each WTP */
+	if(!CWErr(CWNetworkInitSocketClientWithPort(&gWTPSocket, &(gACInfoPtr->preferredAddress), WTP_PORT_CONTROL))) {
 		timer_rem(waitJoinTimer, NULL);
 		return CW_ENTER_DISCOVERY;
 	}
-	if(!CWErr(CWNetworkInitSocketClientDataChannel(&gWTPDataSocket, &(gACInfoPtr->preferredAddress))) ) {
+	
+	/* Elena Agostini - 04/2014: make data port always the same inside each WTP */
+	if(!CWErr(CWNetworkInitSocketClientDataChannelWithPort(&gWTPDataSocket, &(gACInfoPtr->preferredAddress), WTP_PORT_DATA)) ) {
 		return CW_ENTER_DISCOVERY;
 	}
 	
-	
 	CWLog("Initiate Data Channel");
-	CWLog("+++++++++++++++++++++ gWTPSocket:%d, gWTPDataSocket:%d", gWTPSocket,gWTPDataSocket);
+	//CWLog("+++++++++++++++++++++ gWTPSocket:%d, gWTPDataSocket:%d", gWTPSocket,gWTPDataSocket);
 
+	/* Init DTLS session */
 
 #ifndef CW_NO_DTLS
 	if(gACInfoPtr->security == CW_X509_CERTIFICATE) {
@@ -157,9 +157,6 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 	}
 #endif
 
-//elena
-CWLog("++++ creo thread thread_receiveFrame");
-
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, 
 				 CWWTPReceiveDtlsPacket,
@@ -176,8 +173,6 @@ CWLog("++++ creo thread thread_receiveFrame");
 		return CW_ENTER_DISCOVERY;
 	}
 
-//elena
-CWLog("++++ creo thread thread_receiveDataFrame");
 	CWThread thread_receiveDataFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveDataFrame, 
 				 CWWTPReceiveDataPacket,
@@ -270,9 +265,7 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 					 msgElemCount,
 					 return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
 		
-	CWLog("Sending Join Request...");
-	
-	/* Assemble Message Elements */
+		/* Assemble Message Elements */
 	if ( 
 	     (!(CWAssembleMsgElemLocationData(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPBoardData(&(msgElems[++k])))) ||

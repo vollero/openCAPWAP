@@ -431,12 +431,13 @@ int initWTPSessionID(char * sessionID)
 	CW_COPY_MEMORY(&(sessionID[MAC_ADDR_LEN]), macAddr1, MAC_ADDR_LEN);
 	CW_COPY_MEMORY(&(sessionID[MAC_ADDR_LEN+MAC_ADDR_LEN]),&(randomInteger), 4);
 
+	CWLog("################################ SESSION ID: ");
 	for (i=0;i<16;i++)
 	{
-		if (i%16==0) printf("\n%04x:   ", i);
-		printf("%02x:", buffer[i]);
+		if (i%16==0) CWLog("\n%04x:   ", i);
+		CWLog("%02x:", sessionID[i]);
 	}
-	printf("\n");	
+	CWLog("\n");
 
 	return 0;
 }

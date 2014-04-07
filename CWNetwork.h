@@ -77,6 +77,13 @@ CWBool CWNetworkReceiveUnsafe(CWSocket sock, char *buf, int len, int flags, CWNe
 CWBool CWNetworkReceiveUnsafeConnected(CWSocket sock, char *buf, int len, int *readBytesPtr);
 CWBool CWNetworkInitSocketClient(CWSocket *sockPtr, CWNetworkLev4Address *addrPtr);
 CWBool CWNetworkInitSocketClientDataChannel(CWSocket *sockPtr, CWNetworkLev4Address *addrPtr);
+
+/*
+ * Elena Agostini - 04/2014: specify port number to bind socket
+ */
+CWBool CWNetworkInitSocketClientWithPort(CWSocket *sockPtr, CWNetworkLev4Address *addrPtr, int portSocket);
+CWBool CWNetworkInitSocketClientDataChannelWithPort(CWSocket *sockPtr, CWNetworkLev4Address *addrPtr, int portSocket);
+
 CWBool CWNetworkTimedPollRead(CWSocket sock, struct timeval *timeout);
 CWBool CWNetworkGetAddressForHost(char *host, CWNetworkLev4Address *addrPtr);
 

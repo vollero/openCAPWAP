@@ -135,6 +135,14 @@ extern char *gWTPCertificate;
 extern char *gWTPKeyfile;
 extern char *gWTPPassword;
 
+/*
+ * Elena Agostini - 02/2014
+ * Port number params config.wtp
+ */
+extern int WTP_PORT_CONTROL;
+extern int WTP_PORT_DATA;
+
+
 /*__________________________________________________________*/
 /*  *******************___PROTOTYPES___*******************  */
 

@@ -86,6 +86,11 @@ char *gACPassword=NULL;
  */
 int gACECNSupport=0;
 
+/*
+ * Elena Agostini - 03/2014: DTLS Data Channel
+ */
+CWBool ACSessionDataActive;
+
 /* max stations */
 int gLimit;
 char **gMulticastGroups;

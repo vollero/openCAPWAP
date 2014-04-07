@@ -99,6 +99,12 @@ CWBool CWStopNeighborDeadTimer(int WTPIndex);
 CWBool CWRestartNeighborDeadTimer(int WTPIndex);
 CWBool CWRestartNeighborDeadTimerForEcho(int WTPIndex);
 
+/* argument passed to the thread func */
+typedef struct {
+	int index;
+	CWSocket sock;
+	int interfaceIndex;
+} CWACThreadArg;
 
 int flush_pcap(u_char *buf,int len,char *filename){
 	
@@ -191,6 +197,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			unsigned short int elemLen = 0;
 			CWNetworkLev4Address address;
 
+			CWParseFormatMsgElem(msgPtr, &elemType, &elemLen);
 			valPtr = CWParseSessionID(msgPtr, elemLen);
 			CWAssembleMsgElemSessionID(&sessionIDmsgElem, valPtr);
 			/*
@@ -232,6 +239,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			}
 #endif
 
+//Elena
 			for(i = 0; i < fragmentsNum; i++) {
 
 			/*
@@ -256,7 +264,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				}
 
 			}
-
+CWLog("Inviato KeepAlive");
 			int k;
 			for(k = 0; messages && k < fragmentsNum; k++) {
 				CW_FREE_PROTOCOL_MESSAGE(messages[k]);
@@ -290,7 +298,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 					int write_bytes = write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
 			
-			
 					if(write_bytes != (msglen - 24)){
 						CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 																	msgPtr->msg[1],
@@ -301,10 +308,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 						
 						CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24,write_bytes);
 					}
-					
 				}
-
-				
 			}else{
 				write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
 				CWDebugLog("Control Frame !!!\n");
@@ -693,6 +697,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							   messages[i].msg, 
 							   messages[i].offset)	) {
 #else
+//Elena
+CWLog("Invio ECHO response");
 			if(!(CWSecuritySend(gWTPs[WTPIndex].session,
 					    messages[i].msg,
 					    messages[i].offset))) {
@@ -1854,4 +1860,110 @@ CWBool CWRestartNeighborDeadTimerForEcho(int WTPIndex) {
 	
 	CWDebugLog("NeighborDeadTimer restarted for Echo interval");
 	return CW_TRUE;
+}
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * AC Thread for Data Channel packet (DTLS && Plain)
+ */
+CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
+
+	int 		i = ((CWACThreadArg*)arg)->index;
+	CWSocket 	sock = ((CWACThreadArg*)arg)->sock;
+	int dataSocket=0;
+	int indexLocal=0;
+	CWNetworkLev4Address address;
+	CWBool sessionDataActiveLocal = CW_FALSE;
+	int countPacketDataList=0;
+	int readBytes;
+	char* pData;
+	
+	CWLog("Init DTLS Session Data");
+	for(indexLocal = 0; indexLocal < gACSocket.count; indexLocal++) {	
+		if (gACSocket.interfaces[indexLocal].sock == gWTPs[i].socket){
+			dataSocket = gACSocket.interfaces[indexLocal].dataSock;
+			CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[i].dataaddress));
+			break;
+		}
+	}
+
+	if (dataSocket == 0){
+		CWLog("data socket of WTP isn't ready.");
+		/* critical error, close session */
+		CWErrorHandleLast();
+		CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+		CWCloseThread();
+	}
+
+	/* Info Socket Dati */
+	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gWTPs[i].dataaddress);
+	CWLog("ADDRESS: %s", inet_ntoa(tmpAdd->sin_addr));
+	CWLog("Porta handshake: %d", ntohs(tmpAdd->sin_port));
+	/*
+	tmpAdd->sin_addr.s_addr = inet_addr("10.0.2.15");
+	//tmpAdd->sin_addr = inet_addr("10.0.2.15");
+	tmpAdd->sin_port = htons(43221);
+	CWLog("ADDRESS: %s", inet_ntoa(tmpAdd->sin_addr));
+	CWLog("Porta handshake: %d", ntohs(tmpAdd->sin_port));
+	CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
+	*/
+	/* Sessione DTLS Dati */
+	if(!CWErr(CWSecurityInitSessionServerDataChannel(&gWTPs[i],	
+									//gACAddressDataChannel,
+									address,
+									dataSocket,
+									gACSecurityContext,
+									&((gWTPs[i]).sessionData),
+									&(gWTPs[i].pathMTU))))
+	{
+		CWErrorHandleLast();
+		CWTimerCancel(&(gWTPs[i].currentTimer));
+		CWCloseThread();
+	}
+	
+	/* Leggo i dati dalla packetList e li riscrivo decifrati */	
+	CW_REPEAT_FOREVER {
+		countPacketDataList=0;
+		
+		CWThreadMutexLock(&gWTPs[i].interfaceMutex);
+		sessionDataActiveLocal = gWTPs[i].sessionDataActive;
+		CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
+		if(sessionDataActiveLocal == CW_TRUE)
+		{
+			//Se ci sono pacchetti sulla lista dati ... 
+			CWLockSafeList(gWTPs[i].packetReceiveDataList);
+			countPacketDataList = CWGetCountElementFromSafeList(gWTPs[i].packetReceiveDataList);
+			CWUnlockSafeList(gWTPs[i].packetReceiveDataList);
+			
+			if(countPacketDataList > 0) {
+				// ... li legge cifrati ... 
+				CWLog("**** RICEVO SU DATI"); 
+				if(!CWErr(CWSecurityReceive(gWTPs[i].sessionData,
+											gWTPs[i].buf,
+											CW_BUFFER_SIZE - 1,
+											&readBytes)))
+				{		
+					CWDebugLog("Error during security receive");
+					CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+					continue;
+				}
+				
+				//... e decifrato il pacchetto dati lo mette sulla packetList ufficiale
+				CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return; });
+				memcpy(pData, gWTPs[i].buf, readBytes);
+
+				CWLockSafeList(gWTPs[i].packetReceiveList);
+				CWAddElementToSafeListTailwitDataFlag(gWTPs[i].packetReceiveList, pData, readBytes, CW_TRUE);
+				CWUnlockSafeList(gWTPs[i].packetReceiveList);
+				
+				//Free
+			}
+		}
+		else break;
+	}
+	
+	gWTPs[i].sessionData = NULL;
+	
+	return NULL;
 }

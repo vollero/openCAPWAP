@@ -307,7 +307,7 @@ CWBool CWParseJoinRequestMessage(char *msg,
 		
 		CWParseFormatMsgElem(&completeMsg,&elemType,&elemLen);
 		
-		/* CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen); */
+		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
 									
 		switch(elemType) {
 			case CW_MSG_ELEMENT_LOCATION_DATA_CW_TYPE:
@@ -412,7 +412,12 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 	CW_FREE_OBJECT((WTPProtocolManager->WTPBoardData).vendorInfos);
 	WTPProtocolManager->WTPBoardData = joinRequest->WTPBoardData;
 
-	WTPProtocolManager->sessionID= joinRequest->sessionID;
+	/*
+	 * Elena Agostini - 04/2014
+	 * SessionID string wasn't saved in right way
+	 */
+	CW_CREATE_STRING_FROM_STRING_ERR(WTPProtocolManager->sessionID, joinRequest->sessionID, {return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);});
+
 	WTPProtocolManager->ipv4Address= joinRequest->addr;
 	
 	WTPProtocolManager->descriptor= joinRequest->WTPDescriptor;
