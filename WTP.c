@@ -66,27 +66,17 @@ CWSocket 		gWTPDataSocket;
 /* DTLS session vars */
 CWSecurityContext	gWTPSecurityContext;
 CWSecuritySession 	gWTPSession;
-/*
- * Elena Agostini - 03/2014
- * 
- * DTLS Data Session WTP
- */
+
+/* Elena Agostini - 03/2014: DTLS Data Session WTP */
 CWSecuritySession gWTPSessionData;
 CWSecurityContext gWTPSecurityContextData;
 
-/*
- * Elena Agostini - 02/2014
- * OpenSSL params variables
- */
+/* Elena Agostini - 02/2014: OpenSSL params variables */
 char *gWTPCertificate=NULL;
 char *gWTPKeyfile=NULL;
 char *gWTPPassword=NULL;
 
-/*
- * Elena Agostini - 02/2014
- *
- * ECN Support Msg Elem MUST be included in Join Request/Response Messages
- */
+/* Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages */
 int gWTPECNSupport=0;
 
 /* list used to pass frames from wireless interface to main thread */
@@ -95,17 +85,10 @@ CWSafeList 		gFrameList;
 /* list used to pass CAPWAP packets from AC to main thread */
 CWSafeList 		gPacketReceiveList;
 
-/*
- * Elena Agostini - 03/2014
- * 
- * Liste used to pass CAPWAP DATA packets from AC to DataThread
- */
+/* Elena Agostini - 03/2014: Liste used to pass CAPWAP DATA packets from AC to DataThread */
 CWSafeList gPacketReceiveDataList;
 
-/*
- * Elena Agostini - 02/2014
- * Port number params config.wtp
- */
+/* Elena Agostini - 02/2014: Port number params config.wtp */
 int WTP_PORT_CONTROL;
 int WTP_PORT_DATA;
 
@@ -295,6 +278,7 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 			  seqNum, 
 			  msgElemlist))) {
 
+		CWLog("++++ NON ASSEMBLATO");
 		goto cw_failure;
 	}
 	
@@ -302,7 +286,7 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 	
 	while(gWTPRetransmissionCount < gCWMaxRetransmit) 
 	{
-		CWDebugLog("Transmission Num:%d", gWTPRetransmissionCount);
+		CWLog("Transmission Num:%d", gWTPRetransmissionCount);
 		for(i = 0; i < fragmentsNum; i++) 
 		{
 #ifdef CW_NO_DTLS
@@ -315,7 +299,7 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 					   messages[i].offset))
 #endif
 			{
-				CWDebugLog("Failure sending Request");
+				CWLog("Failure sending Request");
 				goto cw_failure;
 			}
 		}
@@ -351,7 +335,7 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 					if(!(CWReceiveMessage(&msg))) 
 					{
 						CW_FREE_PROTOCOL_MESSAGE(msg);
-						CWDebugLog("Failure Receiving Response");
+						CWLog("Failure Receiving Response");
 						goto cw_failure;
 					}
 					
@@ -360,7 +344,7 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 						if(CWErrorGetLastErrorCode() != CW_ERROR_INVALID_FORMAT) {
 
 							CW_FREE_PROTOCOL_MESSAGE(msg);
-							CWDebugLog("Failure Parsing Response");
+							CWLog("Failure Parsing Response");
 							goto cw_failure;
 						}
 						else {
@@ -380,7 +364,7 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 					else {
 						if(CWErrorGetLastErrorCode() != CW_ERROR_INVALID_FORMAT) {
 							CW_FREE_PROTOCOL_MESSAGE(msg);
-							CWDebugLog("Failure Saving Response");
+							CWLog("Failure Saving Response");
 							goto cw_failure;
 						} 
 					}
@@ -434,12 +418,7 @@ cw_failure:
 	return CW_FALSE;
 }
 
-/*
- * Elena Agostini - 03/2014
- * 
- * Retransmission Request Messages with custom interval
- */
-
+/* Elena Agostini - 03/2014: Retransmission Request Messages with custom interval */
 CWBool CWWTPRequestPacketRetransmissionCustomTimeInterval(int retransmissionTimeInterval, 
 				int seqNum, 
 				CWProtocolMessage *messages,
@@ -669,7 +648,8 @@ int main (int argc, const char * argv[]) {
 	}
 
 
-#ifdef CW_NO_DTLS
+/* Elena Agostini - 04/2014: DTLS Data Channel || DTLS Control Channel */
+#if defined(CW_NO_DTLS) && !defined(CW_DTLS_DATA_CHANNEL)
 	if( !CWErr(CWWTPLoadConfiguration()) ) {
 #else
 	if( !CWErr(CWSecurityInitLib())	|| !CWErr(CWWTPLoadConfiguration()) ) {
@@ -693,13 +673,13 @@ int main (int argc, const char * argv[]) {
 	}
 #endif
 
-/*
+
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
 		CWLog("Error starting Thread that receive binding frame");
 		exit(1);
 	}
-*/
+
 
 	CWThread thread_receiveStats;
 	if(!CWErr(CWCreateThread(&thread_receiveStats, CWWTPReceiveStats, NULL))) {

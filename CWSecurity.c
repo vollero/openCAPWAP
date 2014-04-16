@@ -198,7 +198,6 @@ CWBool CWSecurityInitSessionClient(CWSocket 		sock,
 	CWNetworkLev4Address peer;
 	int peerlen = sizeof(peer);
 	int i;
-
 	if(ctx == NULL || sessionPtr == NULL || PMTUPtr == NULL) 
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
@@ -210,7 +209,7 @@ CWBool CWSecurityInitSessionClient(CWSocket 		sock,
 		CWDebugLog("My Certificate");
 		PEM_write_X509(stdout, SSL_get_certificate(*sessionPtr));
 	#endif
-	//ELEna
+
 	if((sbio = BIO_new_memory(sock, addrPtr, packetReceiveListTmp)) == NULL) {
 
 		SSL_free(*sessionPtr);
@@ -466,6 +465,84 @@ CWBool CWSecurityInitSessionServerDataChannel(CWWTPManager* pWtp,
 	
 	return CW_TRUE;
 }
+
+/*
+ * Elena Agostini - 04/2014: generic session data WTP
+ */
+CWBool CWSecurityInitGenericSessionServerDataChannel(CWSafeList packetDataList,
+					CWNetworkLev4Address * address,
+				   CWSocket sock,
+				   CWSecurityContext ctx,
+				   CWSecuritySession *sessionPtr,
+				   int *PMTUPtr) {
+	BIO *sbio = NULL;
+
+	if(ctx == NULL || sessionPtr == NULL || PMTUPtr == NULL)
+		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+
+	if((*sessionPtr = SSL_new(ctx)) == NULL) {
+		CWSecurityRaiseError(CW_ERROR_CREATING);
+	}
+	
+	if((sbio = BIO_new_memory(sock, address, packetDataList)) == NULL) {
+
+		SSL_free(*sessionPtr);
+		CWSecurityRaiseError(CW_ERROR_CREATING);
+	}
+		
+	/* BIO_ctrl(sbio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, NULL); // TO-DO (pass MTU?) */
+	/* 
+	 * TO-DO if we don't set a big MTU, the DTLS implementation will
+	 * not be able to use a big certificate
+	 */
+	BIO_ctrl(sbio, BIO_CTRL_DGRAM_SET_MTU, 10000, NULL);
+
+	/* 
+	 * Let the verify_callback catch the verify_depth error so that we get
+	 * an appropriate error in the logfile.
+	 */
+	SSL_set_verify_depth((*sessionPtr), CW_DTLS_CERT_VERIFY_DEPTH + 1);
+	/* required by DTLS implementation to avoid data loss */
+	SSL_set_read_ahead( (*sessionPtr), 1);
+	/* turn on cookie exchange */
+	SSL_set_options((*sessionPtr), SSL_OP_COOKIE_EXCHANGE);
+	/* set the same bio for reading and writing */
+	SSL_set_bio((*sessionPtr), sbio, sbio);
+	/* tell OpenSSL we are a server */
+	SSL_set_accept_state((*sessionPtr));
+	
+	CWDebugLog("Before HS");
+	CWSecurityManageSSLError(SSL_do_handshake(*sessionPtr),
+				 *sessionPtr,
+				 SSL_free(*sessionPtr);); 
+	CWDebugLog("After HS");
+
+	if (SSL_get_verify_result(*sessionPtr) == X509_V_OK) {
+
+		CWDebugLog("Certificate Verified");
+	} else {
+		CWDebugLog("Certificate Error (%d)", SSL_get_verify_result(*sessionPtr));
+	}
+	
+	if(useCertificate) {
+		
+		if(CWSecurityVerifyPeerCertificateForCAPWAP((*sessionPtr), CW_FALSE)) {
+	
+			CWDebugLog("Certificate Ok for CAPWAP");
+		} else {
+			CWDebugLog("Certificate Not Ok for CAPWAP");
+#ifndef CW_DEBUGGING
+			return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Certificate Not Ok for CAPWAP");
+#endif
+		}
+	}	
+	
+	*PMTUPtr = BIO_ctrl(sbio, BIO_CTRL_DGRAM_QUERY_MTU, 0, NULL);
+	CWDebugLog("PMTU: %d", *PMTUPtr);
+	
+	return CW_TRUE;
+}
+
 
 /*
  *  NULL caList means that we want pre-shared keys

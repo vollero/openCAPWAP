@@ -264,7 +264,9 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				}
 
 			}
-CWLog("Inviato KeepAlive");
+
+			CWLog("Inviato KeepAlive");
+
 			int k;
 			for(k = 0; messages && k < fragmentsNum; k++) {
 				CW_FREE_PROTOCOL_MESSAGE(messages[k]);
@@ -1871,15 +1873,13 @@ CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
 
 	int 		i = ((CWACThreadArg*)arg)->index;
 	CWSocket 	sock = ((CWACThreadArg*)arg)->sock;
-	int dataSocket=0;
-	int indexLocal=0;
+	
+	int dataSocket=0, countPacketDataList=0, readBytes, pathMTU, indexLocal=0;
 	CWNetworkLev4Address address;
 	CWBool sessionDataActiveLocal = CW_FALSE;
-	int countPacketDataList=0;
-	int readBytes;
 	char* pData;
 	
-	CWLog("Init DTLS Session Data");
+	
 	for(indexLocal = 0; indexLocal < gACSocket.count; indexLocal++) {	
 		if (gACSocket.interfaces[indexLocal].sock == gWTPs[i].socket){
 			dataSocket = gACSocket.interfaces[indexLocal].dataSock;
@@ -1897,24 +1897,15 @@ CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
 	}
 
 	/* Info Socket Dati */
-	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gWTPs[i].dataaddress);
-	CWLog("ADDRESS: %s", inet_ntoa(tmpAdd->sin_addr));
-	CWLog("Porta handshake: %d", ntohs(tmpAdd->sin_port));
-	/*
-	tmpAdd->sin_addr.s_addr = inet_addr("10.0.2.15");
-	//tmpAdd->sin_addr = inet_addr("10.0.2.15");
-	tmpAdd->sin_port = htons(43221);
-	CWLog("ADDRESS: %s", inet_ntoa(tmpAdd->sin_addr));
-	CWLog("Porta handshake: %d", ntohs(tmpAdd->sin_port));
-	CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
-	*/
+	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(address);
+	CWLog("+++ Init DTLS Session Data. %s:%d, socket: %d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
+
 	/* Sessione DTLS Dati */
-	if(!CWErr(CWSecurityInitSessionServerDataChannel(&gWTPs[i],	
-									//gACAddressDataChannel,
-									address,
+	if(!CWErr(CWSecurityInitSessionServerDataChannel(&(gWTPs[i]),	
+									&(address),
 									dataSocket,
 									gACSecurityContext,
-									&((gWTPs[i]).sessionData),
+									&(gWTPs[i].sessionData),
 									&(gWTPs[i].pathMTU))))
 	{
 		CWErrorHandleLast();
@@ -1938,7 +1929,7 @@ CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
 			
 			if(countPacketDataList > 0) {
 				// ... li legge cifrati ... 
-				CWLog("**** RICEVO SU DATI"); 
+				CWLog("+++ Thread DTLS Session Data. %s:%d, socket: %d. Ricevuto pacchetto dati.", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
 				if(!CWErr(CWSecurityReceive(gWTPs[i].sessionData,
 											gWTPs[i].buf,
 											CW_BUFFER_SIZE - 1,

@@ -77,15 +77,18 @@ CWBool ACEnterDataCheck(int WTPIndex, CWProtocolMessage *msgPtr) {
 	}
 	
 	/* Start NeighbourDeadInterval timer */
-	if(!CWErr(CWTimerRequest(gCWNeighborDeadInterval, 
+	/*if(!CWErr(CWTimerRequest(gCWNeighborDeadInterval, 
 				 &(gWTPs[WTPIndex].thread),
 				 &(gWTPs[WTPIndex].currentTimer),
 				 CW_CRITICAL_TIMER_EXPIRED_SIGNAL))) {
 
 		CWCloseThread();
-	}
+	}*/
 
 	CWLog("Change State Event Response Sent");
+	
+	
+	
 	
 	gWTPs[WTPIndex].currentState = CW_ENTER_RUN;
 	gWTPs[WTPIndex].subState = CW_WAITING_REQUEST;

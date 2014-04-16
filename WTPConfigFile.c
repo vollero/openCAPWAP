@@ -78,12 +78,7 @@ CWBool CWConfigFileInitLib() {
 	gConfigValues[8].code = "</WTP_LOG_FILE_SIZE>";
 	gConfigValues[8].value.int_value = DEFAULT_LOG_SIZE;
 	
-	/*
-	* Elena Agostini - 02/2014
-	*
-	* OpenSSL params config.wtp
-	*/
-
+	/* Elena Agostini - 02/2014: OpenSSL params config.wtp */
 	gConfigValues[9].type = CW_STRING;
 	gConfigValues[9].code = "</WTP_SECURITY_CERTIFICATE>";
 	gConfigValues[9].value.str_value = NULL;
@@ -97,11 +92,7 @@ CWBool CWConfigFileInitLib() {
 	gConfigValues[11].value.str_value = NULL;
 
 
-	/*
-	* Elena Agostini - 02/2014
-	*
-	* Port number params config.wtp
-	*/
+	/* Elena Agostini - 02/2014: Port number params config.wtp */
 	gConfigValues[12].type = CW_INTEGER;
 	gConfigValues[12].code = "</WTP_PORT_CONTROL>";
 	gConfigValues[12].value.int_value = -1;
@@ -110,6 +101,11 @@ CWBool CWConfigFileInitLib() {
 	gConfigValues[13].code = "</WTP_PORT_DATA>";
 	gConfigValues[13].value.int_value = -1;
 
+/*
+	gConfigValues[14].type = CW_STRING;
+	gConfigValues[14].code = "</WTP_LOG_FILE>";
+	gConfigValues[14].value.str_value = NULL;
+*/
 	return CW_TRUE;
 }
 
@@ -213,6 +209,13 @@ CWBool CWConfigFileDestroyLib() {
 	WTP_PORT_CONTROL=gConfigValues[12].value.int_value;
 	WTP_PORT_DATA=gConfigValues[13].value.int_value;
 	
+	/* Elena Agostini - 04/2014: custom WTP log file name */
+	/*
+	if(gConfigValues[14].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[14].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(WTP_LOG_FILE_NAME, (gConfigValues[14].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	}
+	*/
 	for(i = 0; i < gConfigValuesCount; i++) {
 		if(gConfigValues[i].type == CW_STRING) {
 			CW_FREE_OBJECT(gConfigValues[i].value.str_value);

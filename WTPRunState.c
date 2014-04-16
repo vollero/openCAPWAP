@@ -246,13 +246,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 
 #ifdef CW_DTLS_DATA_CHANNEL
 
-CWLog("Prima di CWSecurityInitSessionClient, socket: %d", gWTPDataSocket);
-struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);
-tmpAdd->sin_port = htons(5247);
-CWLog("Porta handshake: %d", ntohs(tmpAdd->sin_port));
-CWLog("ADDRESS: %s", inet_ntoa(tmpAdd->sin_addr));
-CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
-	
+	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);
+	CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
+	tmpAdd->sin_port = htons(5247);
+	CWLog("+++ Start DTLS Data Session with AC %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+
 	if(!CWErr(CWSecurityInitSessionClient(gWTPDataSocket,
 					      gACAddressDataChannel,
 					      gPacketReceiveDataList,
@@ -311,7 +309,7 @@ CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
 				unsigned short int elemType = 0;
 				unsigned short int elemLen = 0;
 
-				CWLog("+++++++++ KeepAlive from AC +++++++++ [%d byte]",msgPtr.offset);
+				CWLog("[KeepAlive from AC, %d byte]",msgPtr.offset);
 				msgPtr.offset=0;	
 				CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
 				valPtr = CWParseSessionID(&msgPtr, 16);

@@ -877,22 +877,22 @@ CWBool CWParseTransportHeader(CWProtocolMessage *msgPtr, CWProtocolTransportHead
 		return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Wrong Protocol Version");
 		
 	version = CWGetField32(val, CW_TRANSPORT_HEADER_VERSION_START, CW_TRANSPORT_HEADER_VERSION_LEN);
-	CWDebugLog("VERSION: %d", version);
+//	CWDebugLog("VERSION: %d", version);
 	
 	valuesPtr->payloadType = CWGetField32(val, CW_TRANSPORT_HEADER_TYPE_START, CW_TRANSPORT_HEADER_TYPE_LEN);
-	CWDebugLog("PAYLOAD TYPE: %d", valuesPtr->payloadType);
+//	CWDebugLog("PAYLOAD TYPE: %d", valuesPtr->payloadType);
 	
 	
 	transport4BytesLen = CWGetField32(val,	CW_TRANSPORT_HEADER_HLEN_START, CW_TRANSPORT_HEADER_HLEN_LEN);
-	CWDebugLog("HLEN: %d", transport4BytesLen);	
+//	CWDebugLog("HLEN: %d", transport4BytesLen);	
 
 	rid = CWGetField32(val, CW_TRANSPORT_HEADER_RID_START, CW_TRANSPORT_HEADER_RID_LEN);
-	CWDebugLog("RID: %d", rid);	
+//	CWDebugLog("RID: %d", rid);	
 	
-	CWDebugLog("WBID: %d", CWGetField32(val, CW_TRANSPORT_HEADER_WBID_START, CW_TRANSPORT_HEADER_WBID_LEN));
+//	CWDebugLog("WBID: %d", CWGetField32(val, CW_TRANSPORT_HEADER_WBID_START, CW_TRANSPORT_HEADER_WBID_LEN));
 	
 	valuesPtr->type = CWGetField32(val, CW_TRANSPORT_HEADER_T_START, CW_TRANSPORT_HEADER_T_LEN);
-	CWDebugLog("TYPE: %d", valuesPtr->type);
+//	CWDebugLog("TYPE: %d", valuesPtr->type);
 	//CWDebugLog("TYPE: %d", valuesPtr->type);
 	
 	valuesPtr->isFragment = CWGetField32(val, CW_TRANSPORT_HEADER_F_START, CW_TRANSPORT_HEADER_F_LEN);
@@ -922,7 +922,7 @@ CWBool CWParseTransportHeader(CWProtocolMessage *msgPtr, CWProtocolTransportHead
 	
 	if (*dataFlagPtr == CW_TRUE){
 		if (valuesPtr->keepAlive){	// Keep Alive packet
-			CWDebugLog("Keep-Alive packet");
+			CWLog("[KeepAlive packet]");
 			msgPtr->data_msgType=CW_DATA_MSG_KEEP_ALIVE_TYPE;
 			/*
 			 * Elena Agostini - 04/2014

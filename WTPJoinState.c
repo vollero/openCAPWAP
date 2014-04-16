@@ -122,7 +122,8 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 
 	/* Init DTLS session */
 
-#ifndef CW_NO_DTLS
+/* Elena Agostini - 04/2014 */	
+#if !defined(CW_NO_DTLS) || defined(CW_DTLS_DATA_CHANNEL)
 	if(gACInfoPtr->security == CW_X509_CERTIFICATE) {
 		/*
 		 * Elena Agostini - 02/2014

@@ -416,7 +416,9 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 	 * Elena Agostini - 04/2014
 	 * SessionID string wasn't saved in right way
 	 */
-	CW_CREATE_STRING_FROM_STRING_ERR(WTPProtocolManager->sessionID, joinRequest->sessionID, {return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);});
+	 CW_CREATE_ARRAY_ERR(WTPProtocolManager->sessionID, WTP_SESSIONID_LENGTH, unsigned char, return;);
+	 memcpy(WTPProtocolManager->sessionID, joinRequest->sessionID, WTP_SESSIONID_LENGTH);
+	//CW_CREATE_STRING_FROM_STRING_ERR(WTPProtocolManager->sessionID, joinRequest->sessionID, {return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);});
 
 	WTPProtocolManager->ipv4Address= joinRequest->addr;
 	

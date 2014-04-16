@@ -113,10 +113,7 @@ static int memory_read(BIO *b, char *out, int outl)
 	int size;
 	BIO_memory_data* pData = (BIO_memory_data*)b->ptr;
 
-	//
 	//BIO_clear_retry_flags(b);
-
-	//
 	CWLockSafeList(pData->pRecvAddress);
 
 	// Used only in DTLS handshake
@@ -146,17 +143,19 @@ static int memory_write(BIO *b, const char *in, int inl)
 	char strBuffer[MAX_UDP_PACKET_SIZE];
 	BIO_memory_data* pData = (BIO_memory_data*)b->ptr;
 	
-	//
 	strBuffer[0] = (char)(CW_PROTOCOL_VERSION << 4) | (char)(CW_PACKET_CRYPT);
 	strBuffer[1] = strBuffer[2] = strBuffer[3] = 0;
 
 	//
 	memcpy(&strBuffer[4], in, inl);
 
+//elena
+//struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(pData->sendAddress);
+//CWLog("+++ Spedisco memory write. Socket: %d, Buffer: %s, at %s:%d", pData->sock, strBuffer, inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+
 	//
 	errno = 0;
 	ret = sendto(pData->sock, strBuffer, inl + 4, 0, (struct sockaddr*)&pData->sendAddress, sizeof(struct sockaddr_storage));
-
 	//BIO_clear_retry_flags(b);
 	if (ret <= 0)
 	{

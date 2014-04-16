@@ -98,6 +98,13 @@ extern int gWTPMaxRetransmitEcho;
 extern CWBool gWTPDataChannelDeadFlag;
 extern CWBool gWTPExitRunEcho;
 
+/*
+ * Elena Agostini - 03/2014
+ * Size SessionID
+ */
+ 
+#define WTP_SESSIONID_LENGTH 16
+
 extern int gMaxLogFileSize;
 extern int gEnabledLog;
 

@@ -105,7 +105,6 @@ typedef struct {
 	CWSecuritySession session;
 	/*
 	 * Elena Agostini - 03/2014
-	 * 
 	 * DTLS Data Session AC
 	 */
 	CWSecuritySession sessionData;
@@ -186,6 +185,20 @@ typedef struct {
 	char RadioMAC[6];
 
 } CWWTPManager;	
+
+/* Elena Agostini - 04/2014: DTLS Data Channel Generic Thread */
+typedef struct genericHandshakeThread {
+	CWThread thread_GenericDataChannelHandshake;
+	CWSocket dataSock;
+	CWNetworkLev4Address addressWTPPtr;
+	CWSafeList packetDataList;
+	CWThreadMutex interfaceMutex;
+	CWThreadCondition interfaceWait;
+	struct genericHandshakeThread * next;
+} genericHandshakeThread;
+typedef genericHandshakeThread * genericHandshakeThreadPtr;
+/* Start list generic threads DTLS Data Channel Handshake*/
+extern genericHandshakeThreadPtr startGenericThreadList;
 
 /*________________________________________________________________*/
 /*  *******************___EXTERN VARIABLES___*******************  */
@@ -327,6 +340,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 
 void *CWManageWTP(void *arg);
 void CWCloseThread();
+CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg);
 
 /* in CWSecurity.c */
 CWBool CWSecurityInitSessionServer(CWWTPManager* pWtp,

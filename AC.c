@@ -90,6 +90,7 @@ int gACECNSupport=0;
  * Elena Agostini - 03/2014: DTLS Data Channel
  */
 CWBool ACSessionDataActive;
+genericHandshakeThreadPtr startGenericThreadList = NULL;
 
 /* max stations */
 int gLimit;
@@ -176,8 +177,9 @@ void CWACInit() {
 		exit(1);
 	}
 
+/* Elena Agostini - 04/2014 */
 	if(!CWErr(CWParseConfigFile()) ||
-#ifndef CW_NO_DTLS
+#if !defined(CW_NO_DTLS) || defined(CW_DTLS_DATA_CHANNEL)
 	   !CWErr(CWSecurityInitLib()) ||
 #endif
 	   !CWErr(CWNetworkInitSocketServerMultiHomed(&gACSocket, CW_CONTROL_PORT, gMulticastGroups, gMulticastGroupsCount)) ||
@@ -190,7 +192,8 @@ void CWACInit() {
 		exit(1);
 	}
 
-#ifndef CW_NO_DTLS
+/* Elena Agostini - 04/2014 */
+#if !defined(CW_NO_DTLS) || defined(CW_DTLS_DATA_CHANNEL)
 	if(gACDescriptorSecurity == CW_X509_CERTIFICATE) {
 
 		/*

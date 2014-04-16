@@ -406,19 +406,28 @@ int getInterfaceMacAddr(char* interface, unsigned char* macAddr)
 	return 0;
 }
 
+/*
+ * Elena Agostini - 04/2014: Easier SessionID random value
+ */
 int initWTPSessionID(char * sessionID)
 {
+	int i;
+	for(i=0; i< WTP_SESSIONID_LENGTH; i++)
+	{
+		sessionID[i] = (unsigned char)rand()%256;
+	}
+	return 0;
+	
+	/*
 	unsigned char macAddr0[MAC_ADDR_LEN];
 	unsigned char macAddr1[MAC_ADDR_LEN];
 	int i,randomInteger;
 	char *buffer=sessionID;
 	
-	/*
-	 * Elena Agostini - 02/2014
-	 *
-	 * BUG Valgrind: if getInterfaceMacAddr fail, macAddr0 and macAddr1
-	 * aren't initialized
-	 */
+	// Elena Agostini - 02/2014
+	// BUG Valgrind: if getInterfaceMacAddr fail, macAddr0 and macAddr1
+	// aren't initialized
+	 
 	memset(macAddr0, 0, MAC_ADDR_LEN);
 	memset(macAddr1, 0, MAC_ADDR_LEN);
 
@@ -439,6 +448,6 @@ int initWTPSessionID(char * sessionID)
 	}
 	CWLog("\n");
 
-	return 0;
+	return 0;*/
 }
 

@@ -133,7 +133,7 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 
 	struct ifi_info	*ifi, *ifihead;
 	CWNetworkLev4Address wildaddr;
-    	int yes = 1;
+    int yes = 1;
 	CWSocket sock;
 	CWMultiHomedInterface *p;
 	CWList interfaceList = CW_LIST_INIT;
@@ -714,10 +714,11 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 	}
 
-struct sockaddr_in *tmpAdd;
-
 	for(i = 0; i < sockPtr->count; i++) {
 		if(FD_ISSET(sockPtr->interfaces[i].sock, &fset)) {
+			
+			//CWLog("## Pacchetto CONTROLLO interfaccia %d sock %d*********", i, sockPtr->interfaces[i].sock);
+
 			int readBytes;
 
 			/*	
@@ -746,6 +747,8 @@ struct sockaddr_in *tmpAdd;
 		if(FD_ISSET(sockPtr->interfaces[i].dataSock, &fset)) {						//Todd: Bridge 802.3 packets of WTPs into AC
 			int readBytes;
 
+
+			//CWLog("## Pacchetto DATI interfaccia %d sock %d*********", i, sockPtr->interfaces[i].dataSock);
 			CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
 			
 			/* message */
