@@ -15,7 +15,6 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,			   *
  * MA  02111-1307, USA.									   *
  *											   *
- *                                                                                         *
  * In addition, as a special exception, the copyright holders give permission to link the  *
  * code of portions of this program with the OpenSSL library under certain conditions as   *
  * described in each individual source file, and distribute linked combinations including  * 
