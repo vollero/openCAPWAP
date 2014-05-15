@@ -1,8 +1,11 @@
+#include "utils/common.h"
+#include "utils/includes.h"
+
 #define CONFIGFILE "hostapd_wtp.conf"
 #define VARLENGTH 1024 
 
 struct config_wtp {
-	int wtp_port;
+	unsigned short wtp_port;
 	char ip_wtp[50];
 	char path_unix_socket[50];
 }config_wtp;
@@ -77,11 +80,15 @@ void ReplaceString(char *String1,char *rep,char *String2){
 }
 
 void ReadConfiguration(struct config_wtp *con_wtp){
-	FILE *file;
+	FILE *file=NULL;
+	char ss[VARLENGTH]={0};
 
     file=fopen(CONFIGFILE,"r");
+	if (!file) {
+		wpa_printf(MSG_ERROR, "open file %s error:%s", CONFIGFILE, strerror(errno));
+		goto out;
+	}
 
-	char ss[VARLENGTH];
 	
 	sprintf(con_wtp->ip_wtp,"");
 	sprintf(con_wtp->path_unix_socket,"");
@@ -110,10 +117,12 @@ void ReadConfiguration(struct config_wtp *con_wtp){
 			ReplaceString(ss, "\n", "");
 			ReplaceString(ss, " ", "");
 			ReplaceString(ss, "=", "");
-			con_wtp->wtp_port = atoi(ss);
+			con_wtp->wtp_port = (unsigned short)atoi(ss);
 		}
 
 	}
+
+out:
 	fclose(file);
 	return;
 }

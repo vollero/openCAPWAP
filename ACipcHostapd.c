@@ -432,7 +432,7 @@ CW_THREAD_RETURN_TYPE CWACipc_with_ac_hostapd(void *arg){
 						#if defined(USEIPV6)
 							CWLog("Hostapd_AC (v6) Connect: %d", ch[wtp_non_associated].client.sin6_port);
 						#else
-							CWLog("Hostapd_AC (v4) Connect: %s:%d",inet_ntoa(ch[wtp_non_associated].client.sin_addr), ch[wtp_non_associated].client.sin_port);
+							CWLog("Hostapd_AC (v4) Connect: %s:%d",inet_ntoa(ch[wtp_non_associated].client.sin_addr), ntohs(ch[wtp_non_associated].client.sin_port));
 						#endif					
 					#endif
 
@@ -620,10 +620,10 @@ CW_THREAD_RETURN_TYPE CWACipc_with_ac_hostapd(void *arg){
 					
 				#else
 					#if defined(USEIPV6)
-						CWLog("Hostapd_AC (v6) Disconnect: %d", ch[tmp_WTPIndex].client.sin6_port);
+						CWLog("Hostapd_AC (v6) Disconnect: %d", ntohs(ch[tmp_WTPIndex].client.sin6_port));
 						ch[tmp_WTPIndex].client.sin6_port = 0;
 					#else
-						CWLog("Hostapd_AC (v4) Disconnect: %s:%d",inet_ntoa(ch[tmp_WTPIndex].client.sin_addr), ch[tmp_WTPIndex].client.sin_port);
+						CWLog("Hostapd_AC (v4) Disconnect: %s:%d",inet_ntoa(ch[tmp_WTPIndex].client.sin_addr), ntohs(ch[tmp_WTPIndex].client.sin_port));
 						ch[tmp_WTPIndex].client.sin_port = 0;
 					#endif				
 				#endif

@@ -51,7 +51,7 @@
 
 FILE* gSettingsFile=NULL;
 WTPQosValues* gDefaultQosValues=NULL;
-int gHostapd_port;
+unsigned short gHostapd_port;
 char* gHostapd_unix_path;
 
 void CWExtractValue(char* start, char** startValue, char** endValue, int* offset)
@@ -220,7 +220,7 @@ CWBool CWParseSettingsFile()
 		if (!strncmp(startTag+1, "AC_HOSTAPD_PORT", endTag-startTag-1))
 		{
 			
-			gHostapd_port = atoi(endTag+1);
+			gHostapd_port = (unsigned short)atoi(endTag+1);
 			
 		    CWDebugLog("Hostapd Port connection: %d", gHostapd_port);
 			CW_FREE_OBJECT(line);
