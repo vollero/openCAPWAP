@@ -502,12 +502,12 @@ int open_socket(){
 	#else
 		#if defined(USEIPV6)
 			addr.sin6_family = AF_INET6;
-			addr.sin6_port = con_wtp.wtp_port;
+			addr.sin6_port = htons(con_wtp.wtp_port);
 			inet_pton(AF_INET6, con_wtp.ip_wtp, &addr.sin6_addr);
 						
 		#else
 			addr.sin_family = AF_INET;
-			addr.sin_port = con_wtp.wtp_port;
+			addr.sin_port = htons(con_wtp.wtp_port);
 			addr.sin_addr.s_addr = inet_addr(con_wtp.ip_wtp);
 						
 		#endif
@@ -530,7 +530,11 @@ int open_socket(){
 		buffer[0] = CONNECT;
 		n = sendto(fd_wtp, buffer, strlen(buffer), 0, (struct sockaddr *)&addr, address_size);
 		
+		#if defined(LOCALUDP)
 		n = recvfrom(fd_wtp, buffer, sizeof(buffer),0,(struct sockaddr *)&local, &address_size);
+		#else
+		n = recvfrom(fd_wtp, buffer, sizeof(buffer),0,(struct sockaddr *)&addr, &address_size);
+		#endif
 		
 		if(buffer[0] == CONNECT_R){
 			break;
@@ -630,9 +634,6 @@ void wait_ADD_WLAN(int fd, unsigned char *ssid_p, int *ssid_len_p, void *hapd ){
 			ADD_WLAN_handle(fd, buf+1, n-1, hapd, ssid_p, ssid_len_p);
 			break;
 			
-		}else if ( buf[0]==DEL_WLAN_handle ){
-			DEL_WLAN_handle(fd, NULL, 0, hapd);
-		
 		}else if( buf[0]==SET_TXQ ){
 			add_in_SET_TXQ_handle( buf+1, n-1 );
 		

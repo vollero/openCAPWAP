@@ -122,7 +122,7 @@ void prep_beacon(int fd,struct hostapd_data *hapd,struct wpa_driver_ap_params *p
 	struct hostapd_data *h = hapd;
 	short ssid_len = (short)h->conf->ssid.ssid_len;
 	short key_len = (short) h->conf->ssid.wep.len[h->conf->ssid.wep.idx];
-	
+	unsigned short nkey_len = 0;
 	
 	wpa_printf(MSG_DEBUG,"SSID: %s ssid_len:%d\n",h->conf->ssid.ssid,ssid_len);
 	wpa_printf(MSG_DEBUG,"IDX:%d   key_len:%d    key:%s  \n",h->conf->ssid.wep.idx,key_len,h->conf->ssid.wep.key[h->conf->ssid.wep.idx]);
@@ -175,8 +175,9 @@ void prep_beacon(int fd,struct hostapd_data *hapd,struct wpa_driver_ap_params *p
 	
 	//memcpy(buf+6, &key_len, 1);
 	//memcpy(buf+7, &key_len, 1);
-	buf[6] = *(&key_len + 1);  // Key Length Part1
-	buf[7] = *(&key_len + 0);  // Key Length Part2
+	nkey_len = ntohs(key_len);  // format the key_len
+	buf[6] = *(&nkey_len + 1);  // Key Length Part1
+	buf[7] = *(&nkey_len + 0);  // Key Length Part2
 	
 	wpa_printf(MSG_DEBUG,"keylen: %d %02X %02X \n",key_len,buf[6],buf[7]);
 	
@@ -430,11 +431,11 @@ int open_socket(){
 	#else
 		#if defined(USEIPV6)
 			addr.sin6_family = AF_INET6;
-			addr.sin6_port = con_ac.ac_port;
+			addr.sin6_port = htons(con_ac.ac_port);
 			inet_pton(AF_INET6, con_ac.ip_ac, &addr.sin6_addr);
 		#else
 			addr.sin_family = AF_INET;
-			addr.sin_port = con_ac.ac_port;
+			addr.sin_port = htons(con_ac.ac_port);
 			addr.sin_addr.s_addr = inet_addr(con_ac.ip_ac);
 			
 		#endif

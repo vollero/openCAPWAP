@@ -1,8 +1,11 @@
+#include "utils/common.h"
+#include "utils/includes.h"
+
 #define CONFIGFILE "hostapd_ac.conf"
 #define VARLENGTH 1024 
 
 struct config_ac {
-	int ac_port;
+	unsigned short ac_port;
 	char ip_ac[50];
 	char path_unix_socket[50];
 }config_ac;
@@ -77,11 +80,14 @@ void ReplaceString(char *String1,char *rep,char *String2){
 }
 
 void ReadConfiguration(struct config_ac *con_ac){
-	FILE *file;
+	FILE *file=NULL;
+	char ss[VARLENGTH]={0};
 
-    file=fopen(CONFIGFILE,"r");
-
-	char ss[VARLENGTH];
+	file=fopen(CONFIGFILE,"r");
+	if (!file){
+		wpa_printf(MSG_ERROR, "open file %s error:%s", CONFIGFILE, strerror(errno));
+		goto out;
+	}
 	
 	sprintf(con_ac->ip_ac,"");
 	sprintf(con_ac->path_unix_socket,"");
@@ -110,10 +116,12 @@ void ReadConfiguration(struct config_ac *con_ac){
 			ReplaceString(ss, "\n", "");
 			ReplaceString(ss, " ", "");
 			ReplaceString(ss, "=", "");
-			con_ac->ac_port = atoi(ss);
+			con_ac->ac_port = (unsigned short)atoi(ss);
 		}
 
 	}
+
+out:
 	fclose(file);
 	return;
 }

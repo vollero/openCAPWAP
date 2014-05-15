@@ -51,7 +51,7 @@ char* gRadioInterfaceName_0=NULL;
 char* gBaseMACInterfaceName=NULL;
 char  gBoardReversionNo;
 
-int gHostapd_port;
+unsigned short gHostapd_port;
 char*  gHostapd_unix_path;
 
 void CWExtractValue(char* start, char** startValue, char** endValue, int* offset)
@@ -180,7 +180,7 @@ CWBool CWParseSettingsFile()
 		
 			strncpy(port_str, startValue, offset);
 			port_str[offset] ='\0';
-			gHostapd_port = atoi(port_str);
+			gHostapd_port = (unsigned short)atoi(port_str);
 			CWLog(": %d",gHostapd_port);
 			CW_FREE_OBJECT(line);
 			continue;		

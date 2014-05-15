@@ -310,11 +310,11 @@ CW_THREAD_RETURN_TYPE CWWTPThread_read_data_from_hostapd(void *arg){
     #else
 		#if defined(USEIPV6)
 			server.sin6_family = AF_INET6;
-			server.sin6_port = gHostapd_port;
+			server.sin6_port = htons(gHostapd_port);
 			server.sin6_addr = in6addr_any;
 		#else
 			server.sin_family = AF_INET;
-			server.sin_port = gHostapd_port;
+			server.sin_port = htons(gHostapd_port);
 			server.sin_addr.s_addr = INADDR_ANY;
 		#endif
 		connect_ret = bind(sock,(struct sockaddr *)&server,sizeof(server));
@@ -404,9 +404,9 @@ CW_THREAD_RETURN_TYPE CWWTPThread_read_data_from_hostapd(void *arg){
 				CWDebugLog("Hostapd_wtp Unix Domain Connect: %s",client.sun_path);
 			#else
 				#if defined(USEIPV6)
-					CWDebugLog("Hostapd_wtp (v6) Connect: %d",client.sin6_port);
+					CWDebugLog("Hostapd_wtp (v6) Connect: %d", ntohs(client.sin6_port));
 				#else
-					CWDebugLog("Hostapd_wtp (v4) Connect: %s:%d",inet_ntoa(client.sin_addr), client.sin_port);
+					CWDebugLog("Hostapd_wtp (v4) Connect: %s:%d",inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 				#endif
 			#endif
 			
