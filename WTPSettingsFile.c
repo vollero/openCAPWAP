@@ -94,6 +94,23 @@ CWBool CWParseSettingsFile()
 			CW_FREE_OBJECT(line);
 			continue;
 		}
+		
+		//Elena Agostini - 05/2014: Single log_file foreach WTP
+		if (!strncmp(startTag+1, "LOG_FILE_WTP", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+			
+			CW_CREATE_STRING_ERR(wtpLogFile, offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
+			strncpy(wtpLogFile, startValue, offset);
+			wtpLogFile[offset] ='\0';
+			CWLog(": %s", wtpLogFile);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
 			
 		if (!strncmp(startTag+1, "IF_NAME", endTag-startTag-1))
 		{

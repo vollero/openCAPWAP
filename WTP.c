@@ -43,7 +43,8 @@ CW_THREAD_RETURN_TYPE gogo(void *arg);
 
 int 	gEnabledLog;
 int 	gMaxLogFileSize;
-char 	gLogFileName[] = WTP_LOG_FILE_NAME;
+//Elena Agostini - 05/2014
+char 	gLogFileName[512];// = WTP_LOG_FILE_NAME;
 
 /* addresses of ACs for Discovery */
 char	**gCWACAddresses;
@@ -91,6 +92,9 @@ CWSafeList gPacketReceiveDataList;
 /* Elena Agostini - 02/2014: Port number params config.wtp */
 int WTP_PORT_CONTROL;
 int WTP_PORT_DATA;
+
+//Elena Agostini - 05/2014: single log_file foreach WTP
+char * wtpLogFile;
 
 /* used to synchronize access to the lists */
 CWThreadCondition    gInterfaceWait;
@@ -595,19 +599,28 @@ int main (int argc, const char * argv[]) {
 
 	
 	CWStateTransition nextState = CW_ENTER_DISCOVERY;
-	CWLogInitFile(WTP_LOG_FILE_NAME);
+	//Elena to move line 611
+	//CWLogInitFile(WTP_LOG_FILE_NAME);
 
+//Elena: This is useless
+/*
 #ifndef CW_SINGLE_THREAD
 	CWDebugLog("Use Threads");
 #else
 	CWDebugLog("Don't Use Threads");
 #endif
+*/
 	CWErrorHandlingInitLib();
 	if(!CWParseSettingsFile()){
-		CWLog("Can't start WTP");
+		//Elena: fprintf
+		fprintf(stderr, "Can't start WTP");
 		exit(1);
 	}
-
+	
+	//Elena Agostini - 05/2014
+	CWLogInitFile(wtpLogFile);
+	strncpy(gLogFileName, wtpLogFile, strlen(wtpLogFile));
+	
 	/* Capwap receive packets list */
 	if (!CWErr(CWCreateSafeList(&gPacketReceiveList)))
 	{
