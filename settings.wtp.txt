@@ -1,7 +1,7 @@
 # Settings File for WTP. Lines beginning with # and blank lines will be ignored
 #
 
-<LOG_FILE_WTP>/var/log/wtp1.txt
+<LOG_FILE_WTP>/var/log/wtp2.txt
 #
 <IF_NAME>    mon.wlan0
 <WTP_ETH_IF_NAME>    vmnet1
