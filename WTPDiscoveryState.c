@@ -79,9 +79,11 @@ CWStateTransition CWWTPEnterDiscovery() {
 	/* reset Discovery state */
 	gCWDiscoveryCount = 0;
 	CWNetworkCloseSocket(gWTPSocket);
+	
 	/* Elena Agostini - 06/2014: close WTP Data Socket before binding in Join state */
-	if(gWTPDataSocket)
+	 if(gWTPDataSocket)
 		CWNetworkCloseSocket(gWTPDataSocket);
+
 	CWLog("+++++++ WTP_PORT_CONTROL: %d", WTP_PORT_CONTROL);
 	/* Elena Agostini - 04/2014: make control port always the same inside each WTP */
 	if(!CWErr(CWNetworkInitSocketClientWithPort(&gWTPSocket, NULL, WTP_PORT_CONTROL))) {

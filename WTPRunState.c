@@ -124,6 +124,7 @@ CWBool gNeighborDeadTimerSet=CW_FALSE;
 	
 int gEchoInterval = CW_ECHO_INTERVAL_DEFAULT;
 int gDataChannelKeepAlive = CW_DATA_CHANNEL_KEEP_ALIVE_DEFAULT;
+CWBool gEchoTimerSet=CW_FALSE;
 
 /* 
  * Manage DTLS packets.
@@ -135,7 +136,9 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	CWSocket 		sockDTLS = (CWSocket)arg;
 	CWNetworkLev4Address	addr;
 	char* 			pData;
-
+	
+	CWLog("++++++++++++++++++++++++++ AVVIO THREAD CWWTPReceiveDtlsPacket");
+	
 	CW_REPEAT_FOREVER 
 	{
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
@@ -159,7 +162,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 		CWAddElementToSafeListTailwitDataFlag(gPacketReceiveList, pData, readBytes,CW_FALSE);
 		CWUnlockSafeList(gPacketReceiveList);		
 	}
-
+	
+	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDtlsPacket");
 	return NULL;
 }
 
@@ -192,6 +196,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
 	char* 			pData;
 	
+	CWLog("++++++++++++++++++++++++++ AVVIO THREAD CWWTPReceiveDataPacket");
+	
 	CW_REPEAT_FOREVER 
 	{
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
@@ -215,6 +221,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 		CWAddElementToSafeListTailwitDataFlag(gPacketReceiveDataList, pData, readBytes,CW_TRUE);
 		CWUnlockSafeList(gPacketReceiveDataList);
 	}
+	
+	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDataPacket");
 	
 	return NULL;
 }
@@ -272,6 +280,10 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	
 #endif
 
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPDataChannelDeadFlag=CW_FALSE;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	
 	CWWTPKeepAliveDataTimerExpiredHandler(NULL);
 
 	CW_REPEAT_FOREVER
@@ -389,9 +401,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	
 	return NULL;
 }
- 
 
- 
 /* 
  * Manage Run State.
  */
@@ -406,6 +416,9 @@ CWStateTransition CWWTPEnterRun() {
 	CWLog("\n");
 	CWLog("######### WTP enters in RUN State #########");
 	
+	
+	gWTPEchoRetransmissionCount=0;
+	
 	CWThread thread_manageDataPacket;
 	if(!CWErr(CWCreateThread(&thread_manageDataPacket, 
 				 CWWTPManageDataPacket,
@@ -413,21 +426,17 @@ CWStateTransition CWWTPEnterRun() {
 		
 		CWLog("Error starting Thread that receive DTLS DATA packet");
 		CWNetworkCloseSocket(gWTPDataSocket);
-#ifndef CW_NO_DTLS
-		CWSecurityDestroyContext(gWTPSecurityContext);
-		gWTPSecurityContext = NULL;
-		gWTPSession = NULL;
-#endif
-		return CW_ENTER_RESET;
+		//Elena Agostini - 07/2014
+		goto CLEAR_RUN_STATE;
 	}
 	
 	for (k = 0; k < MAX_PENDING_REQUEST_MSGS; k++)
 		CWResetPendingMsgBox(gPendingRequestMsgs + k);
 
 	if (!CWErr(CWStartEchoRequestTimer())) {
-		return CW_ENTER_RESET;
+		goto CLEAR_RUN_STATE; //return CW_ENTER_RESET;
 	}
-
+	
 	wtpInRunState=1;
 
 	CW_REPEAT_FOREVER
@@ -446,12 +455,12 @@ CWStateTransition CWWTPEnterRun() {
 		 * 
 		 * If gWTPDataChannelDeadFlag == CW_TRUE DataChannel is Dead
 		 */
-		 
+		
 		CWThreadMutexLock(&gInterfaceMutex);
 		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
 		gWTPExitRunEchoLocal=gWTPExitRunEcho;
 		CWThreadMutexUnlock(&gInterfaceMutex);
-		
+			
 		if(gWTPDataChannelLocalFlag == CW_TRUE)
 		{
 			CWLog("*** Data Channel is dead... restart Discovery State\n");
@@ -465,9 +474,10 @@ CWStateTransition CWWTPEnterRun() {
 		}
 			
 		/* Wait packet */
-		timenow.tv_sec = time(0) + CW_NEIGHBORDEAD_RESTART_DISCOVERY_DELTA_DEFAULT;	 /* greater than NeighborDeadInterval */
+		/*
+		timenow.tv_sec = time(0) + CW_NEIGHBORDEAD_RESTART_DISCOVERY_DELTA_DEFAULT;	 // greater than NeighborDeadInterval
 		timenow.tv_nsec = 0;
-		
+		*/
 		/*
 		 * if there are no frames from stations
 		 * and no packets from AC...
@@ -508,8 +518,7 @@ CWStateTransition CWWTPEnterRun() {
 
 				CW_FREE_PROTOCOL_MESSAGE(msg);
 				CWLog("Failure Receiving Response");
-				wtpInRunState=0;
-				return CW_ENTER_RESET;
+				break;
 			}
 			if (!CWErr(CWWTPManageGenericRunMessage(&msg))) {
 
@@ -522,8 +531,9 @@ CWStateTransition CWWTPEnterRun() {
 				else {
 					CW_FREE_PROTOCOL_MESSAGE(msg);
 					CWLog("--> Critical Error Managing Generic Run Message... we enter RESET State");
-					wtpInRunState=0;
-					return CW_ENTER_RESET;
+					//wtpInRunState=0;
+					break;
+					//return CW_ENTER_RESET;
 				}
 			}
 		}
@@ -531,13 +541,26 @@ CWStateTransition CWWTPEnterRun() {
 			CWWTPCheckForBindingFrame();
 	}
 
+	/* Elena Agostini - 07/2014 */
+	CLEAR_RUN_STATE:
+	
+#ifndef CW_NO_DTLS
+	CWSecurityDestroyContext(gWTPSecurityContext);
+	gWTPSecurityContext = NULL;
+	gWTPSession = NULL;
+#endif
+	
 	wtpInRunState=0;
+	
 	CWStopEchoRequestsTimer();
-	gWTPEchoRetransmissionCount=gWTPMaxRetransmitEcho;
 	CWStopKeepAliveTimer();
 	CWStopDataChannelDeadTimer();
-//	CWStopHeartbeatTimer();
 
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPDataChannelDeadFlag = CW_FALSE;
+	gWTPExitRunEcho = CW_FALSE;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	
 	return CW_ENTER_RESET;
 }
 
@@ -906,6 +929,10 @@ void CWWTPEchoRequestTimerExpiredHandler(void *arg) {
 	int seqNum;
 	CWBool gWTPDataChannelDeadFlagLocal = CW_FALSE;
 	
+	//Elena Agostini - 07/2014
+	if(gEchoTimerSet == CW_FALSE)
+		return;
+		
 	/*
 	 * Check retransmission ECHO condition
 	 */
@@ -1177,6 +1204,7 @@ CWBool CWStartEchoRequestTimer() {
 	if (gCWEchoRequestTimerID == -1)	return CW_FALSE;
 
 	CWDebugLog("Echo Request Timer Started");
+	gEchoTimerSet=CW_TRUE;
 
 	return CW_TRUE;
 }
@@ -1185,6 +1213,8 @@ CWBool CWStartEchoRequestTimer() {
 CWBool CWStopEchoRequestsTimer(){
 	
  	timer_rem(gCWEchoRequestTimerID, NULL);
+ 	gEchoTimerSet=CW_FALSE;
+ 	
 	CWDebugLog("Echo Heartbeat Timer Stopped");
 	return CW_TRUE;
 }

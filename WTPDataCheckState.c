@@ -84,8 +84,6 @@ CWStateTransition CWWTPEnterDataCheck() {
 	CWList 			fragments = NULL;
 	CWProtocolMessage 	msgPtr;
 	CWBool 			dataFlag = CW_TRUE;
-	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
-	CWBool			gWTPExitRunEchoLocal = CW_FALSE;
 	int msg_len;
 	
 	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);

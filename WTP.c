@@ -686,13 +686,13 @@ int main (int argc, const char * argv[]) {
 	}
 #endif
 
-
+/*
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
 		CWLog("Error starting Thread that receive binding frame");
 		exit(1);
 	}
-
+*/
 
 	CWThread thread_receiveStats;
 	if(!CWErr(CWCreateThread(&thread_receiveStats, CWWTPReceiveStats, NULL))) {
@@ -737,26 +737,8 @@ int main (int argc, const char * argv[]) {
 				nextState = CWWTPEnterRun();
 				break;
 			case CW_ENTER_RESET:
-				/*
-				 * Elena Agostini - 03/2014
-				 * 
-				 * Flag DataChannel Dead - From RUN STATE
-				 */
 				CWLog("------ Enter Reset State ------");
-				CWThreadMutexLock(&gInterfaceMutex);
-				gWTPDataChannelDeadFlag = CW_FALSE;
-				CWThreadMutexUnlock(&gInterfaceMutex);
-				/*
-				 * CWStopHeartbeatTimer();
-				 * CWStopNeighborDeadTimer();
-				 * CWNetworkCloseSocket(gWTPSocket);
-				 * CWSecurityDestroySession(gWTPSession);
-				 * CWSecurityDestroyContext(gWTPSecurityContext);
-				 * gWTPSecurityContext = NULL;
-				 * gWTPSession = NULL;
-				 */
 				nextState = CW_ENTER_DISCOVERY;
-				CWLog("----------CW_ENTER_DISCOVERY");
 				break;
 			case CW_QUIT:
 				CWWTPDestroy();
@@ -817,6 +799,19 @@ void CWWTPDestroy() {
 	
 	CWLog("Destroy WTP");
 	
+	/*
+	 * Elena Agostini - 07/2014: Memory leak
+	 */
+#ifndef CW_NO_DTLS
+	if(gWTPSession)
+		CWSecurityDestroySession(gWTPSession);
+	if(gWTPSecurityContext)
+		CWSecurityDestroyContext(gWTPSecurityContext);
+	
+	gWTPSecurityContext = NULL;
+	gWTPSession = NULL;
+#endif
+
 	for(i = 0; i < gCWACCount; i++) {
 		CW_FREE_OBJECT(gCWACList[i].address);
 	}
