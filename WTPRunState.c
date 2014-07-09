@@ -142,7 +142,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	
 	CW_REPEAT_FOREVER 
 	{
-		CWLog("++++++++++++++++++++++++++ PRIMA DI READ CWWTPReceiveDtlsPacket");
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
 						 buf, 
 						 CW_BUFFER_SIZE - 1,
@@ -151,11 +150,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 						 &readBytes))) {
 
 			if (CWErrorGetLastErrorCode() == CW_ERROR_INTERRUPTED)
-			{
-					CWLog("++++++++++++++++++++++++++ ERRORE CW_ERROR_INTERRUPTED CWWTPReceiveDtlsPacket");
-
 				continue;
-			}
 			
 			break;
 		}
@@ -171,9 +166,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	
 	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDtlsPacket");
 	
+	/*
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPExitRunEcho=CW_TRUE;
 	CWThreadMutexUnlock(&gInterfaceMutex);
+	*/
 	
 	return NULL;
 }
@@ -233,11 +230,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 		CWUnlockSafeList(gPacketReceiveDataList);
 	}
 	
-	
+	/*
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPDataChannelDeadFlag=CW_TRUE;
 	CWThreadMutexUnlock(&gInterfaceMutex);
-	
+	*/
 	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDataPacket");
 	
 	return NULL;
