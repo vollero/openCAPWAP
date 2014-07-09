@@ -296,6 +296,7 @@ CWBool CWNetworkInitSocketClientWithPort(CWSocket *sockPtr, CWNetworkLev4Address
 
 	/* Elena Agostini - 04/2014 */
 	sockaddr.sin_port = ntohs(portSocket);
+	CWLog("portSocket: %d", portSocket);
 	if (bind(*sockPtr, (const struct sockaddr *)&sockaddr, addrlen) < 0) { 
 		close(*sockPtr);
 		CWDebugLog("failed to bind Client socket in <%s> line:%d.\n", __func__,__LINE__);

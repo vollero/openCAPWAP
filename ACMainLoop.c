@@ -56,38 +56,37 @@ __inline__ CWWTPManager *CWWTPByName(const char *addr);
 __inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr,
 					CWSocket sock, CWBool dataFlag, char * sessionID);
 __inline__ genericHandshakeThreadPtr CWWTPThreadGenericByAddress(CWNetworkLev4Address *addressPtr);
-genericHandshakeThreadPtr CWACSetNewGenericHandshakeDataThread(CWNetworkLev4Address * addrPtr, CWSocket sock, char * pData, int readBytes);
+void CWACSetNewGenericHandshakeDataThread(genericHandshakeThreadPtr * genericThreadStruct, CWNetworkLev4Address * addrPtr, CWSocket sock, char * pData, int readBytes);
 
-genericHandshakeThreadPtr CWACSetNewGenericHandshakeDataThread(CWNetworkLev4Address * addrPtr, CWSocket sock, char * pData, int readBytes) {
+void CWACSetNewGenericHandshakeDataThread(genericHandshakeThreadPtr * genericThreadStruct, CWNetworkLev4Address * addrPtr, CWSocket sock, char * pData, int readBytes) {
 	/* Se nessuno sta gestendo l'handshake creo un nuovo thread generico */
-	genericHandshakeThreadPtr genericThreadStruct;
 	
-	CW_CREATE_OBJECT_ERR(genericThreadStruct, genericHandshakeThread, return NULL; );
+	CW_CREATE_OBJECT_ERR((*genericThreadStruct), genericHandshakeThread, return NULL; );
 	
-	if(addrPtr == NULL) return NULL;
+	if(addrPtr == NULL) return;
 
 	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) addrPtr;
 	CWLog("++++ Nuovo thread generico per WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
 	
-	CW_COPY_NET_ADDR_PTR(&(genericThreadStruct->addressWTPPtr), addrPtr);
+	CW_COPY_NET_ADDR_PTR(&((*genericThreadStruct)->addressWTPPtr), addrPtr);
 					
-	if (!CWErr(CWCreateSafeList(&(genericThreadStruct->packetDataList)))) {
+	if (!CWErr(CWCreateSafeList(&((*genericThreadStruct)->packetDataList)))) {
 		exit(-1);
 	}
 	
-	CWCreateThreadMutex(&(genericThreadStruct->interfaceMutex));
-	CWCreateThreadCondition(&(genericThreadStruct->interfaceWait));
-	CWSetMutexSafeList(genericThreadStruct->packetDataList, &(genericThreadStruct->interfaceMutex));
-	CWSetConditionSafeList(genericThreadStruct->packetDataList, &(genericThreadStruct->interfaceWait));
+	CWCreateThreadMutex(&((*genericThreadStruct)->interfaceMutex));
+	CWCreateThreadCondition(&((*genericThreadStruct)->interfaceWait));
+	CWSetMutexSafeList((*genericThreadStruct)->packetDataList, &((*genericThreadStruct)->interfaceMutex));
+	CWSetConditionSafeList((*genericThreadStruct)->packetDataList, &((*genericThreadStruct)->interfaceWait));
 	
 	//Aggiunta ClientHello				
-	CWLockSafeList(genericThreadStruct->packetDataList);
-	CWAddElementToSafeListTailwitDataFlag(genericThreadStruct->packetDataList, pData, readBytes, 1);
-	CWUnlockSafeList(genericThreadStruct->packetDataList);
-	genericThreadStruct->dataSock = sock;
-	genericThreadStruct->next = NULL;
+	CWLockSafeList((*genericThreadStruct)->packetDataList);
+	CWAddElementToSafeListTailwitDataFlag((*genericThreadStruct)->packetDataList, pData, readBytes, 1);
+	CWUnlockSafeList((*genericThreadStruct)->packetDataList);
+	(*genericThreadStruct)->dataSock = sock;
+	(*genericThreadStruct)->next = NULL;
 	
-	return genericThreadStruct;
+	//return genericThreadStruct;
 }
 
 void CWACEnterMainLoop() {
@@ -179,7 +178,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 	char *valSessionIDPtr=NULL;
 	int KeepAliveLenght=0, elemType, elemLen;
 	CWSecuritySession sessionDataGeneric;
-	int pathMTU;
+	int pathMTU, indexTmpThread=0;
 /*
  * Elena Agostini - 04/2014: generic handshake datachannel WTP
  */
@@ -194,31 +193,51 @@ void CWACManageIncomingPacket(CWSocket sock,
 			wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
 			if(wtpPtr == NULL)
 			{
-			//	CWLog("+++ Check WTP thread generico");
+				//CWLog("+++ Check WTP thread generico");
 				/* Controllo se qualche thread generico sta gia gestendo questo canale dati */
 				wtpGenericPtr = CWWTPThreadGenericByAddress(addrPtr);
 				if(wtpGenericPtr == NULL)
 				{
-				
-					if(startGenericThreadList == NULL)
+					CWThreadMutexLock(&gWTPsMutex);
+					for(indexTmpThread=0; indexTmpThread < WTP_MAX_TMP_THREAD_DTLS_DATA; indexTmpThread++)
 					{
-						startGenericThreadList = CWACSetNewGenericHandshakeDataThread(addrPtr, sock, pData, readBytes);
-						tmpGenericThreadList = startGenericThreadList;
-					}
-					else
-					{
-						tmpGenericThreadList = startGenericThreadList;
-						while(tmpGenericThreadList->next != NULL)
-							tmpGenericThreadList = tmpGenericThreadList->next;
-						tmpGenericThreadList->next = CWACSetNewGenericHandshakeDataThread(addrPtr, sock, pData, readBytes);
-						tmpGenericThreadList = tmpGenericThreadList->next;
-					}
-					
-					if(!CWErr(CWCreateThread(&(tmpGenericThreadList->thread_GenericDataChannelHandshake), CWGenericWTPDataHandshake, tmpGenericThreadList))) {
-						CWLog("Error starting Thread that manage generich handshake with WTP");
-						exit(1);
-					}
+						if(listGenericThreadDTLSData[indexTmpThread] == NULL)
+						{
+							CW_CREATE_OBJECT_ERR(listGenericThreadDTLSData[indexTmpThread], genericHandshakeThread, return NULL; );
 
+							struct sockaddr_in *tmpAdd = (struct sockaddr_in *) addrPtr;
+							CWLog("++++ Nuovo thread generico per WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+							
+							CW_COPY_NET_ADDR_PTR(&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr), addrPtr);
+											
+							if (!CWErr(CWCreateSafeList(&(listGenericThreadDTLSData[indexTmpThread]->packetDataList)))) {
+								exit(-1);
+							}
+							
+							CWCreateThreadMutex(&(listGenericThreadDTLSData[indexTmpThread]->interfaceMutex));
+							CWCreateThreadCondition(&(listGenericThreadDTLSData[indexTmpThread]->interfaceWait));
+							CWSetMutexSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList, &(listGenericThreadDTLSData[indexTmpThread]->interfaceMutex));
+							CWSetConditionSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList, &(listGenericThreadDTLSData[indexTmpThread]->interfaceWait));
+							
+							//Aggiunta ClientHello				
+							CWLockSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList);
+							CWAddElementToSafeListTailwitDataFlag(listGenericThreadDTLSData[indexTmpThread]->packetDataList, pData, readBytes, 1);
+							CWUnlockSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList);
+							
+							listGenericThreadDTLSData[indexTmpThread]->dataSock = sock;
+							listGenericThreadDTLSData[indexTmpThread]->next = NULL;
+							
+							CWLog("++++ Allocata struttura numero %d", indexTmpThread);
+							if(!CWErr(CWCreateThread(&(listGenericThreadDTLSData[indexTmpThread]->thread_GenericDataChannelHandshake), CWGenericWTPDataHandshake, listGenericThreadDTLSData[indexTmpThread]))) {
+								CWLog("Error starting Thread that manage generich handshake with WTP");
+								exit(1);
+							}
+							
+							//CWACSetNewGenericHandshakeDataThread(&(startGenericThreadList), addrPtr, sock, pData, readBytes);
+							break;
+						}
+					}
+					CWThreadMutexUnlock(&gWTPsMutex);
 					return;
 				}
 				else
@@ -226,7 +245,6 @@ void CWACManageIncomingPacket(CWSocket sock,
 					CWLockSafeList(wtpGenericPtr->packetDataList);
 					CWAddElementToSafeListTailwitDataFlag(wtpGenericPtr->packetDataList, pData, readBytes, 1);
 					CWUnlockSafeList(wtpGenericPtr->packetDataList);
-					
 					return;
 				}
 			}
@@ -265,7 +283,6 @@ void CWACManageIncomingPacket(CWSocket sock,
 					else {
 						wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
 					}
-				
 			}
 			else
 				wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
@@ -507,8 +524,8 @@ void CWACManageIncomingPacket(CWSocket sock,
 __inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr, CWSocket sock, CWBool dataFlag, char * sessionID) {
 
 	int i;
+	
 	if(addressPtr == NULL) return NULL;
-
 	CWThreadMutexLock(&gWTPsMutex);
 	for(i = 0; i < gMaxWTPs; i++) {
 		
@@ -557,37 +574,43 @@ __inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr, CWSock
 	
 	CWThreadMutexUnlock(&gWTPsMutex);
 	
-//	CWLog("-- WTP mai gestito");
+	//CWLog("-- WTP mai gestito");
 	
 	return NULL;
 }
 
 /* Elena Agostini - 04/2014: check if there is a generic thread for this handshake on datachannel */
 __inline__ genericHandshakeThreadPtr CWWTPThreadGenericByAddress(CWNetworkLev4Address *addressPtr) {
-
-	genericHandshakeThreadPtr tmpGenericThreadList;
+	
+	int indexTmpThread=0;
 	
 	if(addressPtr == NULL) return NULL;
 	
 	CWThreadMutexLock(&gWTPsMutex);
-	tmpGenericThreadList = startGenericThreadList;
-	while(tmpGenericThreadList != NULL)
+	
+	for(indexTmpThread=0; indexTmpThread < WTP_MAX_TMP_THREAD_DTLS_DATA; indexTmpThread++)
 	{
-	/*	struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) addressPtr;
-		struct sockaddr_in *tmpAdd2 = (struct sockaddr_in *) &(tmpGenericThreadList->addressWTPPtr);
-		CWLog("++++ CWWTPThreadGenericByAddress, NUOVO WTP %s:%d, CORRENTE WTP: %s:%d", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port), inet_ntoa(tmpAdd2->sin_addr), ntohs(tmpAdd2->sin_port));
-	*/
-		if(
-			(!sock_cmp_addr((struct sockaddr*)addressPtr, (struct sockaddr*)&(tmpGenericThreadList->addressWTPPtr),sizeof(CWNetworkLev4Address))) &&
-			(!sock_cmp_port((struct sockaddr*)addressPtr, (struct sockaddr*)&(tmpGenericThreadList->addressWTPPtr), sizeof(CWNetworkLev4Address)))
-		)
+		//CWLog("+++ cerco nella struttura numero %d", indexTmpThread);
+		if(listGenericThreadDTLSData[indexTmpThread] != NULL)
 		{
-			CWThreadMutexUnlock(&gWTPsMutex);
-			return tmpGenericThreadList;
+			struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) addressPtr;
+			struct sockaddr_in *tmpAdd2 = (struct sockaddr_in *) &(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr);
+			CWLog("++++ CWWTPThreadGenericByAddress, NUOVO WTP %s:%d, CORRENTE WTP: %s:%d, Num Generic Thread: %d", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port), inet_ntoa(tmpAdd2->sin_addr), ntohs(tmpAdd2->sin_port), indexTmpThread);
+
+			if(
+				(!sock_cmp_addr((struct sockaddr*)addressPtr, (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr),sizeof(CWNetworkLev4Address))) &&
+				(!sock_cmp_port((struct sockaddr*)addressPtr, (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr), sizeof(CWNetworkLev4Address)))
+			)
+			{
+				CWThreadMutexUnlock(&gWTPsMutex);
+				//CWLog("+++++ Trovato");
+				return listGenericThreadDTLSData[indexTmpThread];
+			}
 		}
-		tmpGenericThreadList = tmpGenericThreadList->next;
 	}
+	
 	CWThreadMutexUnlock(&gWTPsMutex);
+	CWLog("+++++ NON Trovato");
 	
 	return NULL;		
 }
@@ -1230,7 +1253,7 @@ CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg) {
 	CWProtocolMessage msg, msgDataChannel;
 	CWProtocolTransportHeaderValues values;
 	CWSocket dataSocket;
-	int indexLocal;
+	int indexTmpThread;
 	
 	dataSocket = argInputThread->dataSock;
 	if (dataSocket == 0){
@@ -1250,7 +1273,7 @@ CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg) {
 		CWErrorHandleLast();
 		CWCloseThread();
 	}
-
+	
 	/* Leggo i dati dalla packetList e li riscrivo decifrati */	
 	CW_REPEAT_FOREVER {
 		countPacketDataList=0;
@@ -1287,9 +1310,6 @@ CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg) {
 				wtpPtr = CWWTPByAddress(&(argInputThread->addressWTPPtr), 0, CW_TRUE, valSessionIDPtr);
 				if ((wtpPtr != NULL) && (wtpPtr->dataaddress.ss_family == AF_UNSPEC)) {
 					CW_COPY_NET_ADDR_PTR(&(wtpPtr->dataaddress), &(argInputThread->addressWTPPtr));
-					
-					struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) &(argInputThread->addressWTPPtr);
-					CWLog("+++ Associata sessione dati %s:%d al thread WTP dedicato relativo... il thread generico invia il KeepAlive e termina!", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port));
 					
 					/* ++++++++++++++++++++ Replay with KeepAlive ++++++++++++++++++++ */
 					CWProtocolMessage *messages = NULL;
@@ -1342,36 +1362,40 @@ CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg) {
 				}
 				break;
 			}
-		}
-		
+		}	
 	}
-	
-	/*genericHandshakeThreadPtr tmpGenericThreadList, precedThreadPtr;
 	
 	CWThreadMutexLock(&gWTPsMutex);
-	tmpGenericThreadList = startGenericThreadList;
-	precedThreadPtr = tmpGenericThreadList;
-	while(tmpGenericThreadList != NULL)
+	for(indexTmpThread=0; indexTmpThread < WTP_MAX_TMP_THREAD_DTLS_DATA; indexTmpThread++)
 	{
-		struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) &(argInputThread->addressWTPPtr);
-		struct sockaddr_in *tmpAdd2 = (struct sockaddr_in *) &(tmpGenericThreadList->addressWTPPtr);
-		if(
-			(!sock_cmp_addr((struct sockaddr*)&(argInputThread->addressWTPPtr), (struct sockaddr*)&(tmpGenericThreadList->addressWTPPtr),sizeof(CWNetworkLev4Address))) &&
-			(!sock_cmp_port((struct sockaddr*)&(argInputThread->addressWTPPtr), (struct sockaddr*)&(tmpGenericThreadList->addressWTPPtr), sizeof(CWNetworkLev4Address)))
-		)
+		if(listGenericThreadDTLSData[indexTmpThread] != NULL)
 		{
-			precedThreadPtr->next = tmpGenericThreadList->next;
-			CW_FREE_OBJECT(tmpGenericThreadList);
-			CWLog("++++ Free Thread Generico");
-			break;
+			struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) &(argInputThread->addressWTPPtr);
+			struct sockaddr_in *tmpAdd2 = (struct sockaddr_in *) &(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr);
+				
+			//CWLog("++++ Free prima di terminare il thread, NUOVO WTP %s:%d, CORRENTE WTP: %s:%d", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port), inet_ntoa(tmpAdd2->sin_addr), ntohs(tmpAdd2->sin_port));
+
+			if(
+				(!sock_cmp_addr((struct sockaddr*)&(argInputThread->addressWTPPtr), (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr),sizeof(CWNetworkLev4Address))) &&
+				(!sock_cmp_port((struct sockaddr*)&(argInputThread->addressWTPPtr), (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr), sizeof(CWNetworkLev4Address)))
+			)
+			{
+			//	CWLog("++++ Trovato e faccio FREE della struttura numero %d", indexTmpThread);
+				free(listGenericThreadDTLSData[indexTmpThread]);
+				listGenericThreadDTLSData[indexTmpThread]=NULL;
+				
+				//CW_FREE_OBJECT(tmpGenericThreadList);
+			//	CWLog("++++ Free Thread Generico");
+				break;
+			}
 		}
-		else
-		{
-			precedThreadPtr = tmpGenericThreadList;
-		}
-		tmpGenericThreadList = tmpGenericThreadList->next;
 	}
 	CWThreadMutexUnlock(&gWTPsMutex);
-	*/
+	
+	struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) &(argInputThread->addressWTPPtr);
+	CWLog("** New DTLS Data session created  with WTP %s:%d.. generic thread exit", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port));
+					
+//	CWLog("++++ ESCO e torno NULL");
+	
 	return NULL;
 }

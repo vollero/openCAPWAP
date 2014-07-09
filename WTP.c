@@ -203,7 +203,10 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 		char *pkt_buffer = NULL;
 		CWLockSafeList(gPacketReceiveDataList);
 		while (CWGetCountElementFromSafeList(gPacketReceiveDataList) == 0)
+		{
+				CWLog("Ancora niente..");
 			CWWaitElementFromSafeList(gPacketReceiveDataList);
+		}
 
 		pkt_buffer = (char*)CWRemoveHeadElementFromSafeListwithDataFlag(gPacketReceiveDataList, &readBytes,&dataFlag);
 

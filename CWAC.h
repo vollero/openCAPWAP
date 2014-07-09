@@ -186,6 +186,10 @@ typedef struct {
 
 } CWWTPManager;	
 
+//Elena Agostini - 07/2014: max num contemporary threads of generic DTLS data session
+#define WTP_MAX_TMP_THREAD_DTLS_DATA 30
+
+
 /* Elena Agostini - 04/2014: DTLS Data Channel Generic Thread */
 typedef struct genericHandshakeThread {
 	CWThread thread_GenericDataChannelHandshake;
@@ -198,7 +202,7 @@ typedef struct genericHandshakeThread {
 } genericHandshakeThread;
 typedef genericHandshakeThread * genericHandshakeThreadPtr;
 /* Start list generic threads DTLS Data Channel Handshake*/
-extern genericHandshakeThreadPtr startGenericThreadList;
+extern genericHandshakeThreadPtr listGenericThreadDTLSData[WTP_MAX_TMP_THREAD_DTLS_DATA];
 
 /*________________________________________________________________*/
 /*  *******************___EXTERN VARIABLES___*******************  */

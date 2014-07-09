@@ -97,6 +97,7 @@ extern int gCWMaxRetransmit;
 extern int gWTPMaxRetransmitEcho;
 extern CWBool gWTPDataChannelDeadFlag;
 extern CWBool gWTPExitRunEcho;
+extern int gWTPThreadDataPacketState;
 
 /*
  * Elena Agostini - 03/2014

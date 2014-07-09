@@ -110,6 +110,7 @@ CWTimerID gCWDataChannelDeadTimerID;
 CWBool gDataChannelDeadTimerSet=CW_FALSE;
 int gDataChannelDeadInterval = CW_DATACHANNELDEAD_INTERVAL_DEFAULT;
 CWBool gWTPDataChannelDeadFlag = CW_FALSE;
+int gWTPThreadDataPacketState = 0;
 
 /*
  * Elena Agostini - 03/2014
@@ -141,6 +142,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	
 	CW_REPEAT_FOREVER 
 	{
+		CWLog("++++++++++++++++++++++++++ PRIMA DI READ CWWTPReceiveDtlsPacket");
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
 						 buf, 
 						 CW_BUFFER_SIZE - 1,
@@ -149,7 +151,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 						 &readBytes))) {
 
 			if (CWErrorGetLastErrorCode() == CW_ERROR_INTERRUPTED)
+			{
+					CWLog("++++++++++++++++++++++++++ ERRORE CW_ERROR_INTERRUPTED CWWTPReceiveDtlsPacket");
+
 				continue;
+			}
 			
 			break;
 		}
@@ -164,6 +170,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	}
 	
 	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDtlsPacket");
+	
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPExitRunEcho=CW_TRUE;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	
 	return NULL;
 }
 
@@ -222,6 +233,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 		CWUnlockSafeList(gPacketReceiveDataList);
 	}
 	
+	
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPDataChannelDeadFlag=CW_TRUE;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	
 	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDataPacket");
 	
 	return NULL;
@@ -231,7 +247,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 /*
  * Elena Agostini - 03/2014
  * 
- * Manage RUN State WTPDataChannel 
+ * Manage RUN State WTPDataChannel + DTLS Data Channel
  */
  CW_THREAD_RETURN_TYPE CWWTPManageDataPacket(void *arg) {
 	
@@ -245,12 +261,13 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
 	CWBool			gWTPExitRunEchoLocal = CW_FALSE;
 	int k, msg_len;
+	int gWTPThreadDataPacketStateLocal=0;
+	CWBool bReceivePacket;
 
-/*
- * Elena Agostini - 03/2014
- * 
- * DTLS Data Session WTP
- */
+	/* Elena Agostini - 07/2014: data packet thread alive flag */
+	CWThreadMutexLock(&gInterfaceMutex);
+	gWTPThreadDataPacketState = 1;
+	CWThreadMutexUnlock(&gInterfaceMutex);
 
 #ifdef CW_DTLS_DATA_CHANNEL
 
@@ -266,16 +283,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					      &gWTPSessionData,
 					      &gWTPPathMTU))) {
 		
-		/* error setting up DTLS session */
-		CWSecurityDestroyContext(gWTPSecurityContext);
-		gWTPSecurityContext = NULL;
-		gWTPSession = NULL;
-		
-		CWThreadMutexLock(&gInterfaceMutex);
-		gWTPDataChannelDeadFlag=CW_TRUE;
-		CWThreadMutexUnlock(&gInterfaceMutex);
-		
-		return NULL;
+		//Elena Agostini - 07/2014
+		goto CLEAR_DATA_RUN_STATE;
 	}
 	
 #endif
@@ -291,113 +300,133 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 		/*
 		 * Flag DataChannel & ControlChannel Dead
 		 */
-		 
+		bReceivePacket = CW_FALSE;
 		CWThreadMutexLock(&gInterfaceMutex);
 		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
 		gWTPExitRunEchoLocal=gWTPExitRunEcho;
+		gWTPThreadDataPacketStateLocal=gWTPThreadDataPacketState;
 		CWThreadMutexUnlock(&gInterfaceMutex);
 		
-		if(gWTPDataChannelLocalFlag == CW_TRUE) break;
-		if(gWTPExitRunEchoLocal == CW_TRUE) return;
+		if(gWTPDataChannelLocalFlag == CW_TRUE)
+		{
+			CWLog("Data Channel is dead.. Thread CWWTPManageDataPacket exit");
+			break;
+		}
+		if(gWTPExitRunEchoLocal == CW_TRUE)
+		{
+			CWLog("Control Channel is dead.. Thread CWWTPManageDataPacket exit");
+			break;
+		}
+		if(gWTPThreadDataPacketStateLocal == 2)
+		{
+			CWLog("Data Packet Thread must die.. Thread CWWTPManageDataPacket exit");
+			break;
+		}
 	
 		msgPtr.msg = NULL;
 		msgPtr.offset = 0;
 		
-		/*
-		 * Elena Agostini - 03/2014
-		 * 
-		 * DTLS Data Session WTP
-		 */
-		if(!CWReceiveDataMessage(&msgPtr))
-		{
-			CW_FREE_PROTOCOL_MESSAGE(msgPtr);
-			CWDebugLog("Failure Receiving DTLS Data Channel");
-			break;		
-		}
-				
-		if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
-
-				char *valPtr=NULL;
-				unsigned short int elemType = 0;
-				unsigned short int elemLen = 0;
-
-				CWLog("[KeepAlive from AC, %d byte]",msgPtr.offset);
-				msgPtr.offset=0;	
-				CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
-				valPtr = CWParseSessionID(&msgPtr, 16);
-				
-				/*
-				 * Elena Agostini - 03/2014
-				 * Reset DataChannel Dead Timer
-				 */
-				if (!CWResetDataChannelDeadTimer()) {
-					CW_FREE_PROTOCOL_MESSAGE(msgPtr);
-					break;
-				}
-			}else if (msgPtr.data_msgType == CW_IEEE_802_3_FRAME_TYPE) {
-
-				CWDebugLog("Got 802.3 len:%d from AC",msgPtr.offset);
-				
-				/*MAC - begin*/
-				rawSockaddr.sll_addr[0]  = msgPtr.msg[0];		
-				rawSockaddr.sll_addr[1]  = msgPtr.msg[1];		
-				rawSockaddr.sll_addr[2]  = msgPtr.msg[2];
-				rawSockaddr.sll_addr[3]  = msgPtr.msg[3];
-				rawSockaddr.sll_addr[4]  = msgPtr.msg[4];
-				rawSockaddr.sll_addr[5]  = msgPtr.msg[5];
-				/*MAC - end*/
-				rawSockaddr.sll_addr[6]  = 0x00;/*not used*/
-				rawSockaddr.sll_addr[7]  = 0x00;/*not used*/
-				
-				rawSockaddr.sll_hatype   = htons(msgPtr.msg[12]<<8 | msgPtr.msg[13]);
-				
-				n = sendto(gRawSock,msgPtr.msg ,msgPtr.offset,0,(struct sockaddr*)&rawSockaddr, sizeof(rawSockaddr));
-				
-			}else if(msgPtr.data_msgType == CW_IEEE_802_11_FRAME_TYPE) {
-								
-				struct ieee80211_hdr *hdr;
-				u16 fc;
-				hdr = (struct ieee80211_hdr *) msgPtr.msg;
-				fc = le_to_host16(hdr->frame_control);
-	
-				if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT || isEAPOL_Frame(msgPtr.msg,msgPtr.offset) ){
-					CWDebugLog("Got 802.11 Management Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
-					CWWTPsend_data_to_hostapd(msgPtr.msg, msgPtr.offset);
+		CWThreadMutexLock(&gInterfaceMutex);
+		bReceivePacket = ((CWGetCountElementFromSafeList(gPacketReceiveDataList) != 0) ? CW_TRUE : CW_FALSE);
+		CWThreadMutexUnlock(&gInterfaceMutex);
+		
+		if (bReceivePacket) {
+			
+			/* Elena Agostini - 03/2014: DTLS Data Session WTP */
+			if(!CWReceiveDataMessage(&msgPtr))
+			{
+				CW_FREE_PROTOCOL_MESSAGE(msgPtr);
+				CWLog("Failure Receiving DTLS Data Channel");
+				break;		
+			}
 					
-				}else if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
-										
-					if(  WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
-						
-						CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
+			if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
+
+					char *valPtr=NULL;
+					unsigned short int elemType = 0;
+					unsigned short int elemLen = 0;
+
+					CWLog("[KeepAlive from AC, %d byte]",msgPtr.offset);
+					msgPtr.offset=0;	
+					CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
+					valPtr = CWParseSessionID(&msgPtr, 16);
+					
+					/*
+					 * Elena Agostini - 03/2014
+					 * Reset DataChannel Dead Timer
+					 */
+					if (!CWResetDataChannelDeadTimer()) {
+						CW_FREE_PROTOCOL_MESSAGE(msgPtr);
+						break;
+					}
+				}else if (msgPtr.data_msgType == CW_IEEE_802_3_FRAME_TYPE) {
+
+					CWDebugLog("Got 802.3 len:%d from AC",msgPtr.offset);
+					
+					/*MAC - begin*/
+					rawSockaddr.sll_addr[0]  = msgPtr.msg[0];		
+					rawSockaddr.sll_addr[1]  = msgPtr.msg[1];		
+					rawSockaddr.sll_addr[2]  = msgPtr.msg[2];
+					rawSockaddr.sll_addr[3]  = msgPtr.msg[3];
+					rawSockaddr.sll_addr[4]  = msgPtr.msg[4];
+					rawSockaddr.sll_addr[5]  = msgPtr.msg[5];
+					/*MAC - end*/
+					rawSockaddr.sll_addr[6]  = 0x00;/*not used*/
+					rawSockaddr.sll_addr[7]  = 0x00;/*not used*/
+					
+					rawSockaddr.sll_hatype   = htons(msgPtr.msg[12]<<8 | msgPtr.msg[13]);
+					
+					n = sendto(gRawSock,msgPtr.msg ,msgPtr.offset,0,(struct sockaddr*)&rawSockaddr, sizeof(rawSockaddr));
+					
+				}else if(msgPtr.data_msgType == CW_IEEE_802_11_FRAME_TYPE) {
+									
+					struct ieee80211_hdr *hdr;
+					u16 fc;
+					hdr = (struct ieee80211_hdr *) msgPtr.msg;
+					fc = le_to_host16(hdr->frame_control);
+		
+					if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT || isEAPOL_Frame(msgPtr.msg,msgPtr.offset) ){
+						CWDebugLog("Got 802.11 Management Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
 						CWWTPsend_data_to_hostapd(msgPtr.msg, msgPtr.offset);
 						
+					}else if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
+											
+						if(  WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
+							
+							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
+							CWWTPsend_data_to_hostapd(msgPtr.msg, msgPtr.offset);
+							
+						}else{
+							
+							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
+							CWWTPSendFrame(msgPtr.msg, msgPtr.offset);
+							
+						}
+						
 					}else{
-						
-						CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
-						CWWTPSendFrame(msgPtr.msg, msgPtr.offset);
-						
+						CWLog("Control/Unknow Type type=%d",WLAN_FC_GET_TYPE(fc));
 					}
+				
 					
 				}else{
-					CWLog("Control/Unknow Type type=%d",WLAN_FC_GET_TYPE(fc));
+					CWLog("Unknow data_msgType");
 				}
-			
-				
-			}else{
-				CWLog("Unknow data_msgType");
-			}
-			CW_FREE_PROTOCOL_MESSAGE(msgPtr);
+				CW_FREE_PROTOCOL_MESSAGE(msgPtr);
+		}
 	}
 
+CLEAR_DATA_RUN_STATE:
+	
 #ifdef CW_DTLS_DATA_CHANNEL
-	CWSecurityDestroyContext(gWTPSecurityContext);
-	gWTPSecurityContext = NULL;
-	gWTPSession = NULL;
+	gWTPSessionData = NULL;
 #endif
-
+	
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPDataChannelDeadFlag=CW_TRUE;
+	gWTPThreadDataPacketState = 2;
 	CWThreadMutexUnlock(&gInterfaceMutex);
+	
+	CWLog("++++++++ ESCO DAL THREAD CWWTPManageDataPacket");
 	
 	return NULL;
 }
@@ -412,6 +441,7 @@ int wtpInRunState=0;
 CWStateTransition CWWTPEnterRun() {
 
 	int k, msg_len;
+	int gWTPThreadDataPacketStateLocal=0;
 
 	CWLog("\n");
 	CWLog("######### WTP enters in RUN State #########");
@@ -544,22 +574,42 @@ CWStateTransition CWWTPEnterRun() {
 	/* Elena Agostini - 07/2014 */
 	CLEAR_RUN_STATE:
 	
+	wtpInRunState=0;
+	
+	CWLog("*** Control thread exiting...");
+	CWStopEchoRequestsTimer();
+	CWStopKeepAliveTimer();
+	CWStopDataChannelDeadTimer();
+	CWLog("*** Control thread timers stopped");
+
+	/*
+	 * Elena Agostini - 07/2014: waiting thread_manageDataPacket 
+	 */
+	CWThreadMutexLock(&gInterfaceMutex);
+	CWLog("*** gWTPThreadDataPacketState: %d", gWTPThreadDataPacketState);
+	if(gWTPThreadDataPacketState != 2)
+		gWTPThreadDataPacketState=2;
+	CWThreadMutexUnlock(&gInterfaceMutex);
+	
+	
+	pthread_join(thread_manageDataPacket, NULL);
+	
+	CWLog("*** thread_manageDataPacket thread is terminated");
+
+
 #ifndef CW_NO_DTLS
 	CWSecurityDestroyContext(gWTPSecurityContext);
 	gWTPSecurityContext = NULL;
 	gWTPSession = NULL;
 #endif
-	
-	wtpInRunState=0;
-	
-	CWStopEchoRequestsTimer();
-	CWStopKeepAliveTimer();
-	CWStopDataChannelDeadTimer();
-
+		
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPDataChannelDeadFlag = CW_FALSE;
 	gWTPExitRunEcho = CW_FALSE;
+	gWTPThreadDataPacketState=0;
 	CWThreadMutexUnlock(&gInterfaceMutex);
+	
+	CWLog("*** Flags set");
 	
 	return CW_ENTER_RESET;
 }

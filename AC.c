@@ -90,7 +90,7 @@ int gACECNSupport=0;
  * Elena Agostini - 03/2014: DTLS Data Channel
  */
 CWBool ACSessionDataActive;
-genericHandshakeThreadPtr startGenericThreadList = NULL;
+genericHandshakeThreadPtr listGenericThreadDTLSData[WTP_MAX_TMP_THREAD_DTLS_DATA];
 
 /* max stations */
 int gLimit;
@@ -149,7 +149,7 @@ int CWACSemPostForOpenSSLHack(void *s) {
 }
 
 void CWACInit() {
-	int i;
+	int i, index=0;
 	CWNetworkLev4Address *addresses = NULL;
 	struct sockaddr_in *IPv4Addresses = NULL;
 	
@@ -168,7 +168,11 @@ void CWACInit() {
 		CWLog("Can't start AC");
 		exit(1);
 	}
-
+	
+	//Elena Agostini - 07/2014: initialize listGenericThreadDTLSData
+	for(index=0; index < WTP_MAX_TMP_THREAD_DTLS_DATA; index++)
+		listGenericThreadDTLSData[index] = NULL;
+	
 	CWLog("Starting AC");
 
 	CWThreadSetSignals(SIG_BLOCK, 1, SIGALRM);

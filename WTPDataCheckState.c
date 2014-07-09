@@ -105,6 +105,8 @@ CWStateTransition CWWTPEnterDataCheck() {
 		return CW_FALSE;
 	}
 	
+	CWLog("*** OK now assemble first KeepAlive");
+	
 	/*
 	 * If handshake ok, first KeepAlive DTLS to AC 
 	 */

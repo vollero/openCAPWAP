@@ -72,13 +72,21 @@ CWBool CWParseDiscoveryResponseMessage(char *msg,
 CWStateTransition CWWTPEnterDiscovery() {
 	int i;
 	CWBool j;
-
+	int ret= -10;
+	
 	CWLog("\n");	
 	CWLog("######### Discovery State #########");
 	
 	/* reset Discovery state */
 	gCWDiscoveryCount = 0;
-	CWNetworkCloseSocket(gWTPSocket);
+	ret = shutdown(SHUT_RDWR, gWTPSocket);
+	CWLog("shutdown ret: %d", ret);
+	perror("shutdown");
+	ret = close(gWTPSocket);
+	CWLog("close ret: %d", ret);
+	perror("close");
+	
+//	CWNetworkCloseSocket(gWTPSocket);
 	
 	/* Elena Agostini - 06/2014: close WTP Data Socket before binding in Join state */
 	 if(gWTPDataSocket)
