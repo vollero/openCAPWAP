@@ -33,12 +33,15 @@
 /*  *******************___INCLUDE___*******************  */
 
 #include "CWCommon.h"
-#include "WTPProtocol.h"
 #include "WTPBinding.h"
+//Elena Agostini - 07/2014
+//#include "NL80211.h"
+
 
 /*______________________________________________________*/
 /*  *******************___DEFINE___*******************  */
 //extern char * WTP_LOG_FILE_NAME;
+//Elena Agostini: now it is useless - TODO remove from WTP this const
 #define WTP_LOG_FILE_NAME	"/var/log/wtp.log.txt"
 
 /*_____________________________________________________*/
@@ -50,6 +53,9 @@ typedef struct {
 	int seqNum;
 } CWACDescriptor;
 
+
+#include "WTPProtocol.h"
+
 /*_____________________________________________________________*/
 /*  *******************___WTP VARIABLES___*******************  */
 extern char* gInterfaceName;
@@ -59,6 +65,11 @@ extern char* gBaseMACInterfaceName;
 extern char gBoardReversionNo;
 extern char **gCWACAddresses;
 extern int gCWACCount;
+
+//Elena Agostini - 07/2014: nl80211 support
+extern int gPhyInterfaceCount;
+extern char ** gPhyInterfaceName;
+
 
 /*
  * Elena Agostini - 02/2014

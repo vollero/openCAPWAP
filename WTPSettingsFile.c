@@ -41,6 +41,10 @@ char* gRadioInterfaceName_0=NULL;
 char* gBaseMACInterfaceName=NULL;
 char  gBoardReversionNo;
 
+//Elena Agostini - 07/2014: nl80211 support
+int gPhyInterfaceCount;
+char ** gPhyInterfaceName=NULL;
+
 /*
  * Elena Agostini - 02/2014
  *
@@ -111,7 +115,70 @@ CWBool CWParseSettingsFile()
 			CW_FREE_OBJECT(line);
 			continue;	
 		}
+
+		//Elena Agostini - 07/2014: nl80211 support
+		if (!strncmp(startTag+1, "RADIO_PHY_TOT", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			char port_str[16];
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+		
+			strncpy(port_str, startValue, offset);
+			port_str[offset] ='\0';
+			gPhyInterfaceCount = atoi(port_str);
+			fprintf(stderr, "gPhyInterfaceCount: %d\n",gPhyInterfaceCount);
+			if(gPhyInterfaceCount > 0)
+				CW_CREATE_ARRAY_ERR(gPhyInterfaceName, gPhyInterfaceCount, char *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL);)
+				
+			CW_FREE_OBJECT(line);
+			continue;
+		}
+		
+		//Elena Agostini - 07/2014: nl80211 support
+		if (!strncmp(startTag+1, "RADIO_PHY_NAME_", endTag-startTag-1-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+			int indexPhy;
 			
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+			
+			int endValueInt = atoi(endValue);
+			for(indexPhy=0; indexPhy<gPhyInterfaceCount; indexPhy++)
+			{
+				if(indexPhy == endValueInt && gPhyInterfaceName != NULL)
+				{
+					CW_CREATE_STRING_ERR(gPhyInterfaceName[indexPhy], offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
+					strncpy(gPhyInterfaceName[indexPhy], startValue, offset);
+					gPhyInterfaceName[indexPhy][offset] ='\0';
+					fprintf(stderr, "gPhyInterfaceName[%d]: %s\n", indexPhy, gPhyInterfaceName[indexPhy]);
+					CW_FREE_OBJECT(line);
+				}
+			}
+			
+			continue;
+		}
+		
+		if (!strncmp(startTag+1, "IF_NAME", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
+
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+
+			CW_CREATE_STRING_ERR(gInterfaceName, offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
+			strncpy(gInterfaceName, startValue, offset);
+			gInterfaceName[offset] ='\0';
+			CWLog(": %s", gInterfaceName);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}
+
 		if (!strncmp(startTag+1, "IF_NAME", endTag-startTag-1))
 		{
 			char* startValue=NULL;
@@ -401,5 +468,25 @@ CWBool CWParseSettingsFile()
 		}
 		CW_FREE_OBJECT(line);
 	}
+	
+	//Elena Agostini - 07/2014: nl80211 support
+	if(gPhyInterfaceCount == 0)
+	{
+		fprintf(stderr, "WTP ERROR: RADIO_PHY_TOT is 0");
+		return CW_FALSE;
+	}
+	
+	if(gPhyInterfaceName == NULL)
+	{
+		fprintf(stderr, "WTP ERROR: you have to put RADIO_PHY_TOT before RADIO_PHY_NAME_X");
+		return CW_FALSE;
+	}
+	
+	if(!gPhyInterfaceName[0])
+	{
+		fprintf(stderr, "WTP ERROR: no RADIO_PHY_NAME_X detected");
+		return CW_FALSE;
+	}
+	
 	return CW_TRUE;
 }

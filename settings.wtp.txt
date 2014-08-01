@@ -3,6 +3,11 @@
 
 <LOG_FILE_WTP>/var/log/wtp3.txt
 #
+#Elena Agostini 07-2014: nl80211 support
+<RADIO_PHY_TOT>1
+<RADIO_PHY_NAME_0>phy0
+#<RADIO_PHY_NAME_1>phy1
+
 <IF_NAME>    mon.wlan0
 <WTP_ETH_IF_NAME>    vmnet1
 <RADIO_0_IF_NAME>    wlan0

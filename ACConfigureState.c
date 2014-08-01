@@ -83,6 +83,7 @@ CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
 	}
 	
 	
+	//Elena Agostini note: useless?
 	/* Store Radio Info in gWTPs */
 	gWTPs[WTPIndex].RadioInformationABGN = tmp_RadioInformationABGN;
 	memcpy( gWTPs[WTPIndex].SuppRates, tmp_SuppRates, 8 );
@@ -135,6 +136,10 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	CWDebugLog("Parsing Configure Request...");
+	
+	//Elena Agostini: nl80211 support
+	valuesPtr->tmpPhyInfo.numPhyActive=0;
+	CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->tmpPhyInfo.singlePhyInfo, WTP_RADIO_MAX, ACWTPSinglePhyInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	completeMsg.msg = msg;
 	completeMsg.offset = 0;
@@ -203,14 +208,15 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 					return CW_FALSE;
 				break;
 			
-		/*
-		 * Elena Agostini - 02/2014
-		 *
-		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
-		 * Now it does not works: only 5 bytes of 0
-		 */
 			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
-				if(!(CWParseWTPRadioInformation(&completeMsg, elemLen, tmp_RadioInformationABGN)))return CW_FALSE;
+				if(valuesPtr->tmpPhyInfo.numPhyActive < WTP_RADIO_MAX)
+					if(!(CWParseWTPRadioInformation(&completeMsg, 
+													elemLen, 
+													&(valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].radioID),
+													&(valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].phyStandardValue)
+													)
+					))return CW_FALSE;
+					valuesPtr->tmpPhyInfo.numPhyActive++;
 				break;
 				
 			case CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE:

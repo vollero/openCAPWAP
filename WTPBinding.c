@@ -88,22 +88,16 @@ CWBool CWWTPInitBinding(int radioIndex)
 	bindingValues* aux;
 	int i,sock;
 	struct iwreq wrq;
-
-	/*** Inizializzazione socket ***/
-	sock = socket(AF_INET, SOCK_DGRAM, 0);
-
-	if (sock < 0) 
-	{
-
-		CWLog("Error Creating Socket for ioctl"); 
-		return CW_FALSE;
-	}
-
+	WTPQosValues * qosValues;
+	int ret;
+	
+	
+	
 	/*** Inizializzazione struttura iwreq ***/
 	memset(&wrq, 0, sizeof(wrq));
 	strncpy(wrq.ifr_name, gInterfaceName, IFNAMSIZ);
 
-CWLog("wrq.ifr_name %s ",wrq.ifr_name);
+	CWLog("wrq.ifr_name %s ",wrq.ifr_name);
 
 	CW_CREATE_OBJECT_ERR(aux, bindingValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
@@ -113,6 +107,15 @@ CWLog("wrq.ifr_name %s ",wrq.ifr_name);
 
 	for(i=0; i<NUM_QOS_PROFILES; i++){
 		
+		/*
+		 * Elena Agostini - 07/2014 
+		 */
+	/*	ret = nl80211GetTxqParams(&(gRadiosInfo.radiosInfo[radioIndex].ifaceSockNL80211), &(aux->qosValues[i]), gRadiosInfo.radiosInfo[radioIndex].radioID);
+		
+		CWLog("aux->qosValues[%d].cwMin = %d", i, aux->qosValues[i].cwMin);
+		CWLog("aux->qosValues[%d].cwMax = %d", i, aux->qosValues[i].cwMax);
+		CWLog("aux->qosValues[%d].AIFS = %d", i, aux->qosValues[i].AIFS);
+		*/
 		/*	
 		 * Donato Capitella - TO_REMOVE_DEVELOP
 		 * Commented the following lines just to make the WTP work in a test machine.
@@ -126,7 +129,7 @@ CWLog("wrq.ifr_name %s ",wrq.ifr_name);
 
 		//if(!get_aifs(sock, &wrq, CWTranslateQueueIndex(i), 0)){return CW_FALSE;}
 		//aux->qosValues[i].AIFS = wrq.u.param.value;
-
+		
 		/*
 		 * Elena Agostini - 02/2014
 		 *
@@ -138,6 +141,7 @@ CWLog("wrq.ifr_name %s ",wrq.ifr_name);
 
 	}
 
+	CWLog("return after wtpbindig");
 	return CW_TRUE;
 }
 

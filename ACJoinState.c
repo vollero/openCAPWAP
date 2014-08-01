@@ -36,7 +36,8 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 			      int *fragmentsNumPtr,
 			      int PMTU,
 			      int seqNum,
-			      CWList msgElemList);
+			      CWList msgElemList,
+			      CWWTPProtocolManager *WTPProtocolManager);
 
 CWBool CWParseJoinRequestMessage(char *msg,
 				 int len,
@@ -78,6 +79,7 @@ CWBool ACEnterJoin(int WTPIndex, CWProtocolMessage *msgPtr)
 	int resultCodeValue = CW_PROTOCOL_SUCCESS;
 	/* CWBool sessionID = CW_FALSE; */
 
+	//Elena Agostini - 07/2014: nl80211 support
 	if(!(CWSaveJoinRequestMessage(&joinRequest, &(gWTPs[WTPIndex].WTPProtocolManager)))) {
 
 		resultCodeValue = CW_PROTOCOL_FAILURE_RES_DEPLETION;
@@ -117,7 +119,8 @@ CWBool ACEnterJoin(int WTPIndex, CWProtocolMessage *msgPtr)
 				    &(gWTPs[WTPIndex].messagesCount),
 				    gWTPs[WTPIndex].pathMTU,
 				    seqNum,
-				    msgElemList))){
+				    msgElemList,
+				    &(gWTPs[WTPIndex].WTPProtocolManager)))){
 
 		CWDeleteList(&msgElemList, CWProtocolDestroyMsgElemData);
 		return CW_FALSE;
@@ -141,7 +144,8 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 			      int *fragmentsNumPtr,
 			      int PMTU,
 			      int seqNum,
-			      CWList msgElemList) {
+			      CWList msgElemList,
+			      CWWTPProtocolManager *WTPProtocolManager) {
 
 	CWProtocolMessage *msgElems= NULL;
 	int msgElemCount = 0;
@@ -181,16 +185,7 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 		 */
 		(!(CWAssembleMsgElemCWLocalIPv4Addresses(&(msgElems[++k])))) ||
 
-	   (!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k])))) ||
-
-		/*
-		 * Elena Agostini - 02/2014
-		 *
-		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
-		 * Now it does not works: only 5 bytes of 0
-		 */
- 		
-	   (!(CWAssembleMsgElemACWTPRadioInformation(&(msgElems[++k]))))
+	   (!(CWAssembleMsgElemCWControlIPv4Addresses(&(msgElems[++k]))))
 	) {
 		CWErrorHandleLast();
 		int i;
@@ -199,7 +194,31 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 		/* error will be handled by the caller */
 		return CW_FALSE;
 	} 
-
+		
+	//Elena Agostini - 07/2014: wtp radio info replay
+	int indexWTPRadio;
+	unsigned char phyStandardValue;
+	for(indexWTPRadio=0; indexWTPRadio< WTPProtocolManager->radiosInfo.radioCount; indexWTPRadio++) {
+		phyStandardValue=0;
+	
+		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardA == CW_TRUE) phyStandardValue += 2;
+		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardB == CW_TRUE) phyStandardValue += 1;
+		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardG == CW_TRUE) phyStandardValue += 4;
+		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardN == CW_TRUE) phyStandardValue += 8;
+		
+		if(!(CWAssembleMsgElemACWTPRadioInformation(&(msgElems[++k]), 
+													WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].radioID, 
+													phyStandardValue))
+		)
+		{
+			CWErrorHandleLast();
+			int i;
+			for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
+			CW_FREE_OBJECT(msgElems);
+			return CW_FALSE; // error will be handled by the caller
+		}
+	}
+		
 	current=msgElemList;
 	for (i=0; i<msgElemCount; i++) {
 
@@ -286,6 +305,10 @@ CWBool CWParseJoinRequestMessage(char *msg,
 	completeMsg.msg = msg;
 	completeMsg.offset = 0;
 
+	//Elena Agostini: nl80211 support
+	valuesPtr->tmpPhyInfo.numPhyActive=0;
+	CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->tmpPhyInfo.singlePhyInfo, WTP_RADIO_MAX, ACWTPSinglePhyInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
 	if(!(CWParseControlHeader(&completeMsg, &controlVal)))
 		/* will be handled by the caller */
 		return CW_FALSE;
@@ -356,14 +379,21 @@ CWBool CWParseJoinRequestMessage(char *msg,
 					return CW_FALSE;
 				break;
 			
-			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
-				if(!(CWParseWTPRadioInformation(&completeMsg, elemLen,&RadioInfoABGN)))	return CW_FALSE;
-				break;
-			
 			/*
-			 * Elena Agostini - 02/2014
-		 	 *
-		 	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+			 * Elena Agostini - 08/2014: nl80211 support
+		 	 */
+			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
+				if(valuesPtr->tmpPhyInfo.numPhyActive < WTP_RADIO_MAX)
+					if(!(CWParseWTPRadioInformation(&completeMsg, 
+													elemLen, 
+													&(valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].radioID),
+													&(valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].phyStandardValue)
+													)
+					))return CW_FALSE;
+					valuesPtr->tmpPhyInfo.numPhyActive++;
+				break;
+			/*
+			 * Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages
 		 	 */
 			case CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE:
 				if(!(CWParseWTPECNSupport(&completeMsg, elemLen, &(valuesPtr->ECNSupport))))
@@ -413,8 +443,7 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 	WTPProtocolManager->WTPBoardData = joinRequest->WTPBoardData;
 
 	/*
-	 * Elena Agostini - 04/2014
-	 * SessionID string wasn't saved in right way
+	 * Elena Agostini - 04/2014: SessionID string wasn't saved in right way
 	 */
 	 CW_CREATE_ARRAY_ERR(WTPProtocolManager->sessionID, WTP_SESSIONID_LENGTH, unsigned char, return;);
 	 memcpy(WTPProtocolManager->sessionID, joinRequest->sessionID, WTP_SESSIONID_LENGTH);
@@ -434,16 +463,46 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 	int i;
 
 	for(i=0; i< WTPProtocolManager->radiosInfo.radioCount; i++) {
-
-		WTPProtocolManager->radiosInfo.radiosInfo[i].radioID = i;
-                /*WTPProtocolManager->radiosInfo.radiosInfo[i].stationCount = 0;*/
+		//Elena Agostini: per ora vengono salvati solo WTP_RADIO_MAX (ACNL80211.h) message elements dal join request.
+		//Si dovranno trovare altre soluzioni quando si lavorerà al management
+		if(i >= WTP_RADIO_MAX) continue;
+		/*WTPProtocolManager->radiosInfo.radiosInfo[i].stationCount = 0;*/
 		/* default value for CAPWAP */
-                WTPProtocolManager->radiosInfo.radiosInfo[i].adminState = ENABLED;
-                WTPProtocolManager->radiosInfo.radiosInfo[i].adminCause = AD_NORMAL;
-                WTPProtocolManager->radiosInfo.radiosInfo[i].operationalState = DISABLED;
-                WTPProtocolManager->radiosInfo.radiosInfo[i].operationalCause = OP_NORMAL;
-                WTPProtocolManager->radiosInfo.radiosInfo[i].TxQueueLevel = 0;
-                WTPProtocolManager->radiosInfo.radiosInfo[i].wirelessLinkFramesPerSec = 0; 
+        WTPProtocolManager->radiosInfo.radiosInfo[i].adminState = ENABLED;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].adminCause = AD_NORMAL;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].operationalState = DISABLED;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].operationalCause = OP_NORMAL;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].TxQueueLevel = 0;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].wirelessLinkFramesPerSec = 0;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].radioID = joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID;
+        
+        /*
+		 * 80211.a = 2
+		 * 80211.b = 1
+		 * 80211.g = 4
+		 * 80211.n = 8
+		 */
+		 		 
+        if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x1) == 1)
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardB=CW_TRUE;
+		else
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardB=CW_FALSE;
+			
+		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x2) == 2)
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardA=CW_TRUE;
+		else
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardA=CW_FALSE;
+		
+		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x4) == 4)
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardG=CW_TRUE;
+		else
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardG=CW_FALSE;
+		
+		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x8) == 8)
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_TRUE;
+		else
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_FALSE;
+		
 	}
 	CWDebugLog("Join Request Saved");
 	return CW_TRUE;

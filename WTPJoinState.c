@@ -106,12 +106,16 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 		gACInfoPtr->security = gWTPForceSecurity;
 	}
 	
+	if(gWTPSocket)
+		CWNetworkCloseSocket(gWTPSocket);
 	/* Elena Agostini - 04/2014: make control port always the same inside each WTP */
 	if(!CWErr(CWNetworkInitSocketClientWithPort(&gWTPSocket, &(gACInfoPtr->preferredAddress), WTP_PORT_CONTROL))) {
 		timer_rem(waitJoinTimer, NULL);
 		return CW_ENTER_DISCOVERY;
 	}
 	
+	if(gWTPDataSocket)
+		CWNetworkCloseSocket(gWTPDataSocket);
 	/* Elena Agostini - 04/2014: make data port always the same inside each WTP */
 	if(!CWErr(CWNetworkInitSocketClientDataChannelWithPort(&gWTPDataSocket, &(gACInfoPtr->preferredAddress), WTP_PORT_DATA)) ) {
 		return CW_ENTER_DISCOVERY;
@@ -277,19 +281,9 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 	     (!(CWAssembleMsgElemWTPFrameTunnelMode(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPMACType(&(msgElems[++k])))) ||
 		/*
-		 * Elena Agostini - 02/2014
-	 	 *
-	 	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+		 * Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages
 	 	 */
-	     (!(CWAssembleMsgElemECNSupport(&(msgElems[++k])))) ||
-	
-		/*
-		 * Elena Agostini - 02/2014
-		 *
-		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
-		 * Now it does not works: only 5 bytes of 0
-		 */
-	     (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k]))))
+	     (!(CWAssembleMsgElemECNSupport(&(msgElems[++k]))))
 	) {
 		int i;
 		for(i = 0; i <= k; i++) { 
@@ -298,6 +292,20 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 		CW_FREE_OBJECT(msgElems);
 		/* error will be handled by the caller */
 		return CW_FALSE;
+	}
+	
+	//Elena Agostini - 07/2014: nl80211 support. 
+	int indexWTPRadioInfo=0;
+	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
+	{
+		if(!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), indexWTPRadioInfo)))
+		{
+			int i;
+			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
+			CW_FREE_OBJECT(msgElems);
+			/* error will be handled by the caller */
+			return CW_FALSE;	
+		}
 	}
 	
 	return CWAssembleMessage(messagesPtr,

@@ -30,6 +30,12 @@
 CC = gcc 
 
 LDFLAGS = -lssl -lcrypto -lpthread -ldl -D_REENTRANT
+
+#Elena Agostini: libnl
+LDFLAGS += -lnl-genl-3 -lnl-3
+LIB_PATH = /usr/local/lib
+INC_PATH = /usr/include/libnl3
+ 
 #LDFLAGS = /usr/lib/libefence.a ./static/libssl.a ./static/libcrypto.a -lpthread -ldl -D_REENTRANT
 #LDFLAGS = ./static/libssl.a ./static/libcrypto.a -lpthread -ldl -D_REENTRANT
 
@@ -54,8 +60,9 @@ CFLAGS += -DCW_DEBUGGING
 CFLAGS += -DOPENSSL_NO_KRB5
 
 #OpenSSL inc files path
-CFLAGS += $(OPENSSL_INCLUDE)  
+#CFLAGS += $(OPENSSL_INCLUDE)  
 
+CFLAGS += -I/usr/include/libnl3
 RM = /bin/rm -f 
 
 # list of generated object files for AC. 
@@ -71,7 +78,7 @@ WTP_OBJS = WTP.o WTPipcHostapd.o WTPFrameReceive.o WTPFreqStatsReceive.o WTPStat
 	WTPDiscoveryState.o WTPJoinState.o WTPConfigureState.o WTPDataCheckState.o WTPRunState.o WTPRunStateCheck.o \
 	WTPRetransmission.o WTPSulkingState.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWSafeList.o CWList.o CWLog.o CWNetwork.o \
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
-	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o
+	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o WTPRadio.o NL80211DriverCallback.o NL80211Driver.o NL80211Netlink.o 
 
 WUA_OBJS = WUA.o
  
@@ -97,7 +104,7 @@ $(AC_NAME): $(AC_OBJS)
 	$(CC) $(AC_OBJS) $(CC_FLAGS) $(OPENSSL_INCLUDE) $(LDFLAGS) -o $(AC_NAME) 
 #-DSOFTMAC
 $(WTP_NAME): $(WTP_OBJS) 
-	$(CC) -DWRITE_STD_OUTPUT $(WTP_OBJS) $(CC_FLAGS) $(LDFLAGS) -o $(WTP_NAME) 
+	$(CC) -DWRITE_STD_OUTPUT  $(WTP_OBJS) $(CC_FLAGS) -L$(LIB_PATH)  $(LDFLAGS) -o $(WTP_NAME) 
 
 $(WUA_NAME): $(WUA_OBJS) 
 	$(CC) $(WUA_OBJS) $(CC_FLAGS)  $(LDFLAGS) -o $(WUA_NAME) 

@@ -120,14 +120,6 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	    (!(CWAssembleMsgElemRadioAdminState(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemStatisticsTimer(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k])))) ||
-		
-		/*
-		 * Elena Agostini - 02/2014
-		 *
-		 * WTP RADIO INFORMATION BUG: this is a required msg elem as described in RFC 5416 section 6.25
-		 * Now it does not works: only 5 bytes of 0
-		 */
-	    (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemMultiDomainCapability(&(msgElems[++k]))))   )
 	{
@@ -137,6 +129,20 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 		/* error will be handled by the caller */
 		return CW_FALSE;
 	}  	
+	
+	//Elena Agostini - 07/2014: nl80211 support. 
+	int indexWTPRadioInfo=0;
+	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
+	{
+		if(!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), indexWTPRadioInfo)))
+		{
+			int i;
+			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
+			CW_FREE_OBJECT(msgElems);
+			/* error will be handled by the caller */
+			return CW_FALSE;	
+		}
+	}
 	
 	if (!(CWAssembleMessage(messagesPtr, 
 				fragmentsNumPtr,

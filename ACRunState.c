@@ -1476,10 +1476,8 @@ CWBool CWSaveChangeStateEventRequestMessage(CWProtocolChangeStateEventRequestVal
 	
 		int i,k;
 		for(i=0; i<(valuesPtr->radioOperationalInfo.radiosCount); i++) {
-
 			found=CW_FALSE;
 			for(k=0; k<(WTPProtocolManager->radiosInfo).radioCount; k++) {
-
 				if((WTPProtocolManager->radiosInfo).radiosInfo[k].radioID == (valuesPtr->radioOperationalInfo.radios[i]).ID) {
 
 					found=CW_TRUE;
@@ -1487,7 +1485,7 @@ CWBool CWSaveChangeStateEventRequestMessage(CWProtocolChangeStateEventRequestVal
 					(WTPProtocolManager->radiosInfo).radiosInfo[k].operationalCause = (valuesPtr->radioOperationalInfo.radios[i]).cause;
 				}
 				if(!found) 
-					retValue= CW_FALSE;
+					retValue= CW_FALSE;	
 			}
 		}
 	}

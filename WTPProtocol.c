@@ -353,25 +353,36 @@ CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_WTP_MAC_TYPE_CW_TYPE);
 }
 
-CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr) {
+/* Elena Agostini - 07/2014: WTP Radio Info: nl80211 support */
+CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int indexRadio) {
 
+	short int radioType=0;
+	short int indexMbps=0;
+	
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 5, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-	/*
-	 * Elena Agostini - 02/2014
-	 *
-	 * WTP Radio Info: temporary values
-	 */
 	//RadioID - 1 byte
-	CWProtocolStore8(msgPtr, 1);
+	CWProtocolStore8(msgPtr, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
 	//Reserved - 3 byte
 	CWProtocolStore8(msgPtr, 0); 
 	CWProtocolStore8(msgPtr, 0);
 	CWProtocolStore8(msgPtr, 0);
 	//Radio Type - 1 byte (802.11 n)
-	CWProtocolStore8(msgPtr, 8);
+	
+	/*
+	 * 80211.a = 2
+	 * 80211.b = 1
+	 * 80211.g = 4
+	 * 80211.n = 8
+	 */
+	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardA == CW_TRUE) radioType += 2;
+	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardB == CW_TRUE) radioType += 1;
+	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardG == CW_TRUE) radioType += 4;
+	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardN == CW_TRUE) radioType += 8;
+	 
+	CWProtocolStore8(msgPtr, radioType);
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
 }
@@ -678,7 +689,7 @@ CWBool CWAssembleMsgElemRadioOperationalState(int radioID, CWProtocolMessage *ms
 		}
 		
 		len += msgs[i].offset;
-//		CWDebugLog("Radio Operational State: %d - %d - %d", infos.radios[i].ID, infos.radios[i].state, infos.radios[i].cause);
+		CWLog("Radio Operational State: %d - %d - %d", infos.radios[i].ID, infos.radios[i].state, infos.radios[i].cause);
 	}
 	
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, len, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););

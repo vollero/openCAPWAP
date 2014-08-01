@@ -356,6 +356,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 	} else { 
 		/* unknown WTP */
 		int seqNum, tmp;
+			
 		CWDiscoveryRequestValues values;
 		
 		if(!CWErr(CWThreadMutexLock(&gActiveWTPsMutex))) 
@@ -384,14 +385,11 @@ void CWACManageIncomingPacket(CWSocket sock,
 			 * attacks (will be added after join) 
 			 */
 
-			/* destroy useless values */
-			CWDestroyDiscoveryRequestValues(&values);
-			
 			/* send response to WTP 
 			 * note: we can consider reassembling only changed part
 			 * AND/OR do this in a new thread.
 			 */
-			if(!CWErr(CWAssembleDiscoveryResponse(&msgPtr, seqNum))) {
+			if(!CWErr(CWAssembleDiscoveryResponse(&msgPtr, seqNum, &(values.tmpPhyInfo)))) {
 				/* 
 				 * note: maybe an out-of-memory memory error 
 				 * can be resolved without exit()-ing by 
@@ -410,6 +408,9 @@ void CWACManageIncomingPacket(CWSocket sock,
 				CWLog("Critical Error Sending Discovery Response");
 				exit(1);
 			}
+			
+			/* destroy useless values */
+			CWDestroyDiscoveryRequestValues(&values);
 			
 			CW_FREE_PROTOCOL_MESSAGE(*msgPtr);
 			CW_FREE_OBJECT(msgPtr);
@@ -673,7 +674,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
  	gWTPs[i].messagesCount = 0;
  	gWTPs[i].isRetransmitting = CW_FALSE;
 	gWTPs[i].retransmissionCount = 0;
-
+		
 	CWResetWTPProtocolManager(&(gWTPs[i].WTPProtocolManager));
 
 	CWLog("New Session");

@@ -460,13 +460,14 @@ typedef struct {
 	CWWTPDescriptor WTPDescriptor;
 	CWframeTunnelMode frameTunnelMode;
 	CWMACType MACType;
-
+	ACWTPglobalPhyInfo tmpPhyInfo;
+	
 } CWDiscoveryRequestValues;
 
 /*
  * Elena Agostini - 02/2014
  *
- * There are the correct values to save in Discovery Response and Join Response
+ * Correct values to save in Discovery Response and Join Response
  * flag Security as described in RFC 5415
  */
 typedef enum {
@@ -638,6 +639,8 @@ typedef struct {
 
 typedef struct {
 	unsigned int radioID;
+	//Elena Agostini - 07/2014
+	unsigned int radioType;
 	//Station Mac Address List
 
 	CWList decryptErrorMACAddressList;
@@ -656,6 +659,9 @@ typedef struct {
 	WTPRadioStatisticsInfo statistics;	
 	
 	void* bindingValuesPtr;
+	
+	WTPSinglePhyInfo gWTPPhyInfo;
+	
 } CWWTPRadioInfoValues;
 
 typedef struct {

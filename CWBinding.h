@@ -28,6 +28,7 @@
  ************************************************************************************************/
 
 
+//#include "NL80211.h"
 
 #ifndef __CAPWAP_CWBinding_HEADER__
 #define __CAPWAP_CWBinding_HEADER__
@@ -108,7 +109,7 @@ typedef struct
   unsigned int TIThreshold;
 } OFDMControlValues;
 
-typedef struct
+typedef struct WTPQosValues
 {
 	unsigned char queueDepth;
 	/*
@@ -127,6 +128,10 @@ typedef struct
 {
 	WTPQosValues* qosValues;
 } bindingValues;
+
+/* NL80211Driver.c */
+int nl80211GetTxqParams(struct nl80211SocketUnit *nlSockUnit, WTPQosValues * qosValues, int ifindex);
+void nl80211GetPhyInfo();
 
 /*---------------------------*/
 

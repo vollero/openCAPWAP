@@ -113,12 +113,16 @@ CWWTPRadiosInfo gRadiosInfo;
 
 /* path MTU of the current session */
 int gWTPPathMTU = 0;
-
 int gWTPRetransmissionCount;
 
 CWPendingRequestMessage gPendingRequestMsgs[MAX_PENDING_REQUEST_MSGS];	
 
 CWBool WTPExitOnUpdateCommit = CW_FALSE;
+
+//Elena Agostini: nl80211 support
+struct WTPglobalPhyInfo * gWTPglobalPhyInfo;
+struct nl80211SocketUnit globalNLSock;
+
 #define CW_SINGLE_THREAD
 
 /* 
@@ -689,13 +693,13 @@ int main (int argc, const char * argv[]) {
 	}
 #endif
 
-/*
+
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
 		CWLog("Error starting Thread that receive binding frame");
 		exit(1);
 	}
-*/
+
 
 	CWThread thread_receiveStats;
 	if(!CWErr(CWCreateThread(&thread_receiveStats, CWWTPReceiveStats, NULL))) {
@@ -827,48 +831,16 @@ void CWWTPDestroy() {
 
 CWBool CWWTPInitConfiguration() {
 	CWDebugLog("CWWTPInitConfiguration"); 
-	int i;
+	int i, err;
 
 	//Generate 128-bit Session ID,
 	initWTPSessionID(gWTPSessionID);
 	
 	CWWTPResetRebootStatistics(&gWTPRebootStatistics);
-
-	gRadiosInfo.radioCount = CWWTPGetMaxRadios();
-
-	CW_CREATE_ARRAY_ERR(gRadiosInfo.radiosInfo, gRadiosInfo.radioCount, CWWTPRadioInfoValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	gRadiosInfo.radiosInfo[0].radioID= 0;
-
-	/* gRadiosInfo.radiosInfo[0].numEntries = 0; */
-	gRadiosInfo.radiosInfo[0].decryptErrorMACAddressList = NULL;
-	gRadiosInfo.radiosInfo[0].reportInterval= CW_REPORT_INTERVAL_DEFAULT;
-	gRadiosInfo.radiosInfo[0].adminState= ENABLED;
-	gRadiosInfo.radiosInfo[0].adminCause= AD_NORMAL;
-	gRadiosInfo.radiosInfo[0].operationalState= ENABLED;
-	gRadiosInfo.radiosInfo[0].operationalCause= OP_NORMAL;
-	gRadiosInfo.radiosInfo[0].TxQueueLevel= 0;
-	gRadiosInfo.radiosInfo[0].wirelessLinkFramesPerSec= 0;
-
-	CWWTPResetRadioStatistics(&(gRadiosInfo.radiosInfo[0].statistics));
-
-	if(!CWWTPInitBinding(0)) {return CW_FALSE;}
-
-	for (i=1; i<gRadiosInfo.radioCount; i++)
-	{
-		gRadiosInfo.radiosInfo[i].radioID= i;
-		/* gRadiosInfo.radiosInfo[i].numEntries = 0; */
-		gRadiosInfo.radiosInfo[i].decryptErrorMACAddressList = NULL;
-		gRadiosInfo.radiosInfo[i].reportInterval= CW_REPORT_INTERVAL_DEFAULT;
-		/* Default value for CAPWA� */
-		gRadiosInfo.radiosInfo[i].adminState= ENABLED; 
-		gRadiosInfo.radiosInfo[i].adminCause= AD_NORMAL;
-		gRadiosInfo.radiosInfo[i].operationalState= DISABLED;
-		gRadiosInfo.radiosInfo[i].operationalCause= OP_NORMAL;
-		gRadiosInfo.radiosInfo[i].TxQueueLevel= 0;
-		gRadiosInfo.radiosInfo[i].wirelessLinkFramesPerSec= 0;
-		CWWTPResetRadioStatistics(&(gRadiosInfo.radiosInfo[i].statistics));
-		if(!CWWTPInitBinding(i)) {return CW_FALSE;}
-	}
-
+	
+	//Elena Agostini - 07/2014: nl80211 support
+	if(CWWTPGetRadioGlobalInfo() == CW_FALSE)
+		return CW_FALSE;
+	
 	return CW_TRUE;
 }

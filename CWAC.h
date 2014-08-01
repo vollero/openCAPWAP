@@ -38,7 +38,6 @@
 #include "ACInterface.h"
 #include "ACBinding.h"
 
-
 #include <ctype.h>
 #include <netinet/in.h>
 #include <sys/un.h>
@@ -94,6 +93,7 @@ applicationsManager appsManager;
 
 /*_____________________________________________________*/
 /*  *******************___TYPES___*******************  */
+
 
 /* 
  * Struct that describes a WTP from the AC's point of view 
@@ -157,7 +157,6 @@ typedef struct {
 	int applicationIndex;
 	
 	/**** ACInterface ****/
-	
 	CWWTPProtocolManager WTPProtocolManager;
 	
 	/* Retransmission */
@@ -315,7 +314,7 @@ CWBool CWAssembleClearConfigurationRequest(CWProtocolMessage **messagesPtr,
 					   int seqNum);
 
 /* in ACDiscoveryState.c */
-CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum);
+CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum, ACWTPglobalPhyInfo * tmp);
 CWBool CWParseDiscoveryRequestMessage(char *msg,
 				      int len,
 				      int *seqNumPtr,

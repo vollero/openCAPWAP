@@ -53,6 +53,27 @@
 #include <sys/file.h>
 #include "wireless_copy.h"
 
+/* *********** NL80211 support ************** */
+#include <stdio.h>
+#include <string.h>
+#include <net/if.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <endian.h>
+
+#include <netlink/genl/genl.h>
+#include <netlink/genl/family.h>
+#include <netlink/genl/ctrl.h>
+#include <netlink/msg.h>
+#include <netlink/attr.h>
+
+#include "nl80211.h"
+#include "ieee80211.h"
+/* ******************************************* */
+
 // make sure the types really have the right sizes
 #define CW_COMPILE_TIME_ASSERT(name, x)               typedef int CWDummy_ ## name[(x) * 2 - 1]
 
@@ -126,6 +147,8 @@ extern char * wtpLogFile;
  * Elena Agostini - 02/2014
  */
 #define	CW_STRING_GET_START_WHITE_SPACES(str, blank)	{ int i = 0; blank=0; for(i = 0; i < strlen(str); i++) if(str[i] == ' ' || str[i] == '\t') blank++; else break; }
+#define	CW_CREATE_ARRAY_CALLOC_ERR(ar_name, ar_size, ar_type, on_err)	{ar_name = (ar_type*) (calloc((ar_size), sizeof(ar_type))); if(!(ar_name)) {on_err}}
+
 
 
 #ifdef CW_DEBUGGING
@@ -150,6 +173,9 @@ extern char * wtpLogFile;
 #include "CWNetwork.h"
 #include "CWList.h"
 #include "CWSafeList.h"
+
+#include "ACNL80211.h"
+#include "WTPNL80211.h"
 
 #include "CWProtocol.h"
 #include "CWSecurity.h"

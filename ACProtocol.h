@@ -47,8 +47,9 @@
 	CWWTPVendorInfos WTPBoardData;
 	//CWRadiosInformation WTPRadioInfo;	
 	WTPRebootStatisticsInfo *WTPRebootStatistics;
-
+	
 	void* bindingValuesPtr;
+	
  } CWWTPProtocolManager;
 
 typedef struct {
@@ -61,12 +62,12 @@ typedef struct {
 	CWframeTunnelMode frameTunnelMode;
 	CWMACType MACType;
 	/*
-	 * Elena Agostini - 02/2014
-	 *
-	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+	 * Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages
 	 */
 	int ECNSupport;
 	
+	/* Elena Agostini: nl80211 support*/
+	ACWTPglobalPhyInfo tmpPhyInfo;
 } CWProtocolJoinRequestValues;
 
 
@@ -77,6 +78,8 @@ typedef struct {
 	CWRadioAdminInfoValues *radioAdminInfo;
 	int StatisticsTimer;
 	WTPRebootStatisticsInfo *WTPRebootStatistics;
+	/* Elena Agostini: nl80211 support*/
+	ACWTPglobalPhyInfo tmpPhyInfo;
 	
 } CWProtocolConfigureRequestValues;
 
@@ -178,7 +181,7 @@ CWBool CWParseWTPRadioStatistics(CWProtocolMessage *msgPtr, int len, WTPRadioSta
 CWBool CWParseWTPRebootStatistics(CWProtocolMessage *msgPtr, int len, WTPRebootStatisticsInfo *valPtr);			//44 
 CWBool CWParseMsgElemDecryptErrorReport(CWProtocolMessage *msgPtr, int len, CWDecryptErrorReportValues *valPtr);
 CWBool CWParseMsgElemDuplicateIPv6Address(CWProtocolMessage *msgPtr, int len, WTPDuplicateIPv6 *valPtr);
-CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr);	//1048
+CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, int * radioID, char * phyStandardValue);	//1048
 CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr);	//1040
 CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, char *valPtr);	//1032
 //CWBool CWParseWTPRadioInfo(CWProtocolMessage *msgPtr, int len, CWRadiosInformation *valPtr, int radioIndex);	

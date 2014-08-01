@@ -64,6 +64,8 @@ CWBool ACEnterDataCheck(int WTPIndex, CWProtocolMessage *msgPtr) {
 	if(!(CWSaveChangeStateEventRequestMessage(changeStateEvent, &(gWTPs[WTPIndex].WTPProtocolManager))))
 		return CW_FALSE;
 	
+	CWLog("Dopo CWSaveChangeStateEventRequestMessage");
+	
 	if(!(CWAssembleChangeStateEventResponse(&(gWTPs[WTPIndex].messages), 
 						&(gWTPs[WTPIndex].messagesCount),
 						gWTPs[WTPIndex].pathMTU,
@@ -71,11 +73,14 @@ CWBool ACEnterDataCheck(int WTPIndex, CWProtocolMessage *msgPtr) {
 		return CW_FALSE;
 	}
 	
+	CWLog("Dopo CWAssembleChangeStateEventResponse");
+	
 	if(!CWACSendFragments(WTPIndex)) {
 
 		return CW_FALSE;
 	}
 	
+	CWLog("Dopo CWACSendFragments");
 	/* Start NeighbourDeadInterval timer */
 	/*if(!CWErr(CWTimerRequest(gCWNeighborDeadInterval, 
 				 &(gWTPs[WTPIndex].thread),

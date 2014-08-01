@@ -38,8 +38,9 @@ __inline__ int CWWTPGetDiscoveryType() {
 	return CW_MSG_ELEMENT_DISCOVERY_TYPE_CONFIGURED;
 }
 
+//Elena Agostini
 __inline__ int CWWTPGetMaxRadios() {
-	return 1;
+	return gRadiosInfo.radioCount;
 }
 
 __inline__ int CWWTPGetRadiosInUse() 

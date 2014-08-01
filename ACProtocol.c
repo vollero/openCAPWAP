@@ -93,7 +93,7 @@ CWBool CWProtocolAssembleConfigurationUpdateRequest(CWProtocolMessage **msgElems
 	return CW_TRUE;
 }
 
-CWBool CWAssembleMsgElemACWTPRadioInformation(CWProtocolMessage *msgPtr) {
+CWBool CWAssembleMsgElemACWTPRadioInformation(CWProtocolMessage *msgPtr, int radioID, char phyStandardValue) {
 	
 
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);;
@@ -101,19 +101,15 @@ CWBool CWAssembleMsgElemACWTPRadioInformation(CWProtocolMessage *msgPtr) {
 	// create message
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 5, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-	/*
-	 * Elena Agostini - 02/2014
-	 *
-	 * WTP Radio Info: temporary values
-	 */
+	/* Elena Agostini - 07/2014: replay last WTP Radio Info */
 	//RadioID - 1 byte
-	CWProtocolStore8(msgPtr, 1);
+	CWProtocolStore8(msgPtr, radioID);
 	//Reserved - 3 byte
 	CWProtocolStore8(msgPtr, 0); 
 	CWProtocolStore8(msgPtr, 0);
 	CWProtocolStore8(msgPtr, 0);
-	//Radio Type - 1 byte (802.11 n)
-	CWProtocolStore8(msgPtr, 8);
+	//Radio Type
+	CWProtocolStore8(msgPtr, phyStandardValue);
 	
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
 }
@@ -797,22 +793,17 @@ CWBool CWParseWTPMACType(CWProtocolMessage *msgPtr, int len, CWMACType *valPtr) 
 }
 
 
-CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr) {	
+CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, int * radioID, char * valPtr) {	
 
 	CWParseMessageElementStart();
-	int RadioID;
 	
-	/*
-	 * Elena Agostini - 02/2014
-	 *
-	 * WTP Radio Information: temporary values
-	 */
+	/* Elena Agostini: WTP Radio Information */
 
-	RadioID = CWProtocolRetrieve8(msgPtr);	// Radio ID
+	(*radioID) = CWProtocolRetrieve8(msgPtr);	// Radio ID
 	CWProtocolRetrieve8(msgPtr);	// Res
 	CWProtocolRetrieve8(msgPtr);	// Res
 	CWProtocolRetrieve8(msgPtr);	// Res
-	*valPtr = CWProtocolRetrieve8(msgPtr);	// Radio Information 
+	(*valPtr) = CWProtocolRetrieve8(msgPtr);	// Radio Information 
 
 	CWParseMessageElementEnd();							
 }
