@@ -1,9 +1,9 @@
-/*
- * Elena Agostini - elena.ago@gmail.com
+/**************************************
  * 
- * libnl interaction with nl80211 API
- */
- 
+ *  Elena Agostini elena.ago@gmail.com
+ * 	NL80211 Integration + libnl
+ * 
+ ***************************************/
 #include "CWWTP.h"
 
 CWBool nl80211CmdGetPhyInfo(int indexPhy, struct WTPSinglePhyInfo * singlePhyInfo){

@@ -354,34 +354,19 @@ CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr) {
 }
 
 /* Elena Agostini - 07/2014: WTP Radio Info: nl80211 support */
-CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int indexRadio) {
+CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int radioID, char radioType) {
 
-	short int radioType=0;
-	short int indexMbps=0;
-	
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 5, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	//RadioID - 1 byte
-	CWProtocolStore8(msgPtr, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+	CWProtocolStore8(msgPtr, radioID);
 	//Reserved - 3 byte
 	CWProtocolStore8(msgPtr, 0); 
 	CWProtocolStore8(msgPtr, 0);
 	CWProtocolStore8(msgPtr, 0);
-	//Radio Type - 1 byte (802.11 n)
-	
-	/*
-	 * 80211.a = 2
-	 * 80211.b = 1
-	 * 80211.g = 4
-	 * 80211.n = 8
-	 */
-	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardA == CW_TRUE) radioType += 2;
-	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardB == CW_TRUE) radioType += 1;
-	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardG == CW_TRUE) radioType += 4;
-	if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.phyStandardN == CW_TRUE) radioType += 8;
-	 
+	//Radio Type	 
 	CWProtocolStore8(msgPtr, radioType);
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
@@ -412,26 +397,25 @@ CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE);
 }
 
-CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr) {
+//Elena Agostini - 08/2014: nl80211 support 
+CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower) {
 
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 8, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-	unsigned char tmp_mdc[6];
-	CWWTP_get_WTP_MDC(tmp_mdc);
-	
-	int radioID = 0;
-	
 	CWProtocolStore8(msgPtr, radioID); 
 	CWProtocolStore8(msgPtr, 0); 
 	
-	CWProtocolStore8(msgPtr, tmp_mdc[0]);
-	CWProtocolStore8(msgPtr, tmp_mdc[1]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[2]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[3]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[4]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[5]); 
+	CWProtocolStore16(msgPtr, firstChannel);
+	CWProtocolStore16(msgPtr, numChannels); 
+	CWProtocolStore16(msgPtr, maxTxPower); 
+	
+	CWLog("CWAssembleMsgElemMultiDomainCapability");
+	CWLog("radioID: %d", radioID);
+	CWLog("firstChannel: %d", firstChannel);
+	CWLog("numChannels: %d", numChannels);
+	CWLog("maxTxPower: %d", maxTxPower);
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE);
 }

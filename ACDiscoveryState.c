@@ -49,7 +49,7 @@ __inline__ int CWACGetInterfacesCount();
 /*  *******************___FUNCTIONS___*******************  */
 
 /* send Discovery Response to the host at the specified address */
-CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum, ACWTPglobalPhyInfo * tmpPhyInfo) {
+CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum, WTPglobalPhyInfo * tmpPhyInfo) {
 
 	CWProtocolMessage *msgElems= NULL;
 	int msgElemCount = 4;

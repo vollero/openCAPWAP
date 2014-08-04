@@ -460,7 +460,7 @@ typedef struct {
 	CWWTPDescriptor WTPDescriptor;
 	CWframeTunnelMode frameTunnelMode;
 	CWMACType MACType;
-	ACWTPglobalPhyInfo tmpPhyInfo;
+	WTPglobalPhyInfo tmpPhyInfo;
 	
 } CWDiscoveryRequestValues;
 

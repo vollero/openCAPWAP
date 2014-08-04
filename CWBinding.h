@@ -87,6 +87,7 @@
 
 #define BINDING_MSG_ELEMENT_TYPE_OFDM_CONTROL	1033
 #define BINDING_MSG_ELEMENT_TYPE_WTP_QOS	1045
+#define BINDING_MSG_ELEMENT_TYPE_WTP_MULTIDOMAIN_CAPABILITY	1032
 
 /****************************************************
  * 2009 Update:										*

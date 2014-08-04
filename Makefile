@@ -78,7 +78,7 @@ WTP_OBJS = WTP.o WTPipcHostapd.o WTPFrameReceive.o WTPFreqStatsReceive.o WTPStat
 	WTPDiscoveryState.o WTPJoinState.o WTPConfigureState.o WTPDataCheckState.o WTPRunState.o WTPRunStateCheck.o \
 	WTPRetransmission.o WTPSulkingState.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWSafeList.o CWList.o CWLog.o CWNetwork.o \
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
-	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o WTPRadio.o NL80211DriverCallback.o NL80211Driver.o NL80211Netlink.o 
+	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o WTPRadio.o WTPNL80211DriverCallback.o WTPNL80211Driver.o WTPNL80211Netlink.o 
 
 WUA_OBJS = WUA.o
  

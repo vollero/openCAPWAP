@@ -139,7 +139,9 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 	
 	//Elena Agostini: nl80211 support
 	valuesPtr->tmpPhyInfo.numPhyActive=0;
-	CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->tmpPhyInfo.singlePhyInfo, WTP_RADIO_MAX, ACWTPSinglePhyInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->tmpPhyInfo.singlePhyInfo, WTP_RADIO_MAX, WTPSinglePhyInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->phyFrequencyInfo, WTP_RADIO_MAX, PhyFrequencyInfoConfigureMessage, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	valuesPtr->numPhyFrequencyInfo=0;
 	
 	completeMsg.msg = msg;
 	completeMsg.offset = 0;
@@ -209,6 +211,10 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 				break;
 			
 			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
+				/*
+				 * Elena Agostini: for now, i'm not going to save again those values
+				 * I've already saved in join state those values and in this momento there isn't an AC logic managment
+				*/
 				if(valuesPtr->tmpPhyInfo.numPhyActive < WTP_RADIO_MAX)
 					if(!(CWParseWTPRadioInformation(&completeMsg, 
 													elemLen, 
@@ -220,7 +226,17 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 				break;
 				
 			case CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE:
-				if(!(CWParseWTPMultiDomainCapability(&completeMsg, elemLen, tmp_MultiDomCapa)))return CW_FALSE;
+				
+				if(valuesPtr->numPhyFrequencyInfo < WTP_RADIO_MAX)
+					if(!(CWParseWTPMultiDomainCapability(&completeMsg, 
+													elemLen, 
+													&(valuesPtr->phyFrequencyInfo[valuesPtr->numPhyFrequencyInfo])
+													)
+					))
+						return CW_FALSE;
+					
+					valuesPtr->numPhyFrequencyInfo++;
+				
 				break;
 					
 			case CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE:
@@ -366,6 +382,24 @@ CWBool CWSaveConfigureRequestMessage (CWProtocolConfigureRequestValues *configur
 
 	CW_FREE_OBJECT(WTPProtocolManager->WTPRebootStatistics);
 	WTPProtocolManager->WTPRebootStatistics = configureRequest->WTPRebootStatistics;
+	
+	/*
+	 * Elena Agostini-08/2014: WTP Multi Domain Capability save info for each radio saved in Join State
+	 */
+	int i, j;
+	for(i=0; i< configureRequest->numPhyFrequencyInfo; i++) {
+		for(j=0; j< WTPProtocolManager->radiosInfo.radioCount; j++) {
+			if(WTPProtocolManager->radiosInfo.radiosInfo[j].radioID == configureRequest->phyFrequencyInfo[i].radioID)
+			{
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.totChannels = configureRequest->phyFrequencyInfo[i].totChannels;
+				CW_CREATE_ARRAY_CALLOC_ERR(WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyFrequencyInfo.frequencyList, 1, PhyFrequencyInfoList, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].frequency = configureRequest->phyFrequencyInfo[i].firstChannel;
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower = configureRequest->phyFrequencyInfo[i].maxTxPower;
+				
+				break;
+			}
+		}
+	}
 
 	CWDebugLog("Configure Request Saved");
 	return CW_TRUE;

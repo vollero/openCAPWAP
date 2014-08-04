@@ -109,9 +109,9 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr);			//36
 CWBool CWAssembleMsgElemWTPFrameTunnelMode(CWProtocolMessage *msgPtr);			//38
 CWBool CWAssembleMsgElemWTPIPv4Address(CWProtocolMessage *msgPtr);			//39
 CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr);				//40
-CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int indexRadio); //1048
+CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int radioID, char radioType); //1048
 CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr);					//1040
-CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr);					//1032
+CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower);					//1032
 CWBool CWAssembleMsgElemWTPName(CWProtocolMessage *msgPtr);				//41
 CWBool CWAssembleMsgElemWTPOperationalStatistics(CWProtocolMessage *msgPtr,int radio);	//42
 CWBool CWAssembleMsgElemWTPRadioStatistics(CWProtocolMessage *msgPtr,int radio);	//43

@@ -314,7 +314,7 @@ CWBool CWAssembleClearConfigurationRequest(CWProtocolMessage **messagesPtr,
 					   int seqNum);
 
 /* in ACDiscoveryState.c */
-CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum, ACWTPglobalPhyInfo * tmp);
+CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum, WTPglobalPhyInfo * tmp);
 CWBool CWParseDiscoveryRequestMessage(char *msg,
 				      int len,
 				      int *seqNumPtr,

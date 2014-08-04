@@ -594,6 +594,11 @@ CWBool CWBindingParseConfigureResponse (char *msg, int len, void **valuesPtr){
 				(auxBindingPtr->qosCount)++; // just count 
 				completeMsg.offset += elemLen;
 				break;
+			//Elena Agostini-08/2014: multidomain capability for nl80211 support
+			case BINDING_MSG_ELEMENT_TYPE_WTP_MULTIDOMAIN_CAPABILITY:
+				//Elena: for now, I'm not saving those values
+				completeMsg.offset += elemLen;
+				break;
 			default:
 				if(CWBindingCheckType(elemType)) 
 				{	

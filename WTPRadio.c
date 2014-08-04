@@ -1,8 +1,9 @@
-/*
- * Elena Agostini - elena.ago@gmail.com
+/**************************************
  * 
- * nl80211 radio support
- */
+ *  Elena Agostini elena.ago@gmail.com
+ * 	NL80211 Integration
+ * 
+ ***************************************/
  
 #include "CWWTP.h"
 
@@ -52,6 +53,18 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		gRadiosInfo.radiosInfo[indexPhy].TxQueueLevel= 0;
 		gRadiosInfo.radiosInfo[indexPhy].wirelessLinkFramesPerSec= 0;
 		CWWTPResetRadioStatistics(&(gRadiosInfo.radiosInfo[indexPhy].statistics));
+		
+		
+		//802.11a/b/g/n total value
+		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue=PHY_NO_STANDARD;
+		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardA == CW_TRUE)
+			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_A;
+		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardB == CW_TRUE)
+			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_B;
+		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardG == CW_TRUE)
+			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_G;
+		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardN == CW_TRUE)
+			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_N;
 
 		if(!CWWTPInitBinding(indexPhy)) {return CW_FALSE;}
 	}

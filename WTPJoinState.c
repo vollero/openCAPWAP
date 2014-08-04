@@ -298,7 +298,7 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 	int indexWTPRadioInfo=0;
 	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
 	{
-		if(!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), indexWTPRadioInfo)))
+		if(!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyStandardValue)))
 		{
 			int i;
 			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}

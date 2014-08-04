@@ -1,3 +1,10 @@
+/**************************************
+ * 
+ *  Elena Agostini elena.ago@gmail.com
+ * 	NL80211 Integration
+ * 
+ ***************************************/
+
 #include "CWWTP.h"
 
 /* nl80211 code */
@@ -101,13 +108,30 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 					band_had_freq = true;
 				}
 				
+				//Elena: not best practice with define
+				CW_CREATE_ARRAY_CALLOC_ERR(singlePhyInfo->phyFrequencyInfo.frequencyList, WTP_NL80211_CHANNELS_NUM, PhyFrequencyInfoList, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				singlePhyInfo->phyFrequencyInfo.totChannels = 0;
+				
+				int indexFreq=0;
 				nla_for_each_nested(nl_freq, tb_band[NL80211_BAND_ATTR_FREQS], rem_freq) {
 					uint32_t freq;
+					
 					nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, nla_data(nl_freq), nla_len(nl_freq), freq_policy);
 					
 					if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
 						continue;
+				
 					freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
+					CWLog("\t\t\t* %d MHz [%d]", freq, ieee80211_frequency_to_channel(freq));
+					
+					if (tb_freq[NL80211_FREQUENCY_ATTR_MAX_TX_POWER] && !tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
+						CWLog(" (%.1f dBm)", 0.01 * nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_MAX_TX_POWER]));
+						
+					singlePhyInfo->phyFrequencyInfo.frequencyList[indexFreq].frequency = freq;
+					singlePhyInfo->phyFrequencyInfo.frequencyList[indexFreq].channel = ieee80211_frequency_to_channel(freq);
+					singlePhyInfo->phyFrequencyInfo.frequencyList[indexFreq].maxTxPower = ((0.01)*nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_MAX_TX_POWER]));
+					singlePhyInfo->phyFrequencyInfo.totChannels++;
+					
 					if(freq >= 2400 && freq <= 2500)
 						phy2GH=CW_TRUE;
 					else if(freq >= 4000 && freq <= 5000)
@@ -118,8 +142,8 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 						phy5GH=CW_FALSE;
 						break;
 					}
-						
-					CWLog("\t\t\t* %d MHz [%d]", freq, ieee80211_frequency_to_channel(freq));
+					
+					indexFreq++;
 				}
 				
 				if(phy2GH == CW_TRUE)
@@ -135,7 +159,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 				if (tb_band[NL80211_BAND_ATTR_RATES]) {
 					int indexMbps=0;
 					CWLog("\t\tBitrates (non-HT):\n");
-					
+				
 					//Elena: not best practice with define
 					CW_CREATE_ARRAY_CALLOC_ERR(singlePhyInfo->phyMbpsSet, WTP_NL80211_BITRATE_NUM, float, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 

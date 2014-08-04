@@ -93,6 +93,9 @@ CWBool CWProtocolAssembleConfigurationUpdateRequest(CWProtocolMessage **msgElems
 	return CW_TRUE;
 }
 
+/*
+ * Elena Agostini - 08/2014: nl80211 support 
+ */
 CWBool CWAssembleMsgElemACWTPRadioInformation(CWProtocolMessage *msgPtr, int radioID, char phyStandardValue) {
 	
 
@@ -113,6 +116,7 @@ CWBool CWAssembleMsgElemACWTPRadioInformation(CWProtocolMessage *msgPtr, int rad
 	
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
 }
+
 
 /*
  * Elena Agostini - 02/2014
@@ -830,24 +834,21 @@ CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, unsigned cha
 	CWParseMessageElementEnd();							
 }
 
-CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, char *valPtr) {	
-
+//Elena Agostini-08/2014: nl80211 support
+CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, PhyFrequencyInfoConfigureMessage * valPtr) {	
+	
 	CWParseMessageElementStart();
-	int RadioID;
-	unsigned char sup_cap[6];
 	
-	RadioID = CWProtocolRetrieve8(msgPtr);		
-			  CWProtocolRetrieve8(msgPtr);		
-			  
-	sup_cap[0] = CWProtocolRetrieve8(msgPtr);
-	sup_cap[1] = CWProtocolRetrieve8(msgPtr);
-	sup_cap[2] = CWProtocolRetrieve8(msgPtr);
-	sup_cap[3] = CWProtocolRetrieve8(msgPtr);
-	sup_cap[4] = CWProtocolRetrieve8(msgPtr);
-	sup_cap[5] = CWProtocolRetrieve8(msgPtr);
-
-	
-	memcpy(valPtr, sup_cap, 6);
+	//radio id
+	valPtr->radioID = CWProtocolRetrieve8(msgPtr);
+	//reserved
+	CWProtocolRetrieve8(msgPtr);
+	//first channel frequency
+	valPtr->firstChannel = CWProtocolRetrieve16(msgPtr);
+	//tot channels
+	valPtr->totChannels = CWProtocolRetrieve16(msgPtr);
+	//max transmission power
+	valPtr->maxTxPower = CWProtocolRetrieve16(msgPtr);
 	
 	CWParseMessageElementEnd();							
 }

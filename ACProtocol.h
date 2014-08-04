@@ -67,7 +67,7 @@ typedef struct {
 	int ECNSupport;
 	
 	/* Elena Agostini: nl80211 support*/
-	ACWTPglobalPhyInfo tmpPhyInfo;
+	WTPglobalPhyInfo tmpPhyInfo;
 } CWProtocolJoinRequestValues;
 
 
@@ -79,8 +79,10 @@ typedef struct {
 	int StatisticsTimer;
 	WTPRebootStatisticsInfo *WTPRebootStatistics;
 	/* Elena Agostini: nl80211 support*/
-	ACWTPglobalPhyInfo tmpPhyInfo;
-	
+	WTPglobalPhyInfo tmpPhyInfo;
+	//frequencies
+	PhyFrequencyInfoConfigureMessage * phyFrequencyInfo;
+	int numPhyFrequencyInfo;
 } CWProtocolConfigureRequestValues;
 
 typedef struct {
@@ -155,6 +157,11 @@ CWBool CWAssembleMsgElemDecryptErrorReportPeriod(CWProtocolMessage *msgPtr);		//
 CWBool CWAssembleMsgElemIdleTimeout(CWProtocolMessage *msgPtr);				//23
 CWBool CWAssembleMsgElemWTPFallback(CWProtocolMessage *msgPtr);				//37
 /*
+ * Elena Agostini-08/2014: Add MultiDomain Capability message element for nl80211 support
+ */
+CWBool CWAssembleMsgElemACWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower);
+
+/*
  * Elena Agostini - 02/2014
  *
  * ECN Support Msg Elem MUST be included in Join Request/Response Messages
@@ -183,7 +190,7 @@ CWBool CWParseMsgElemDecryptErrorReport(CWProtocolMessage *msgPtr, int len, CWDe
 CWBool CWParseMsgElemDuplicateIPv6Address(CWProtocolMessage *msgPtr, int len, WTPDuplicateIPv6 *valPtr);
 CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, int * radioID, char * phyStandardValue);	//1048
 CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr);	//1040
-CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, char *valPtr);	//1032
+CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, PhyFrequencyInfoConfigureMessage * valPtr); //1032
 //CWBool CWParseWTPRadioInfo(CWProtocolMessage *msgPtr, int len, CWRadiosInformation *valPtr, int radioIndex);	
 /*
  * Elena Agostini - 02/2014

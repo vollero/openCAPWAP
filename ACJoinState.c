@@ -199,16 +199,9 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 	int indexWTPRadio;
 	unsigned char phyStandardValue;
 	for(indexWTPRadio=0; indexWTPRadio< WTPProtocolManager->radiosInfo.radioCount; indexWTPRadio++) {
-		phyStandardValue=0;
-	
-		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardA == CW_TRUE) phyStandardValue += 2;
-		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardB == CW_TRUE) phyStandardValue += 1;
-		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardG == CW_TRUE) phyStandardValue += 4;
-		if(WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardN == CW_TRUE) phyStandardValue += 8;
-		
 		if(!(CWAssembleMsgElemACWTPRadioInformation(&(msgElems[++k]), 
 													WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].radioID, 
-													phyStandardValue))
+													WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardValue))
 		)
 		{
 			CWErrorHandleLast();
@@ -461,7 +454,6 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 			    return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	int i;
-
 	for(i=0; i< WTPProtocolManager->radiosInfo.radioCount; i++) {
 		//Elena Agostini: per ora vengono salvati solo WTP_RADIO_MAX (ACNL80211.h) message elements dal join request.
 		//Si dovranno trovare altre soluzioni quando si lavorerà al management
@@ -475,34 +467,41 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
         WTPProtocolManager->radiosInfo.radiosInfo[i].TxQueueLevel = 0;
         WTPProtocolManager->radiosInfo.radiosInfo[i].wirelessLinkFramesPerSec = 0;
         WTPProtocolManager->radiosInfo.radiosInfo[i].radioID = joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.radioID = WTPProtocolManager->radiosInfo.radiosInfo[i].radioID;
         
-        /*
-		 * 80211.a = 2
-		 * 80211.b = 1
-		 * 80211.g = 4
-		 * 80211.n = 8
-		 */
-		 		 
-        if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x1) == 1)
+		//802.11a/b/g/n total value
+		WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardValue = PHY_NO_STANDARD;
+        if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x1) == PHY_STANDARD_B)
+        {
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardB=CW_TRUE;
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_B;
+		}
 		else
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardB=CW_FALSE;
 			
-		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x2) == 2)
+		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x2) == PHY_STANDARD_A)
+		{
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardA=CW_TRUE;
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_A;
+		}
 		else
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardA=CW_FALSE;
 		
-		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x4) == 4)
+		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x4) == PHY_STANDARD_G)
+		{
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardG=CW_TRUE;
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_G;
+		}
 		else
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardG=CW_FALSE;
 		
-		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x8) == 8)
+		if( (joinRequest->tmpPhyInfo.singlePhyInfo[i].phyStandardValue & 0x8) == PHY_STANDARD_N)
+		{
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_TRUE;
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_N;
+		}
 		else
-			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_FALSE;
-		
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_FALSE;		
 	}
 	CWDebugLog("Join Request Saved");
 	return CW_TRUE;

@@ -120,8 +120,8 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	    (!(CWAssembleMsgElemRadioAdminState(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemStatisticsTimer(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemMultiDomainCapability(&(msgElems[++k]))))   )
+	    (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k]))))
+	)
 	{
 		int i;
 		for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
@@ -134,7 +134,16 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	int indexWTPRadioInfo=0;
 	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
 	{
-		if(!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), indexWTPRadioInfo)))
+		if(
+		!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyStandardValue)) ||
+		!(CWAssembleMsgElemMultiDomainCapability( &(msgElems[++k]),
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].frequency, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.totChannels, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower))
+		)
 		{
 			int i;
 			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
