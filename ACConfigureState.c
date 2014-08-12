@@ -212,7 +212,7 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 			
 			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
 				/*
-				 * Elena Agostini: for now, i'm not going to save again those values
+				 * Elena Agostini: I'm not going to save again those values
 				 * I've already saved in join state those values and in this momento there isn't an AC logic managment
 				*/
 				if(valuesPtr->tmpPhyInfo.numPhyActive < WTP_RADIO_MAX)
@@ -238,7 +238,11 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 					valuesPtr->numPhyFrequencyInfo++;
 				
 				break;
-					
+			//Elena Agostini: TODO. Without AC logic, save these values is useless
+			case CW_MSG_ELEMENT_IEEE80211_MAC_OPERATION_CW_TYPE:
+				completeMsg.offset += elemLen;
+				break;
+			
 			case CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE:
 				if(!(CWParseWTPSupportedRates(&completeMsg, elemLen, tmp_SuppRates)))return CW_FALSE;
 				break;	

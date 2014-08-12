@@ -73,9 +73,16 @@ typedef struct WTPSinglePhyInfo {
 	CWBool phyStandardG;
 	CWBool phyStandardN;
 	char phyStandardValue;
-	
+
 	//frequencies
 	PhyFrequencyInfo phyFrequencyInfo;
+	
+	int fragmentationTreshold;
+	int rtsThreshold;
+	char shortRetry;
+	char longRetry;
+	int txMSDU;
+	int rxMSDU;
 	
 	int numInterfaces;
 } WTPSinglePhyInfo;
@@ -103,6 +110,7 @@ CWBool CWWTPGetRadioGlobalInfo(void);
 //che dovranno essere salvati
 #define WTP_NL80211_BITRATE_NUM 20
 #define WTP_NL80211_CHANNELS_NUM 20
+#define WTP_NL80211_DEFAULT_MSDU 512
 
 int nl80211_init_socket(struct nl80211SocketUnit *nlSockUnit);
 

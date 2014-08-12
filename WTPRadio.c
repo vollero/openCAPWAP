@@ -23,7 +23,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	for(indexPhy=0; indexPhy < gRadiosInfo.radioCount; indexPhy++)
 	{
-		CWLog("[NL80211 ERROR] Retrieving info for phy interface %d name: %s ...", indexPhy, gPhyInterfaceName[indexPhy]);
+		CWLog("[NL80211] Retrieving info for phy interface %d name: %s ...", indexPhy, gPhyInterfaceName[indexPhy]);
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = -1;
 		
 		//Info about all phy info

@@ -101,7 +101,7 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 
 	CWProtocolMessage 	*msgElems= NULL;
 	CWProtocolMessage 	*msgElemsBinding= NULL;
-	const int 		msgElemCount = 8;
+	const int 		msgElemCount = 9;
 	const int 		msgElemBindingCount=0;
 	int k = -1;
 	
@@ -142,7 +142,16 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].frequency, 
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.totChannels, 
-											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower))
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower)) ||
+		!(CWAssembleMsgElemMACOperation( &(msgElems[++k]),
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.fragmentationTreshold, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.rtsThreshold,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.shortRetry,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.longRetry,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.txMSDU,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.rxMSDU))
+											
 		)
 		{
 			int i;
@@ -173,6 +182,11 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	CWDebugLog("Configure Request Assembled");	 
 	return CW_TRUE;
 }
+
+/*
+ * Elena Agostini. TODO: for now, WTP doesn't save any message element IEEE80211 from AC
+ * because in AC there is no logic to manipulate those data
+ */
 
 CWBool CWParseConfigureResponseMessage (char *msg,
 					int len,

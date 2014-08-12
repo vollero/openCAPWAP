@@ -410,14 +410,29 @@ CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr, int rad
 	CWProtocolStore16(msgPtr, firstChannel);
 	CWProtocolStore16(msgPtr, numChannels); 
 	CWProtocolStore16(msgPtr, maxTxPower); 
-	
-	CWLog("CWAssembleMsgElemMultiDomainCapability");
-	CWLog("radioID: %d", radioID);
-	CWLog("firstChannel: %d", firstChannel);
-	CWLog("numChannels: %d", numChannels);
-	CWLog("maxTxPower: %d", maxTxPower);
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE);
+}
+
+//Elena Agostini - 08/2014: nl80211 support 
+CWBool CWAssembleMsgElemMACOperation(CWProtocolMessage *msgPtr, int radioID, int fragmentationTreshold, int rtsThreshold, char shortRetry, char longRetry, int txMSDU, int rxMSDU) {
+
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 16, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
+	CWProtocolStore8(msgPtr, radioID); 
+	CWProtocolStore8(msgPtr, 0); 
+	
+	CWProtocolStore16(msgPtr, rtsThreshold);
+	CWProtocolStore8(msgPtr, shortRetry);
+	CWProtocolStore8(msgPtr, longRetry);
+	CWProtocolStore16(msgPtr, fragmentationTreshold);
+	
+	CWProtocolStore32(msgPtr, txMSDU);
+	CWProtocolStore32(msgPtr, rxMSDU);
+	
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_MAC_OPERATION_CW_TYPE);
 }
 
 CWBool CWAssembleMsgElemWTPName(CWProtocolMessage *msgPtr) {

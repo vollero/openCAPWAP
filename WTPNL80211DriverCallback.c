@@ -96,6 +96,42 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 		CW_CREATE_STRING_FROM_STRING_ERR(singlePhyInfo->phyName, nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	
+	//Default values
+	singlePhyInfo->txMSDU = WTP_NL80211_DEFAULT_MSDU;
+	singlePhyInfo->rxMSDU = WTP_NL80211_DEFAULT_MSDU;
+	
+	//Fragmentation Threshold
+	if (tb_msg[NL80211_ATTR_WIPHY_FRAG_THRESHOLD]) {
+		unsigned int frag;
+
+		singlePhyInfo->fragmentationTreshold = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_FRAG_THRESHOLD]);
+		if (singlePhyInfo->fragmentationTreshold != (unsigned int)-1)
+			CWLog("\tFragmentation threshold: %d\n", singlePhyInfo->fragmentationTreshold);
+	}
+	
+	//FRTS Threshold
+	if (tb_msg[NL80211_ATTR_WIPHY_RTS_THRESHOLD]) {
+		unsigned int rts;
+
+		singlePhyInfo->rtsThreshold = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_RTS_THRESHOLD]);
+		if (singlePhyInfo->rtsThreshold != (unsigned int)-1)
+			CWLog("\tRTS threshold: %d\n", singlePhyInfo->rtsThreshold);
+	}
+
+	singlePhyInfo->shortRetry=0;
+	singlePhyInfo->longRetry=0;
+	//Retry
+	if (tb_msg[NL80211_ATTR_WIPHY_RETRY_SHORT] ||
+	    tb_msg[NL80211_ATTR_WIPHY_RETRY_LONG]) {
+		
+		if (tb_msg[NL80211_ATTR_WIPHY_RETRY_SHORT])
+			singlePhyInfo->shortRetry = nla_get_u8(tb_msg[NL80211_ATTR_WIPHY_RETRY_SHORT]);
+		if (tb_msg[NL80211_ATTR_WIPHY_RETRY_LONG])
+			singlePhyInfo->longRetry = nla_get_u8(tb_msg[NL80211_ATTR_WIPHY_RETRY_LONG]);
+			CWLog("\tRetry short limit: %d\n", singlePhyInfo->shortRetry);
+			CWLog("\tRetry long limit: %d\n", singlePhyInfo->longRetry);
+	}
+	
 	/* needed for split dump */
 	if (tb_msg[NL80211_ATTR_WIPHY_BANDS]) {
 		nla_for_each_nested(nl_band, tb_msg[NL80211_ATTR_WIPHY_BANDS], rem_band) {
@@ -210,7 +246,6 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 				
 				for(indexMbps=0; indexMbps < WTP_NL80211_BITRATE_NUM; indexMbps++)
 				{
-					CWLog("index:%d ,  val: %f", indexMbps, singlePhyInfo->phyMbpsSet[indexMbps]);
 					//802.11b
 					if(
 						(singlePhyInfo->phyStandard2400MH==CW_TRUE && singlePhyInfo->phyStandardB == CW_FALSE) &&
