@@ -48,7 +48,6 @@ CWBool CWSaveConfigureRequestMessage(CWProtocolConfigureRequestValues *configure
 
 
 CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
-	
 
 	/*** tmp Radio Info ***/
 	char tmp_RadioInformationABGN;
@@ -113,8 +112,13 @@ CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
 
 		CWCloseThread();
 	}
-
-	gWTPs[WTPIndex].currentState = CW_ENTER_DATA_CHECK;
+	
+	/* Elena Agostini: 09/2014 IEEE 802.11 Binding */
+	if(!ACEnterIEEEConfiguration(WTPIndex, NULL))
+		return CW_FALSE;
+		
+	gWTPs[WTPIndex].currentState = CW_ENTER_IEEEE_CONFIGURATION;
+//	gWTPs[WTPIndex].currentState = CW_ENTER_DATA_CHECK;
 	return CW_TRUE;
 }
 

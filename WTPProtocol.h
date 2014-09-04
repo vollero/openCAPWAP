@@ -139,12 +139,13 @@ CWBool CWParseDecryptErrorReportPeriod (CWProtocolMessage *msgPtr, int len, WTPD
 CWBool CWParseIdleTimeout (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);		//26 
 CWBool CWParseWTPFallback (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);		//37 
 CWBool CWParseWTPRadioInformation_FromAC(CWProtocolMessage *msgPtr, int len, char *valPtr);					// 1048
-/*
- * Elena Agostini - 02/2014
- *
- * ECN Support Msg Elem MUST be included in Join Request/Response Messages
- */
+/* Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages */
 CWBool CWParseACECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr);
+//Elena Agostini - 09/2014: IEEE Binding
+CWBool CWAssembleMsgElemAssignedWTPSSID(CWProtocolMessage *msgPtr, int radioID, int wlanID, char * bssid);
+CWBool CWParseACAddWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr);
+CWBool CWParseACDelWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr);
+CWBool CWParseACUpdateWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr);
 
 //si trova in CWProtocol.h
 //CWBool CWParseACName(CWProtocolMessage *msgPtr, int len, char **valPtr);						// 4

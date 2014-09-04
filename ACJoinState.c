@@ -466,6 +466,7 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
         WTPProtocolManager->radiosInfo.radiosInfo[i].operationalCause = OP_NORMAL;
         WTPProtocolManager->radiosInfo.radiosInfo[i].TxQueueLevel = 0;
         WTPProtocolManager->radiosInfo.radiosInfo[i].wirelessLinkFramesPerSec = 0;
+        //Duplicate
         WTPProtocolManager->radiosInfo.radiosInfo[i].radioID = joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID;
         WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.radioID = WTPProtocolManager->radiosInfo.radiosInfo[i].radioID;
         
@@ -501,7 +502,9 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_N;
 		}
 		else
-			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_FALSE;		
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_FALSE;
+			
+		WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.numInterfaces=0;
 	}
 	CWDebugLog("Join Request Saved");
 	return CW_TRUE;

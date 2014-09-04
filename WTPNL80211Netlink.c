@@ -6,6 +6,7 @@
 
 #include "CWWTP.h"
 
+/* ************* NETLINK LIBNL *************** */
 int nl80211_init_socket(struct nl80211SocketUnit *nlSockUnit)
 {
 	int err;
@@ -98,4 +99,84 @@ int nl80211_send_recv_cb_input(struct nl80211SocketUnit *nlSockUnit,
 	nl_cb_put(cb);
 	nlmsg_free(msg);
 	return err;
+}
+
+/* ************* NETLINK SOCKET *************** */
+int netlink_create_socket(struct nl80211SocketUnit *nlSockUnit)
+{
+	struct sockaddr_nl local;
+	nlSockUnit->sockNetlink = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (nlSockUnit->sockNetlink < 0) {
+		CWLog("netlink: Failed to open netlink socket: %s", strerror(errno));
+	//	netlink_deinit(netlink);
+		return -1;
+	}
+
+	os_memset(&local, 0, sizeof(local));
+	local.nl_family = AF_NETLINK;
+	local.nl_groups = RTMGRP_LINK;
+	if (bind(nlSockUnit->sockNetlink, (struct sockaddr *) &local, sizeof(local)) < 0)
+	{
+		CWLog("netlink: Failed to bind netlink socket: %s", strerror(errno));
+		//	netlink_deinit(netlink);
+		return -1;
+	}
+	
+	return 0;
+}
+
+CWBool netlink_send_oper_ifla(int sock, int ifindex, int linkmode, int operstate)
+{
+	struct {
+		struct nlmsghdr hdr;
+		struct ifinfomsg ifinfo;
+		char opts[16];
+	} req;
+	struct rtattr *rta;
+	static int nl_seq;
+	ssize_t ret;
+
+	os_memset(&req, 0, sizeof(req));
+
+	req.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.hdr.nlmsg_type = RTM_SETLINK;
+	req.hdr.nlmsg_flags = NLM_F_REQUEST;
+	req.hdr.nlmsg_seq = ++nl_seq;
+	req.hdr.nlmsg_pid = 0;
+
+	req.ifinfo.ifi_family = AF_UNSPEC;
+	req.ifinfo.ifi_type = 0;
+	req.ifinfo.ifi_index = ifindex;
+	req.ifinfo.ifi_flags = 0;
+	req.ifinfo.ifi_change = 0;
+
+	if (linkmode != -1) {
+		rta = aliasing_hide_typecast(
+			((char *) &req + NLMSG_ALIGN(req.hdr.nlmsg_len)),
+			struct rtattr);
+		rta->rta_type = IFLA_LINKMODE;
+		rta->rta_len = RTA_LENGTH(sizeof(char));
+		*((char *) RTA_DATA(rta)) = linkmode;
+		req.hdr.nlmsg_len = NLMSG_ALIGN(req.hdr.nlmsg_len) +
+			RTA_LENGTH(sizeof(char));
+	}
+	if (operstate != -1) {
+		rta = aliasing_hide_typecast(
+			((char *) &req + NLMSG_ALIGN(req.hdr.nlmsg_len)),
+			struct rtattr);
+		rta->rta_type = IFLA_OPERSTATE;
+		rta->rta_len = RTA_LENGTH(sizeof(char));
+		*((char *) RTA_DATA(rta)) = operstate;
+		req.hdr.nlmsg_len = NLMSG_ALIGN(req.hdr.nlmsg_len) +
+			RTA_LENGTH(sizeof(char));
+	}
+
+	ret = send(sock, &req, req.hdr.nlmsg_len, 0);
+	if (ret < 0) {
+		CWLog("netlink: Sending operstate IFLA failed: %s (assume operstate is not supported)", strerror(errno));
+	}
+	
+	CWLog("netlink: Operstate: ifindex=%d linkmode=%d, operstate=%d", ifindex, linkmode, operstate);
+		   
+	return ret < 0 ? CW_FALSE : CW_TRUE;
 }

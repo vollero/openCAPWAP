@@ -156,17 +156,14 @@ CWBool CWAssembleMsgElemCWTimer(CWProtocolMessage *msgPtr);				//12
 CWBool CWAssembleMsgElemDecryptErrorReportPeriod(CWProtocolMessage *msgPtr);		//16
 CWBool CWAssembleMsgElemIdleTimeout(CWProtocolMessage *msgPtr);				//23
 CWBool CWAssembleMsgElemWTPFallback(CWProtocolMessage *msgPtr);				//37
-/*
- * Elena Agostini-08/2014: Add MultiDomain Capability message element for nl80211 support
- */
+/* Elena Agostini-08/2014: Add MultiDomain Capability message element for nl80211 support */
 CWBool CWAssembleMsgElemACWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower);
-
-/*
- * Elena Agostini - 02/2014
- *
- * ECN Support Msg Elem MUST be included in Join Request/Response Messages
- */
+/* Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages */
 CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr);
+/* Elena Agostini - 09/2014: IEEE 802.11 Binding */
+CWBool CWAssembleMsgElemACAddWlan(int radioID, WTPInterfaceInfo interfaceInfo, CWProtocolMessage *msgPtr);
+CWBool CWAssembleMsgElemACDelWlan(int radioID, int wlanID,  CWProtocolMessage *msgPtr);
+CWBool CWAssembleMsgElemACUpdateWlan(int radioID, WTPInterfaceInfo interfaceInfo, CWProtocolMessage *msgPtr);
 //---------------------------------------------------------/
 
 //CWBool CWParseACName(CWProtocolMessage *msgPtr, int len, char **valPtr);
@@ -192,12 +189,11 @@ CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, int * radi
 CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr);	//1040
 CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, PhyFrequencyInfoConfigureMessage * valPtr); //1032
 //CWBool CWParseWTPRadioInfo(CWProtocolMessage *msgPtr, int len, CWRadiosInformation *valPtr, int radioIndex);	
-/*
- * Elena Agostini - 02/2014
- *
- * ECN Support Msg Elem MUST be included in Join Request/Response Messages
- */
+/* Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages */
 CWBool CWParseWTPECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr);
+/* Elena Agostini - 09/2014: IEEE Binding */
+CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char ** valPtr);
+
 //---------------------------------------------------------/
 CWBool CWACGetACIPv4List(int **listPtr, int *countPtr);
 CWBool CWACGetACIPv6List(struct in6_addr **listPtr, int *countPtr);

@@ -1668,7 +1668,7 @@ CWBool CWAssembleClearConfigurationRequest(CWProtocolMessage **messagesPtr, int 
 	return CW_TRUE;
 }
 
-
+//Elena: not used!!!!!!!!!
 CWBool CWAssembleWLANConfigurationRequest(CWProtocolMessage **messagesPtr, int *fragmentsNumPtr, int PMTU, int seqNum,unsigned char* recv_packet,int Operation, int len_packet) {
 	
 	CWProtocolMessage *msgElemsBinding = NULL;
@@ -1714,6 +1714,7 @@ CWBool CWAssembleWLANConfigurationRequest(CWProtocolMessage **messagesPtr, int *
 		return CW_FALSE;
 	}
 */
+
 	if(!(CWAssembleMessage(messagesPtr, 
 	                       fragmentsNumPtr, 
 	                       PMTU, 

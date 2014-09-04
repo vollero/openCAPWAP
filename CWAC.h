@@ -356,6 +356,9 @@ CWBool ACEnterJoin(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterDataCheck(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag);
+//Elena Agostini: 09/2014. IEEE Binding (sub-state)
+CWBool ACEnterIEEEConfiguration(int WTPIndex, CWProtocolMessage *msgPtr);
+
 
 CW_THREAD_RETURN_TYPE CWInterface(void* arg);
 /* void CWTimerExpiredHandler(int arg); */

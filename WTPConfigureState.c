@@ -79,7 +79,9 @@ CWStateTransition CWWTPEnterConfigure() {
 		return CW_QUIT;
 	}
 	
-	return CW_ENTER_DATA_CHECK;
+	//Elena Agostini: 09/2014. IEEE Configuration WLAN sub-state
+	return CW_ENTER_IEEEE_CONFIGURATION;
+	//return CW_ENTER_DATA_CHECK;
 }
 
 /*

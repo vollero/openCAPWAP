@@ -255,13 +255,10 @@ void CWACManageIncomingPacket(CWSocket sock,
 					CW_COPY_NET_ADDR_PTR(&(wtpPtr->dataaddress), addrPtr);
 				}
 			}
-			
 		}
 		else
 		{
-			/*
-			* Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs
-			*/
+			/* Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs */
 			if(dataFlag == CW_TRUE)
 			{	
 					CWProtocolMessage msg;
@@ -289,9 +286,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 		}
 		
 #else		
-	/*
-	 * Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs
-	 */
+	/* Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs */
 	if(dataFlag == CW_TRUE)
 	{	
 			CWProtocolMessage msg;
@@ -312,8 +307,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 			}
 			else {
 				wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
-			}
-		
+			}	
 	}
 	else
 		wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
@@ -836,6 +830,27 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							/* Log and ignore other messages */
 							CWErrorHandleLast();
 							CWLog("Received something different from a Configure Request");
+						} 
+						else 
+						{
+							/* critical error, close session */
+							CWErrorHandleLast();
+							CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+							CWCloseThread();
+						}
+					}
+					break;
+				}
+				/* Elena Agostini: IEEE Binding */
+				case CW_ENTER_IEEEE_CONFIGURATION:
+				{
+					if(!ACEnterIEEEConfiguration(i, &msg)) 
+					{
+						if(CWErrorGetLastErrorCode() == CW_ERROR_INVALID_FORMAT) 
+						{
+							/* Log and ignore other messages */
+							CWErrorHandleLast();
+							CWLog("Received something different from a Configuration Response");
 						} 
 						else 
 						{

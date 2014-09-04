@@ -72,6 +72,10 @@
 
 #include "nl80211.h"
 #include "ieee80211.h"
+//From hostapd
+#include "HostapdHeaders/utils/common.h"
+#include "HostapdHeaders/common/ieee802_11_defs.h"
+#include "HostapdHeaders/common/ieee802_11_common.h"
 /* ******************************************* */
 
 // make sure the types really have the right sizes
@@ -101,7 +105,9 @@ typedef enum {
 	CW_ENTER_DATA_CHECK,
 	CW_ENTER_RUN,
 	CW_ENTER_RESET,
-	CW_QUIT
+	CW_QUIT,
+	//Elena Agostini: IEEE Binding
+	CW_ENTER_IEEEE_CONFIGURATION
 } CWStateTransition;
 
 extern const char *CW_CONFIG_FILE;
@@ -174,8 +180,8 @@ extern char * wtpLogFile;
 #include "CWList.h"
 #include "CWSafeList.h"
 
-#include "ACNL80211.h"
-#include "WTPNL80211.h"
+//#include "ACNL80211.h"
+#include "IEEEBinding.h"
 
 #include "CWProtocol.h"
 #include "CWSecurity.h"

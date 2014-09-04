@@ -7,7 +7,7 @@
 
 #include "CWWTP.h"
 
-/* nl80211 code */
+/* ************************************ UTILS ********************************************* */
 int ack_handler(struct nl_msg *msg, void *arg)
 {
 	int *err = arg;
@@ -46,6 +46,48 @@ int ieee80211_frequency_to_channel(int freq)
 		return 0;
 }
 
+void mac_addr_n2a(char *mac_addr, unsigned char *arg)
+{
+	int i, l;
+
+	l = 0;
+	for (i = 0; i < ETH_ALEN ; i++) {
+		if (i == 0) {
+			sprintf(mac_addr+l, "%02x", arg[i]);
+			l += 2;
+		} else {
+			sprintf(mac_addr+l, ":%02x", arg[i]);
+			l += 3;
+		}
+	}
+}
+
+int mac_addr_a2n(unsigned char *mac_addr, char *arg)
+{
+	int i;
+
+	for (i = 0; i < ETH_ALEN ; i++) {
+		int temp;
+		char *cp = strchr(arg, ':');
+		if (cp) {
+			*cp = 0;
+			cp++;
+		}
+		if (sscanf(arg, "%x", &temp) != 1)
+			return -1;
+		if (temp < 0 || temp > 255)
+			return -1;
+
+		mac_addr[i] = temp;
+		if (!cp)
+			break;
+		arg = cp;
+	}
+	if (i < ETH_ALEN - 1)
+		return -1;
+
+	return 0;
+}
 
 /* ****************************** GET ********************************* */
 int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
@@ -82,6 +124,9 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 	struct nlattr *nl_cmd;
 	struct nlattr *nl_if, *nl_ftype;
 	int rem_band, rem_freq, rem_rate, rem_mode, rem_cmd, rem_ftype, rem_if;
+	
+	int indexFreq=0;
+	int indexMbps=0;
 	
 	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
 	
@@ -144,11 +189,6 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 					band_had_freq = true;
 				}
 				
-				//Elena: not best practice with define
-				CW_CREATE_ARRAY_CALLOC_ERR(singlePhyInfo->phyFrequencyInfo.frequencyList, WTP_NL80211_CHANNELS_NUM, PhyFrequencyInfoList, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-				singlePhyInfo->phyFrequencyInfo.totChannels = 0;
-				
-				int indexFreq=0;
 				nla_for_each_nested(nl_freq, tb_band[NL80211_BAND_ATTR_FREQS], rem_freq) {
 					uint32_t freq;
 					
@@ -170,7 +210,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 					
 					if(freq >= 2400 && freq <= 2500)
 						phy2GH=CW_TRUE;
-					else if(freq >= 4000 && freq <= 5000)
+					else if(freq >= 4000 && freq <= 6000)
 						phy5GH=CW_TRUE;
 					else
 					{
@@ -193,12 +233,9 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 					singlePhyInfo->phyStandard5000MH=CW_FALSE;
 
 				if (tb_band[NL80211_BAND_ATTR_RATES]) {
-					int indexMbps=0;
+					
 					CWLog("\t\tBitrates (non-HT):\n");
 				
-					//Elena: not best practice with define
-					CW_CREATE_ARRAY_CALLOC_ERR(singlePhyInfo->phyMbpsSet, WTP_NL80211_BITRATE_NUM, float, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-
 					nla_for_each_nested(nl_rate, tb_band[NL80211_BAND_ATTR_RATES], rem_rate) {
 						nla_parse(tb_rate, NL80211_BITRATE_ATTR_MAX, nla_data(nl_rate), nla_len(nl_rate), rate_policy);
 						if (!tb_rate[NL80211_BITRATE_ATTR_RATE])
@@ -311,3 +348,38 @@ int CB_getQoSValues(struct nl_msg *msg, void *arg)
 	return NL_SKIP;
 }
 
+/* ****************************** SET ********************************* */
+int CB_setNewInterface(struct nl_msg *msg, void * arg) {
+	WTPInterfaceInfo * interfaceInfo = (WTPInterfaceInfo *) arg;
+	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+	
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	
+	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+	
+	if(tb_msg[NL80211_ATTR_IFINDEX])
+	{
+		//Real WlanID assigned by mac80211 module
+		interfaceInfo->realWlanID = nla_get_u32(tb_msg[NL80211_ATTR_IFINDEX]);
+		CWLog("[NL80211] IFINDEX : %d\n", interfaceInfo->realWlanID);
+	}
+	
+	
+	//MAC address
+	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->MACaddr, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	if (tb_msg[NL80211_ATTR_MAC]) {
+		CW_COPY_MEMORY(nla_data(tb_msg[NL80211_ATTR_MAC]), interfaceInfo->MACaddr, ETH_ALEN);
+		/*char mac_addr[20];
+		mac_addr_n2a(interfaceInfo->MACaddr, nla_data(tb_msg[NL80211_ATTR_MAC]));
+		CWLog("MAC ADDR %s\n", mac_addr);*/
+	}
+	
+	CWLog("CB_setNewInterface");
+}
+
+/* OTHERS */
+int CB_startAP(struct nl_msg *msg, void * arg) {
+	void * atr;
+	
+	CWLog("CB_startAP");
+}

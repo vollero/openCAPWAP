@@ -289,7 +289,6 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 			  seqNum, 
 			  msgElemlist))) {
 
-		CWLog("++++ NON ASSEMBLATO");
 		goto cw_failure;
 	}
 	
@@ -736,7 +735,11 @@ int main (int argc, const char * argv[]) {
 				break;
 			case CW_ENTER_CONFIGURE:
 				nextState = CWWTPEnterConfigure();
-				break;	
+				break;
+			/* Elena Agostini: 09/2014. IEEE Binding. WLAN Configuration sub-state*/
+			case CW_ENTER_IEEEE_CONFIGURATION:
+				nextState = CWWTPEnterIEEEConfiguration();
+				break;
 			case CW_ENTER_DATA_CHECK:
 				nextState = CWWTPEnterDataCheck();
 				break;	

@@ -44,7 +44,7 @@ CFLAGS += -DCW_NO_DTLS -DCW_NO_DTLSCWParseConfigurationUpdateRequest
 
 
 #DTLS Data Channel
-CFLAGS += -DCW_DTLS_DATA_CHANNEL
+# CFLAGS += -DCW_DTLS_DATA_CHANNEL
 
 OPENSSL_INCLUDE = -I./include/  #Openssl include files
 
@@ -71,14 +71,16 @@ AC_OBJS = AC.o ACConfigFile.o ACMainLoop.o ACDiscoveryState.o ACJoinState.o \
 	ACRetransmission.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWList.o \
 	CWLog.o ACMultiHomedSocket.o ACProtocol.o CWSafeList.o CWNetwork.o CWProtocol.o \
 	CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsAC.o \
-	ACBinding.o ACInterface.o ACSettingsFile.o timerlib.o tap.o ACipcHostapd.o
+	ACBinding.o ACInterface.o ACSettingsFile.o timerlib.o tap.o ACipcHostapd.o \
+	ACIEEEConfigurationState.o
 
 # list of generated object files for WTP.
 WTP_OBJS = WTP.o WTPipcHostapd.o WTPFrameReceive.o WTPFreqStatsReceive.o WTPStatsReceive.o WTPConfigFile.o WTPProtocol.o WTPProtocol_User.o \
 	WTPDiscoveryState.o WTPJoinState.o WTPConfigureState.o WTPDataCheckState.o WTPRunState.o WTPRunStateCheck.o \
 	WTPRetransmission.o WTPSulkingState.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWSafeList.o CWList.o CWLog.o CWNetwork.o \
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
-	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o WTPRadio.o WTPNL80211DriverCallback.o WTPNL80211Driver.o WTPNL80211Netlink.o 
+	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o \
+	 WTPRadio.o WTPNL80211DriverCallback.o WTPNL80211Driver.o WTPNL80211Netlink.o WTPIEEEConfigurationState.o
 
 WUA_OBJS = WUA.o
  

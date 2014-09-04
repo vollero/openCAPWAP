@@ -1103,7 +1103,7 @@ CWBool CWParseResultCode(CWProtocolMessage *msgPtr, int len, CWProtocolResultCod
 	CWParseMessageElementStart();
 	
 	*valPtr = CWProtocolRetrieve32(msgPtr);
-//	CWDebugLog("Result Code: %d",	*valPtr);
+//	CWLog("Result Code: %d",	*valPtr);
 	
 	CWParseMessageElementEnd();
 }
