@@ -82,7 +82,7 @@ CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
 				      int WTPIndex) {
 
 	CWControlHeaderValues controlVal;
-	int i,j;
+	int i,j, index;
 	int offsetTillMessages;
 	CWProtocolMessage completeMsg;
 	
@@ -134,13 +134,17 @@ CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
 			case CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE:
 				if(!(CWParseACAssignedWTPBSSID(WTPIndex, &completeMsg, elemLen, &radioIDtmp, &wlanIDtmp, &(bssIDTmp))))
 					return CW_FALSE;
-				
-				CW_CREATE_STRING_FROM_STRING_ERR(
-										gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].BSSID, 
-										bssIDTmp,
-										return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
-									);
-				CW_FREE_OBJECT(bssIDTmp);
+					
+					for(index=0; index < WTP_MAX_INTERFACES; index++)
+					{
+						if(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[index].wlanID == wlanIDtmp)
+						{
+							CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[index].BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+							CW_COPY_MEMORY(bssIDTmp, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[index].BSSID, ETH_ALEN);
+							break;
+						}
+					}
+					CW_FREE_OBJECT(bssIDTmp);
 				
 				break;
 			/*

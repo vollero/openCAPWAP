@@ -60,7 +60,7 @@ CWBool CWWTPIEEEConfigurationReceiveSendPacket(int seqNum, CWList msgElemlist);
  */
 CWStateTransition CWWTPEnterIEEEConfiguration() {
 
-	int seqNum;
+	int seqNum=0;
 
 	CWLog("\n");
 	CWLog("######### IEEE Configuration Sub-State #########");
@@ -243,7 +243,6 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			{
 				if(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].wlanID == -1)
 				{
-					
 					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].wlanID = interfaceACInfo->wlanID;
 					
 					//Create ifname: WTPWlan+radioID+wlanID
