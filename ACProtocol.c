@@ -279,31 +279,6 @@ CWBool CWAssembleMsgElemACName(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_AC_NAME_CW_TYPE);
 }
 
-CWBool CWAssembleMsgElemAddWLAN(int radioID,CWProtocolMessage *msgPtr,unsigned char* recv_packet, int len_packet){}
-CWBool CWAssembleMsgElemDeleteWLAN(int radioID,CWProtocolMessage *msgPtr,unsigned char* recv_packet, int len_packet ){}
-CWBool CWAssembleMsgElemUpdateWLAN(int radioID,CWProtocolMessage *msgPtr,unsigned char* recv_packet, int len_packet ){}
-/*
-CWBool CWAssembleMsgElemAddWLAN(int radioID,CWProtocolMessage *msgPtr,unsigned char* recv_packet, int len_packet){
-	
-	// create message
-	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, len_packet, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	
-	CWProtocolStoreRawBytes(msgPtr,(char*)recv_packet,len_packet);
-	
-	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE);
-	
-}
-
-CWBool CWAssembleMsgElemDeleteWLAN(int radioID,CWProtocolMessage *msgPtr,unsigned char* recv_packet, int len_packet ){
-	
-	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, len_packet, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	
-	CWProtocolStoreRawBytes(msgPtr,(char*)recv_packet,len_packet);
-	
-	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE);
-}
-*/
-
 /* ++++++++++++  Elena Agostini: 09/2014. IEEE 802.11 Binding ++++++++++++ */
 CWBool CWAssembleMsgElemACAddWlan(int radioID, WTPInterfaceInfo interfaceInfo, CWProtocolMessage *msgPtr){
 	int index;

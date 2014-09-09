@@ -56,6 +56,8 @@
 #define MSG_ELEMENT_TYPE_OFDM 1 
 #define MSG_ELEMENT_TYPE_VENDOR_UCI 2
 #define MSG_ELEMENT_TYPE_VENDOR_WUM 3
+//Elena Agostini - 09/2014: IEEE Binding
+#define MSG_ELEMENT_TYPE_ADD_WLAN 4
 
 /****************************************************************************************
  * Message Specific Payload for MSG_ELEMENT_TYPE_OFDM TYPE (802.11 Binding Version)		* 

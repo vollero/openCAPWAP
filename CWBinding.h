@@ -113,11 +113,7 @@ typedef struct
 typedef struct WTPQosValues
 {
 	unsigned char queueDepth;
-	/*
-	 * Elena Agostini - 02/2014
-	 *
-	 * RFC 5415 set cwMin and cwMax 16-bit field
-	 */
+	/* Elena Agostini - 02/2014: RFC 5415 set cwMin and cwMax 16-bit field */
 	short int cwMin;
 	short int cwMax;
 	unsigned char  AIFS;

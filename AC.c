@@ -118,7 +118,6 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	
 	CWACInit();
-	CWCreateConnectionWithHostapdAC();
 	CWACEnterMainLoop();
 	CWACDestroy();  
 	 
@@ -261,16 +260,6 @@ void CWACInit() {
 	}
 		
 	CWLog("AC Started");
-}
-
-void CWCreateConnectionWithHostapdAC(){
-	
-	CWThread thread_ipc_with_ac_hostapd;
-	if(!CWErr(CWCreateThread(&thread_ipc_with_ac_hostapd, CWACipc_with_ac_hostapd, NULL))) {
-		CWLog("Error starting Thread that receive command and 802.11 frame from hostapd (WTP side)");
-		exit(1);
-	}
-	
 }
 
 void CWACDestroy() {

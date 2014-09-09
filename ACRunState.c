@@ -54,10 +54,6 @@ CWBool CWParseClearConfigurationResponseMessage(CWProtocolMessage* msgPtr,
 						int len,
 						CWProtocolResultCode* resultCode);
 						
-CWBool CWParseWLANConfigurationResponseMessage(CWProtocolMessage* msgPtr,
-						int len,
-						CWProtocolResultCode* resultCode);
-
 CWBool CWParseStationConfigurationResponseMessage(CWProtocolMessage* msgPtr,
 						  int len,
 						  CWProtocolResultCode* resultCode);
@@ -285,7 +281,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			u16 fc;
 			hdr = (struct ieee80211_hdr *) msgPtr->msg;
 			fc = le_to_host16(hdr->frame_control);
- 
+ /*
 			if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT || isEAPOL_Frame(msgPtr->msg,msglen) ){
 				
 				CWACsend_data_to_hostapd(WTPIndex,msgPtr->msg, msglen);
@@ -312,9 +308,10 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					}
 				}
 			}else{
+			*/
 				write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
 				CWDebugLog("Control Frame !!!\n");
-			}
+			//}
 			
 			//flush_pcap(msgPtr->msg, msglen, "cap_wtp_to_ac.txt");
 			
@@ -595,9 +592,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 		}
 		case CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_RESPONSE:
 		{
-			CWProtocolResultCode resultCode;
-			if(!(CWParseWLANConfigurationResponseMessage(msgPtr, controlVal.msgElemsLen, &resultCode)))
+			/*
+			 * Elena Agostini: 09/2014. IEEE WLAN configuration message
+			 */
+			if(!CWParseIEEEConfigurationResponseMessage(msgPtr, controlVal.msgElemsLen, WTPIndex))
 				return CW_FALSE;
+			
 			CWACStopRetransmission(WTPIndex);
 			if (timerSet) {
 				if(!CWRestartNeighborDeadTimer(WTPIndex)) {
@@ -608,7 +608,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CWCloseThread();
 				}
 			}
-			
 			
 			if (gWTPs[WTPIndex].interfaceCommandProgress == CW_TRUE)
 			{
@@ -738,12 +737,16 @@ CWBool CWACParseGenericRunMessage(int WTPIndex,
 
 		return CW_TRUE;	
 	}
+		
+	if((gWTPs[WTPIndex].responseSeqNum != controlVal->seqNum)) {
+		/* Elena Agostini: gWTPs[WTPIndex].responseType is never set if it is a response
+		 * || (gWTPs[WTPIndex].responseType != controlVal->messageTypeValue)*/
 
-	if((gWTPs[WTPIndex].responseSeqNum != controlVal->seqNum) ||
-	   (gWTPs[WTPIndex].responseType != controlVal->messageTypeValue)) {
-
-		CWDebugLog("gWTPs: %d\n", gWTPs[WTPIndex].responseSeqNum);
-		CWDebugLog("controlVal: %d\n", controlVal->seqNum);
+		CWLog("gWTPs seqNum: %d\n", gWTPs[WTPIndex].responseSeqNum);
+		CWLog("controlVal seqNum: %d\n", controlVal->seqNum);
+		
+		CWLog("gWTPs responseType: %d\n", gWTPs[WTPIndex].responseType);
+		CWLog("controlVal responseType: %d\n", controlVal->messageTypeValue);
 		CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Seq Num or Msg Type not valid!");
 		return CW_FALSE;
 	}
@@ -835,40 +838,6 @@ CWBool CWParseConfigurationUpdateResponseMessage(CWProtocolMessage* msgPtr,
 	return CW_TRUE;	
 }
 
-CWBool CWParseWLANConfigurationResponseMessage(CWProtocolMessage* msgPtr, int len, CWProtocolResultCode* resultCode)
-{
-	int offsetTillMessages;
-
-	if(msgPtr == NULL || resultCode==NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	if((msgPtr->msg) == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	
-	offsetTillMessages = msgPtr->offset;
-	
-	CWLog("Parsing WLAN Configuration Response...");
-
-	// parse message elements
-	while((msgPtr->offset - offsetTillMessages) < len) {
-		unsigned short int elemType=0;
-		unsigned short int elemLen=0;
-		
-		CWParseFormatMsgElem(msgPtr, &elemType, &elemLen);
-		
-		switch(elemType) {
-			case CW_MSG_ELEMENT_RESULT_CODE_CW_TYPE:
-				*resultCode = CWProtocolRetrieve32(msgPtr);
-				break;	
-			default:
-				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element in Configuration WLAN Response");
-				break;	
-		}
-	}
-	
-	if((msgPtr->offset - offsetTillMessages) != len) return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
-
-	CWLog("WLAN Configuration Response Parsed");
-
-	return CW_TRUE;	
-}	
 
 CWBool CWParseClearConfigurationResponseMessage(CWProtocolMessage* msgPtr, int len, CWProtocolResultCode* resultCode)
 {
@@ -1664,74 +1633,6 @@ CWBool CWAssembleClearConfigurationRequest(CWProtocolMessage **messagesPtr, int 
 		return CW_FALSE;
 
 	CWLog("Clear Configuration Request Assembled");
-	
-	return CW_TRUE;
-}
-
-//Elena: not used!!!!!!!!!
-CWBool CWAssembleWLANConfigurationRequest(CWProtocolMessage **messagesPtr, int *fragmentsNumPtr, int PMTU, int seqNum,unsigned char* recv_packet,int Operation, int len_packet) {
-	
-	CWProtocolMessage *msgElemsBinding = NULL;
-	int msgElemBindingCount=0;
-	CWProtocolMessage *msgElems = NULL;
-	int msgElemCount=1;
-	int k = -1;
-	
-		
-	if(messagesPtr == NULL || fragmentsNumPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	
-	CWLog("Assembling WLAN 802.11 Configuration Request...");
-	
-	CW_CREATE_PROTOCOL_MSG_ARRAY_ERR(msgElems, msgElemCount, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	// Assemble Message Elements
-	
-	if( Operation==CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE ){
-		if (!(CWAssembleMsgElemAddWLAN(0,&(msgElems[++k]), recv_packet, len_packet)))   //radioID = 0 -valore predefinito-
-		{
-			
-			CWErrorHandleLast();
-			int i;
-			for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
-			CW_FREE_OBJECT(msgElems);
-			return CW_FALSE; // error will be handled by the caller
-		}
-		
-	}else if( Operation==CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE ){
-		
-		if (!(CWAssembleMsgElemDeleteWLAN(0,&(msgElems[++k]),recv_packet, len_packet)))   //radioID = 0 -valore predefinito-
-		{
-			CWErrorHandleLast();
-			int i;
-			for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
-			CW_FREE_OBJECT(msgElems);
-			return CW_FALSE; // error will be handled by the caller
-		}
-	}
-	
-
-/*  to be implemented in a case of Binding with appropriate messages elements -- see draft capwap-spec && capwap-binding 
-	if(!CWBindingAssembleConfigurationUpdateRequest(&msgElemsBinding, &msgElemBindingCount)){
-		return CW_FALSE;
-	}
-*/
-
-	if(!(CWAssembleMessage(messagesPtr, 
-	                       fragmentsNumPtr, 
-	                       PMTU, 
-	                       seqNum,
-	                       CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST, 
-	                       msgElems, 
-	                       msgElemCount, 
-	                       msgElemsBinding, 
-	                       msgElemBindingCount, 
-#ifdef CW_NO_DTLS
-						   CW_PACKET_PLAIN)))
-#else
-						   CW_PACKET_CRYPT)))
-#endif
-		return CW_FALSE;
-	
-	CWLog("Station WLAN 802.11 Configuration Request Assembled");
 	
 	return CW_TRUE;
 }

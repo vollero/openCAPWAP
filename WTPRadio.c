@@ -128,9 +128,14 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, WTPInterfaceInfo * interfaceInfo
 	return CW_TRUE;
 }
 
-CWBool CWWTPDeleteWlanInterface(int radioID, int wlanID)
+CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID)
 {
+	/*
 	if(!nl80211CmdDelInterface(radioID, wlanID))
+		return CW_FALSE;
+	*/
+	
+	if(!nl80211CmdSetInterfaceSTAType(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName))
 		return CW_FALSE;
 	
 	return CW_TRUE;

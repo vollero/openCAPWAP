@@ -436,6 +436,14 @@ typedef struct wpa_driver_ap_params {
 //	struct hostapd_freq_params *freq;
 }wpa_driver_ap_params;
 
+/* WUM IEEE 802.11 */
+typedef struct WUMWLANCmdParameters {
+	int typeCmd;
+	int radioID;
+	int wlanID;
+	char * ssid;
+} WUMWLANCmdParameters;
+
 CWBool nl80211CmdGetPhyInfo(int indexPhy, struct WTPSinglePhyInfo * singlePhyInfo);
 CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo);
 CWBool nl80211CmdDelInterface(int indexPhy, char * ifName);
@@ -450,7 +458,7 @@ CWBool ioctlActivateInterface(char * interface);
 //WTPRadio.c
 CWBool CWWTPGetRadioGlobalInfo(void);
 CWBool CWWTPCreateNewWlanInterface(int radioID, WTPInterfaceInfo * interfaceInfo);
-CWBool CWWTPDeleteWlanInterface(int radioID, int realWlanID);
+CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID);
 
 //Define create per allocazione array in CB_getPhyInfo
 //la dove dovrei fare due cicli per sapere la quantita di bitrate e di canali
@@ -478,3 +486,4 @@ int nl80211_send_recv_cb_input(struct nl80211SocketUnit *nlSockUnit,
 				struct nl_msg *msg,
 				int (*valid_handler)(struct nl_msg *, void *),
 				void *valid_data);
+

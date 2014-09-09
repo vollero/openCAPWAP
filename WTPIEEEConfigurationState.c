@@ -39,12 +39,11 @@ CWBool CWAssembleIEEEConfigurationResponse(CWProtocolMessage **messagesPtr,
 				  int *fragmentsNumPtr,
 				  int PMTU,
 				  int seqNum,
-				  CWList msgElemList,
 				  int resultCode,
 				  int radioID,
 				  int wlanID,
 				  char * bssidAssigned);
-			  
+				  
 CWBool CWParseIEEEConfigurationRequestMessage (char *msg,
 					int len,
 					int seqNum,
@@ -58,6 +57,7 @@ CWBool CWWTPIEEEConfigurationReceiveSendPacket(int seqNum, CWList msgElemlist);
 /* 
  * Manage IEEE COnfiguration State. Temporary state
  */
+ /*
 CWStateTransition CWWTPEnterIEEEConfiguration() {
 
 	int seqNum=0;
@@ -79,6 +79,7 @@ CWStateTransition CWWTPEnterIEEEConfiguration() {
 	
 	return CW_ENTER_DATA_CHECK;
 }
+*/
 
 /* 
  * Send Configure Request on the active session.
@@ -87,7 +88,6 @@ CWBool CWAssembleIEEEConfigurationResponse(CWProtocolMessage **messagesPtr,
 				  int *fragmentsNumPtr,
 				  int PMTU,
 				  int seqNum,
-				  CWList msgElemList,
 				  int resultCode,
 				  int radioID,
 				  int wlanID,
@@ -196,13 +196,15 @@ CWBool CWParseIEEEConfigurationRequestMessage (char *msg,
 		unsigned short int len=0;	/* = CWProtocolRetrieve16(&completeMsg); */
 		
 		CWParseFormatMsgElem(&completeMsg,&type,&len);
-		/* CWDebugLog("Parsing Message Element: %u, len: %u", type, len); */
+		 CWLog("Parsing Message Element: %u, len: %u complete: %d", type, len, completeMsg.offset);
 
 		switch(type) {
 			case CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE:
+			CWLog("CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE");
 				if(!(CWParseACAddWlan(&completeMsg, len, interfaceInfo))) return CW_FALSE;
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE:
+				CWLog("CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE");
 				if(!(CWParseACDelWlan(&completeMsg, len, interfaceInfo))) return CW_FALSE;
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_UPDATE_WLAN_CW_TYPE:
@@ -285,7 +287,7 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 		{
 			if(gRadiosInfo.radiosInfo[interfaceACInfo->radioID].gWTPPhyInfo.interfaces[index].wlanID == interfaceACInfo->wlanID)
 			{
-				if(!CWWTPDeleteWlanInterface(interfaceACInfo->radioID, gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].realWlanID))
+				if(!CWWTPDeleteWLANAPInterface(interfaceACInfo->radioID, gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].realWlanID))
 					goto failure;
 				
 				//Delete interface from structure
@@ -321,6 +323,7 @@ failure:
 	return CW_FALSE;
 }
 
+/*
 CWBool CWWTPIEEEConfigurationReceiveSendPacket(int seqNum, CWList msgElemlist) {
 
 	CWProtocolMessage *messages = NULL;
@@ -356,7 +359,6 @@ CWBool CWWTPIEEEConfigurationReceiveSendPacket(int seqNum, CWList msgElemlist) {
 			
 			case CW_ERROR_SUCCESS:
 			{
-				/* there's something to read */
 				if(!(CWReceiveMessage(&msg))) 
 				{
 					CW_FREE_PROTOCOL_MESSAGE(msg);
@@ -441,14 +443,12 @@ CWBool CWWTPIEEEConfigurationReceiveSendPacket(int seqNum, CWList msgElemlist) {
 	
 cw_create_response:
 	
-	/* send Configure Request */
 	seqNum = CWGetSeqNum();
 	
 	if(!(CWAssembleIEEEConfigurationResponse(&messages, 
 			  &fragmentsNum, 
 			  gWTPPathMTU, 
-			  seqNum, 
-			  msgElemlist,
+			  seqNum,
 			  resultCode,
 			  radioIDsend,
 			  wlanIDsend,
@@ -529,4 +529,4 @@ cw_failure:
 	return CW_FALSE;
 	
 }
-
+*/

@@ -156,8 +156,11 @@ typedef struct {
 	CWProtocolVendorSpecificValues* vendorValues;
 	int applicationIndex;
 	
+	
 	/**** ACInterface ****/
 	CWWTPProtocolManager WTPProtocolManager;
+	//Elena Agostini - 09/2014: WUM channel for WLAN Iface operations
+	WUMWLANCmdParameters * cmdWLAN;
 	
 	/* Retransmission */
 	CWProtocolMessage *messages;
@@ -269,7 +272,6 @@ UNIX_SOCKS_INFO UnixSocksArray[CW_MAX_WTP];
 
 /* in AC.c */
 void CWACInit(void);
-void CWCreateConnectionWithHostapdAC(void);
 void CWACEnterMainLoop(void);
 CWBool CWACSendAcknowledgedPacket(int WTPIndex, int msgType, int seqNum);
 CWBool CWACResendAcknowledgedPacket(int WTPIndex);

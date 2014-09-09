@@ -841,27 +841,6 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 					}
 					break;
 				}
-				/* Elena Agostini: IEEE Binding */
-				case CW_ENTER_IEEEE_CONFIGURATION:
-				{
-					if(!ACEnterIEEEConfiguration(i, &msg)) 
-					{
-						if(CWErrorGetLastErrorCode() == CW_ERROR_INVALID_FORMAT) 
-						{
-							/* Log and ignore other messages */
-							CWErrorHandleLast();
-							CWLog("Received something different from a Configuration Response");
-						} 
-						else 
-						{
-							/* critical error, close session */
-							CWErrorHandleLast();
-							CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
-							CWCloseThread();
-						}
-					}
-					break;
-				}
 				case CW_ENTER_DATA_CHECK:
 				{
 					if(!ACEnterDataCheck(i, &msg)) 
@@ -972,6 +951,55 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 				}
 				break;
 			  }
+			  /*
+			   * Elena Agostini: 09/2014. IEEE WLAN Configuration Request
+			   */
+			 case IEEE_WLAN_CONFIGURATION_CMD:
+			 {
+				int seqNum = CWGetSeqNum();
+				
+				CWLog("IEEE Assembling Configuration Request");
+				
+				if(gWTPs[i].cmdWLAN->typeCmd == CW_OP_ADD_WLAN)
+				{
+					//Controlli su numero radio e numero interfaccia
+					if(!ACUpdateInfoWlanInterface(&(gWTPs[i].WTPProtocolManager).radiosInfo.radiosInfo[gWTPs[i].cmdWLAN->radioID].gWTPPhyInfo.interfaces[gWTPs[i].cmdWLAN->wlanID], gWTPs[i].cmdWLAN->wlanID, gWTPs[i].cmdWLAN->ssid))
+						break;//return CW_FALSE;
+				}
+				
+				CWLog("Operation Request: %d", gWTPs[i].cmdWLAN->typeCmd);
+				//Create Configuration Request. Add or Del
+				if((CWAssembleIEEEConfigurationRequest(&(gWTPs[i].messages), 
+									 &(gWTPs[i].messagesCount), 
+									 gWTPs[i].pathMTU, 
+									 seqNum,
+									 gWTPs[i].cmdWLAN->typeCmd,
+									 gWTPs[i].cmdWLAN->radioID,
+									 gWTPs[i].cmdWLAN->wlanID,
+									 i
+									 )))  {
+						
+						if(!CWACSendFragments(i)) 
+							CWLog("CWACSendFragments NO");
+						else
+							bResult = CW_TRUE;
+						
+						/*
+						if(CWACSendAcknowledgedPacket(i, CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST, seqNum)) 
+						{
+							bResult = CW_TRUE;
+							CWLog("***** INVIATO OK");
+						 }
+						 else
+						 {
+							 CWLog("***** INVIATO NO");
+							CWACStopRetransmission(i);
+											}*/
+					}	
+				
+				break;
+			
+			 }
 			case CLEAR_CONFIG_MSG_CMD:
 			  {
 				int seqNum = CWGetSeqNum();

@@ -378,8 +378,11 @@ CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr) {
 
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 9, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
+	/*
+	 * Elena Agostini TODO: da rifare senza hostapd
+	 */
 	unsigned char tmp_sup_rate[8];
-	CWWTP_get_WTP_Rates(tmp_sup_rate);
+	//CWWTP_get_WTP_Rates(tmp_sup_rate);
 	
 	int radioID = 0;
 	
@@ -1028,7 +1031,7 @@ CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len)
 	unsigned char tmp_mac[7];
 	memcpy(tmp_mac+1, StationMacAddress, 6);
 	
-	CWWTPsend_command_to_hostapd_DEL_ADDR( tmp_mac,7);
+	//CWWTPsend_command_to_hostapd_DEL_ADDR( tmp_mac,7);
 												     
 	CWDebugLog("STATION'S MAC ADDRESS TO FORWARD TRAFFIC: %02X:%02X:%02X:%02X:%02X:%02X",  
 								StationMacAddress[0] & 0xFF,
@@ -1038,86 +1041,6 @@ CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len)
       								StationMacAddress[4] & 0xFF,
       								StationMacAddress[5] & 0xFF);
 	
-
-	CWParseMessageElementEnd();  
-}
-
-CWBool CWParseDeleteWLAN(CWProtocolMessage *msgPtr, int len) {
-	int Length=0;
-	unsigned char* ssid;
-	
-	
-	//CWParseMessageElementStart();	 sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
-	/*--------------------------------------------------------------------------------------*/
-	int oldOffset;												
-			if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
-						oldOffset = msgPtr->offset;
-	/*----------------------------------------------------------------------------------*/
-	
-	int radioID = CWProtocolRetrieve8(msgPtr);
-	int wlanID = CWProtocolRetrieve8(msgPtr);
-
-	unsigned char tmp_ssid[3];
-	
-	
-	CWWTPsend_command_to_hostapd_DEL_WLAN( tmp_ssid,3 );
-
-	CWParseMessageElementEnd();  
-}
-
-CWBool CWParseAddWLAN(CWProtocolMessage *msgPtr, int len) {
-	int Length=0;
-	unsigned char* ssid;
-	unsigned char tmp_buf[len+1];
-	
-	
-	//CWParseMessageElementStart();	 sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
-	/*--------------------------------------------------------------------------------------*/
-	int oldOffset;												
-			if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
-						oldOffset = msgPtr->offset;
-	/*----------------------------------------------------------------------------------*/
-	
-	tmp_buf[1] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[2] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[3] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[4] = CWProtocolRetrieve8(msgPtr);
-	
-	tmp_buf[5] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[6] = CWProtocolRetrieve8(msgPtr);
-	short keyLength = CWProtocolRetrieve16(msgPtr);
-	
-	tmp_buf[7] = *(&keyLength + 1);
-	tmp_buf[8] = *(&keyLength + 0);
-	
-	if(keyLength){
-		unsigned char *key;
-		key = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, keyLength);
-		memcpy( tmp_buf+9, key, keyLength);
-	}
-	
-	tmp_buf[9+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[10+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[11+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[12+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[13+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[14+keyLength] = CWProtocolRetrieve8(msgPtr);
-	
-	tmp_buf[15+keyLength] = CWProtocolRetrieve8(msgPtr);
-	
-	tmp_buf[16+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[17+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[18+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[19+keyLength] = CWProtocolRetrieve8(msgPtr);
-	
-
-	ssid = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, len-(19+keyLength));
-	 
-	memcpy( tmp_buf+20+keyLength, ssid, len-19-keyLength);
-	
-	
-	
-	CWWTPsend_command_to_hostapd_ADD_WLAN( tmp_buf, len+1 );
 
 	CWParseMessageElementEnd();  
 }
@@ -1152,7 +1075,7 @@ CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len)
 	unsigned char tmp_mac[7];
 	memcpy(tmp_mac+1, StationMacAddress, 6);
 	
-	CWWTPsend_command_to_hostapd_SET_ADDR( tmp_mac,7);
+	//CWWTPsend_command_to_hostapd_SET_ADDR( tmp_mac,7);
 												     
 	CWDebugLog("STATION'S MAC ADDRESS TO FORWARD TRAFFIC: %02X:%02X:%02X:%02X:%02X:%02X",  
 								StationMacAddress[0] & 0xFF,
@@ -1178,33 +1101,47 @@ CWBool CWParseACAddWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestIn
 
 	//Radio ID
 	valPtr->radioID = CWProtocolRetrieve8(msgPtr);
+
 	//Wlan ID
 	valPtr->wlanID = CWProtocolRetrieve8(msgPtr);
+
 	//Capability
 	valPtr->capabilityBit = CWProtocolRetrieve16(msgPtr);
+
 	//key Index
 	valPtr->keyIndex = CWProtocolRetrieve8(msgPtr);
+
 	//Key Status
 	valPtr->keyStatus = CWProtocolRetrieve8(msgPtr);
+
 	//key Length
 	valPtr->keyLength = CWProtocolRetrieve16(msgPtr);
+
 	//Key
 	CW_COPY_MEMORY(valPtr->key, CWProtocolRetrieveRawBytes(msgPtr, WLAN_KEY_LEN), WLAN_KEY_LEN);
+
 	//Group TSC
 	CW_COPY_MEMORY(valPtr->groupTSC, CWProtocolRetrieveRawBytes(msgPtr, WLAN_GROUP_TSC_LEN), WLAN_GROUP_TSC_LEN);
+
 	//qos
 	valPtr->qos = CWProtocolRetrieve8(msgPtr);
+
 	//Auth TYpe
 	valPtr->authType = CWProtocolRetrieve8(msgPtr);
+
 	//MAC Mode
 	valPtr->MACmode = CWProtocolRetrieve8(msgPtr);
+
 	//Tunnel Mode
 	valPtr->tunnelMode = CWProtocolRetrieve8(msgPtr);
+
 	//Suppress SSID
 	valPtr->suppressSSID = CWProtocolRetrieve8(msgPtr);
+
 	//SSID
-	CW_CREATE_ARRAY_CALLOC_ERR(valPtr->SSID, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(valPtr->SSID, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(valPtr->SSID, CWProtocolRetrieveRawBytes(msgPtr, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN), len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN);	
+
 	
 	CWParseMessageElementEnd();
 }

@@ -80,8 +80,8 @@ CWStateTransition CWWTPEnterConfigure() {
 	}
 	
 	//Elena Agostini: 09/2014. IEEE Configuration WLAN sub-state
-	return CW_ENTER_IEEEE_CONFIGURATION;
-	//return CW_ENTER_DATA_CHECK;
+	//return CW_ENTER_IEEEE_CONFIGURATION;
+	return CW_ENTER_DATA_CHECK;
 }
 
 /*
@@ -121,8 +121,11 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	    (!(CWAssembleMsgElemACNameWithIndex(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemRadioAdminState(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemStatisticsTimer(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k]))))
+	    (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k])))) 
+	    /*
+	     * Elena Agostini TODO: da rifare senza hostapd
+	     || (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k]))))
+	     */
 	)
 	{
 		int i;

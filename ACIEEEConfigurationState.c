@@ -13,9 +13,8 @@
 #endif
 
 
-CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
+CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 				      int len,
-				      int *seqNumPtr,
 				      int WTPIndex);
 				      
 CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
@@ -27,8 +26,9 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 				   int wlanNum,
 				   int WTPIndex);
 				   
-CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo);
+CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID);
 
+/*
 CWBool ACEnterIEEEConfiguration(int WTPIndex, CWProtocolMessage *msgPtr) {
 	
 	//Elena: Now, just for example, I update only wlan 0 interface on radio 0
@@ -75,10 +75,10 @@ CWBool ACEnterIEEEConfiguration(int WTPIndex, CWProtocolMessage *msgPtr) {
 	gWTPs[WTPIndex].currentState = CW_ENTER_DATA_CHECK;
 	return CW_TRUE;
 }
+*/
 
-CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
+CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 				      int len,
-				      int *seqNumPtr,
 				      int WTPIndex) {
 
 	CWControlHeaderValues controlVal;
@@ -91,12 +91,12 @@ CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
 	int radioIDtmp, wlanIDtmp;
 	char * bssIDTmp;
 				
-	if(msg == NULL || seqNumPtr == NULL) 
+	if(msgPtr == NULL) 
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	CWDebugLog("Parsing Configuration Response...");
 	
-	completeMsg.msg = msg;
+	completeMsg.msg = msgPtr->msg;
 	completeMsg.offset = 0;
 	
 	if(!(CWParseControlHeader(&completeMsg, &controlVal))) 
@@ -107,7 +107,6 @@ CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
 	if(controlVal.messageTypeValue != CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_RESPONSE)
 		return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Message is not Configuration Response (maybe it is Image Data Request)");
 	
-	*seqNumPtr = controlVal.seqNum;
 	/* skip timestamp */
 	controlVal.msgElemsLen -= CW_CONTROL_HEADER_OFFSET_FOR_MSG_ELEMS;	
 	offsetTillMessages = completeMsg.offset;
@@ -132,6 +131,7 @@ CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
 						CWLog("IEEE WLAN OK");
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE:
+			
 				if(!(CWParseACAssignedWTPBSSID(WTPIndex, &completeMsg, elemLen, &radioIDtmp, &wlanIDtmp, &(bssIDTmp))))
 					return CW_FALSE;
 					
@@ -162,7 +162,11 @@ CWBool CWParseIEEEConfigurationResponseMessage(char *msg,
 		}
 	}
 	
-	if(completeMsg.offset != len) return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
+	
+	if((completeMsg.offset - offsetTillMessages) != len)
+		return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
+		
+	//if(completeMsg.offset != len) return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
 	
 	CWDebugLog("Configure Response Parsed");	
 	return CW_TRUE;
@@ -240,21 +244,21 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 			       msgElemsBinding,
 			       msgElemBindingCount,
 #ifdef CW_NO_DTLS
-			       CW_PACKET_PLAIN))) {
+			       CW_PACKET_PLAIN)))
 #else
-			       CW_PACKET_CRYPT))) {
+			       CW_PACKET_CRYPT))) 
 #endif
 		return CW_FALSE;
-	}
 	
 	CWDebugLog("Configure Response Assembled");
 	return CW_TRUE;
 }
 
-CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo) {
+CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID) {
+
 	int index;
 	//WlanID by AC
-	interfaceInfo->wlanID=4;
+	interfaceInfo->wlanID=wlanID;
 	
 	//Useless for AC. WTP will not send the interface name
 	interfaceInfo->ifName = NULL;
@@ -318,7 +322,7 @@ CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo) {
 	//Suppress SSID: 0 yes, 1 no
 	interfaceInfo->suppressSSID=1;
 	//SSID
-	CW_CREATE_STRING_FROM_STRING_ERR(interfaceInfo->SSID, "wtpSSID", return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_STRING_FROM_STRING_ERR(interfaceInfo->SSID, SSID, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		
 	return CW_TRUE;
 }

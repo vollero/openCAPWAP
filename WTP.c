@@ -684,6 +684,7 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	}
 
+/*
 #ifdef SOFTMAC
 	CWThread thread_ipc_with_wtp_hostapd;
 	if(!CWErr(CWCreateThread(&thread_ipc_with_wtp_hostapd, CWWTPThread_read_data_from_hostapd, NULL))) {
@@ -691,7 +692,7 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	}
 #endif
-
+*/
 
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
@@ -735,10 +736,6 @@ int main (int argc, const char * argv[]) {
 				break;
 			case CW_ENTER_CONFIGURE:
 				nextState = CWWTPEnterConfigure();
-				break;
-			/* Elena Agostini: 09/2014. IEEE Binding. WLAN Configuration sub-state*/
-			case CW_ENTER_IEEEE_CONFIGURATION:
-				nextState = CWWTPEnterIEEEConfiguration();
 				break;
 			case CW_ENTER_DATA_CHECK:
 				nextState = CWWTPEnterDataCheck();

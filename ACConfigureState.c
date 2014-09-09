@@ -114,11 +114,12 @@ CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
 	}
 	
 	/* Elena Agostini: 09/2014 IEEE 802.11 Binding */
-	if(!ACEnterIEEEConfiguration(WTPIndex, NULL))
+/*	if(!ACEnterIEEEConfiguration(WTPIndex, NULL))
 		return CW_FALSE;
 		
 	gWTPs[WTPIndex].currentState = CW_ENTER_IEEEE_CONFIGURATION;
-//	gWTPs[WTPIndex].currentState = CW_ENTER_DATA_CHECK;
+*/
+	gWTPs[WTPIndex].currentState = CW_ENTER_DATA_CHECK;
 	return CW_TRUE;
 }
 

@@ -106,8 +106,6 @@ typedef enum {
 	CW_ENTER_RUN,
 	CW_ENTER_RESET,
 	CW_QUIT,
-	//Elena Agostini: IEEE Binding
-	CW_ENTER_IEEEE_CONFIGURATION
 } CWStateTransition;
 
 extern const char *CW_CONFIG_FILE;

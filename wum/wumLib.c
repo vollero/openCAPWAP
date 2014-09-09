@@ -178,7 +178,7 @@ int WUMGetWTPVersion(int acserver, int wtpId, struct version_info *v_info)
 	msg.msg_elem = MSG_ELEMENT_TYPE_VENDOR_WUM;
 	msg.wtpId = wtpId;
 	msg.wum_type = WTP_VERSION_REQUEST; 
-
+	
 	if (WUMSendMessage(acserver, msg) != 0) {
 		fprintf(stderr, "Error while sending WUM message");
 		return ERROR;
@@ -201,6 +201,58 @@ int WUMGetWTPVersion(int acserver, int wtpId, struct version_info *v_info)
 	
 	return SUCCESS;
 }
+/*
+ * Elena Agostini - 09/2014: WLAN add interface
+ */
+int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * wlanID, struct version_info *v_info)
+{
+	wum_req_t msg;
+	wum_resp_t resp;
+	
+	if(ssid == NULL || radioID == NULL || wlanID == NULL)
+		return ERROR;
+		
+	WUM_INIT_REQ_MSG(msg, strlen(ssid)+strlen(radioID)+strlen(wlanID)+3);
+	msg.cmd_msg = CONF_UPDATE_MSG;
+	msg.msg_elem = MSG_ELEMENT_TYPE_ADD_WLAN;
+	msg.wtpId = wtpId;
+	msg.wum_type = WTP_WLAN_ADD_REQUEST;
+	msg.payload_len = strlen(ssid)+strlen(radioID)+strlen(wlanID)+6;
+	printf("Payload Len: %d\n", msg.payload_len);
+	
+	msg.payload = (char *) calloc(msg.payload_len, sizeof(char));
+	if(msg.payload == NULL)
+	{
+		perror("calloc");
+		return ERROR;
+	}
+	snprintf(msg.payload, msg.payload_len, "%s:%s:%s", radioID, wlanID, ssid);
+	
+	printf("Payload: %s\n", msg.payload);
+	
+	if (WUMSendMessage(acserver, msg) != 0) {
+		fprintf(stderr, "Error while sending WUM message");
+		return ERROR;
+	}
+/*
+	if (WUMReceiveMessage(acserver, &resp) != 0) {
+		fprintf(stderr, "Error while reading response message");
+		return ERROR;
+	}
+
+	resp.wum_type = WUMPayloadRetrieve8(&resp);
+	if (resp.wum_type != WTP_WLAN_ADD_RESPONSE) {
+		fprintf(stderr, "Received wrong response message!");
+		return ERROR;
+	}
+
+	v_info->major = WUMPayloadRetrieve8(&resp);
+	v_info->minor = WUMPayloadRetrieve8(&resp);
+	v_info->revision = WUMPayloadRetrieve8(&resp); 
+	*/
+	return SUCCESS;
+}
+
 
 void StringToLower(char *str)
 {
@@ -429,6 +481,15 @@ int WUMSendMessage(int acserver, wum_req_t msg)
 	}
 	
 	if (msg.payload_len > 0) {
+		//Elena Agostini - 09/2014: ssid parameter has variable length
+		if(msg.msg_elem == MSG_ELEMENT_TYPE_ADD_WLAN)
+		{
+			if (Writen(acserver, &(msg.payload_len), sizeof(int)) != sizeof(int)) {
+				fprintf(stderr, "Error while sending CONF_UPDATE_MSG message.\n");
+				return ERROR;
+			}
+		}
+		
 		if (Writen(acserver, msg.payload, msg.payload_len) != msg.payload_len) {
 			fprintf(stderr, "Error while sending CONF_UPDATE_MSG message.\n");
 			return ERROR;
