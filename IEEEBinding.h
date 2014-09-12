@@ -81,8 +81,10 @@ struct nl80211SocketUnit {
 };
 extern struct nl80211SocketUnit globalNLSock;
 
-//Elena Agostini: max num WTP radio interface
+//Max num WTP radio interface
 #define WTP_RADIO_MAX 5
+//Max num WTP interface for each radio
+#define WTP_MAX_INTERFACES 3
 
 #define WLAN_CAPABILITY_NUM_FIELDS 16
 #define WLAN_KEY_LEN 4
@@ -102,6 +104,11 @@ enum {
 	CW_OP_DEL_WLAN,
 	CW_OP_UPDATE_WLAN
 } wlanOperationType;
+
+enum {
+	CW_STA_MODE,
+	CW_AP_MODE
+} wlanModeType;
 
 typedef struct ACInterfaceRequestInfo {
 	int radioID;
@@ -137,6 +144,9 @@ typedef struct WTPInterfaceInfo {
 	int wlanID;
 	//Real ID assigned by mac80211
 	int realWlanID;
+	
+	//AC or STA
+	int typeInterface;
 	
 	char * ifName;
 	
@@ -175,8 +185,7 @@ typedef struct PhyFrequencyInfo {
 	PhyFrequencyInfoList * frequencyList;
 } PhyFrequencyInfo;
 
-//Elena: test phase. There is not an AC logic
-#define WTP_MAX_INTERFACES 1
+
 
 typedef struct WTPSinglePhyInfo {	
 	int radioID;
@@ -457,7 +466,8 @@ CWBool ioctlActivateInterface(char * interface);
 
 //WTPRadio.c
 CWBool CWWTPGetRadioGlobalInfo(void);
-CWBool CWWTPCreateNewWlanInterface(int radioID, WTPInterfaceInfo * interfaceInfo);
+CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID);
+CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo);
 CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID);
 
 //Define create per allocazione array in CB_getPhyInfo

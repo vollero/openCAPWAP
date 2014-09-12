@@ -783,14 +783,13 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 					
 					if(interfaceACInfo.operation == CW_OP_ADD_WLAN)
 					{
-						int index;
-						for(index=0; index < WTP_MAX_INTERFACES; index++)
+						if(
+							(wlanIDsend < WTP_MAX_INTERFACES) &&
+							(radioIDsend < WTP_RADIO_MAX)
+						)
 						{
-							if(gRadiosInfo.radiosInfo[radioIDsend].gWTPPhyInfo.interfaces[index].wlanID == interfaceACInfo.wlanID)
-							{
-								CW_CREATE_ARRAY_CALLOC_ERR(bssidAssigned, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-								CW_COPY_MEMORY(bssidAssigned, gRadiosInfo.radiosInfo[interfaceACInfo.radioID].gWTPPhyInfo.interfaces[index].BSSID, ETH_ALEN);
-							}
+							CW_CREATE_ARRAY_CALLOC_ERR(bssidAssigned, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+							CW_COPY_MEMORY(bssidAssigned, gRadiosInfo.radiosInfo[radioIDsend].gWTPPhyInfo.interfaces[wlanIDsend].BSSID, ETH_ALEN);
 						}
 					}
 					else bssidAssigned=NULL;

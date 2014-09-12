@@ -453,7 +453,7 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 			    CWWTPRadioInfoValues,
 			    return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-	int i;
+	int i, indexWlan;
 	for(i=0; i< WTPProtocolManager->radiosInfo.radioCount; i++) {
 		//Elena Agostini: per ora vengono salvati solo WTP_RADIO_MAX (ACNL80211.h) message elements dal join request.
 		//Si dovranno trovare altre soluzioni quando si lavorerà al management
@@ -503,8 +503,12 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 		}
 		else
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardN=CW_FALSE;
-			
+		
 		WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.numInterfaces=0;
+		
+		//Set all interface WTP_MAX_INTERFACES in STA mode
+		for(indexWlan=0; indexWlan < WTP_MAX_INTERFACES; indexWlan++)
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].typeInterface = CW_STA_MODE;	
 	}
 	CWDebugLog("Join Request Saved");
 	return CW_TRUE;

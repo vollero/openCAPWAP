@@ -10,7 +10,7 @@
 CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	int err, indexPhy=0;
-	int index;
+	int indexWlan;
 	
 	gRadiosInfo.radioCount = gPhyInterfaceCount;
 	CW_CREATE_ARRAY_ERR(gRadiosInfo.radiosInfo, gRadiosInfo.radioCount, CWWTPRadioInfoValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
@@ -88,27 +88,38 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_N;
 
 		if(!CWWTPInitBinding(indexPhy)) {return CW_FALSE;}
-		
+
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.numInterfaces=0;
-		for(index=0; index < WTP_MAX_INTERFACES; index++)
+		for(indexWlan=0; indexWlan < WTP_MAX_INTERFACES; indexWlan++)
 		{
-			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.interfaces[index].wlanID = -1;
-			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.interfaces[index].realWlanID = -1;
+			if(!CWWTPCreateNewWlanInterface(indexPhy,  indexWlan))
+			{
+				CWLog("NL80211: Error creating new interface. RadioID: %d, WLAN ID: %d", indexPhy, indexWlan);
+				return CW_FALSE;
+			}			
 		}
 	}
 	
 	return CW_TRUE;
 }
 
-CWBool CWWTPCreateNewWlanInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
+CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * interfaceInfo)
 {
-	CWLog("CWWTPCreateNewWlanInterface radioID: %d, ifName: %s", radioID, interfaceInfo->ifName);
-	if(!nl80211CmdSetNewInterface(radioID, interfaceInfo))
+	//Create ifname: WTPWlan+radioID+wlanID
+	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	snprintf(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, radioID, wlanID);
+	
+	CWLog("CWWTPCreateNewWlanInterface radioID: %d, wlanID: %d", radioID, wlanID);
+	if(!nl80211CmdSetNewInterface(radioID, &(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID])))
 		return CW_FALSE;
 	
-	//Elena: some mac80211 module require a little bit of time for activate new interface. How to resolve it better?
-	sleep(3);
+	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].typeInterface = CW_STA_MODE;
 	
+	return CW_TRUE;
+}
+
+CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
+{
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
 		
@@ -125,6 +136,8 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, WTPInterfaceInfo * interfaceInfo
 	if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, IF_OPER_UP))
 		return CW_FALSE;
 	
+	interfaceInfo->typeInterface = CW_AP_MODE;
+
 	return CW_TRUE;
 }
 

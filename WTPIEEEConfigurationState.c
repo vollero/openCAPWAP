@@ -227,54 +227,46 @@ CWBool CWParseIEEEConfigurationRequestMessage (char *msg,
 }
 
 CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceACInfo) {
-
-	int index;
 	
 	if(interfaceACInfo == NULL)
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
-	int tmpRadioID = interfaceACInfo->radioID;
+	int indexRadio = interfaceACInfo->radioID;
+	int indexWlan = interfaceACInfo->wlanID;
 	
 	//Add Wlan
 	if(interfaceACInfo->operation == CW_OP_ADD_WLAN)
 	{
-		//Save interface info if it's possible
-		if(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.numInterfaces == 0 ||  gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.numInterfaces < (WTP_MAX_INTERFACES-1))
+		if(
+			(indexWlan < WTP_MAX_INTERFACES) &&
+			(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_STA_MODE)
+		)
 		{
-			for(index=0; index < WTP_MAX_INTERFACES; index++)
-			{
-				if(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].wlanID == -1)
-				{
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].wlanID = interfaceACInfo->wlanID;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].wlanID = indexWlan;
 					
-					//Create ifname: WTPWlan+radioID+wlanID
-					CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-					snprintf(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, interfaceACInfo->radioID, interfaceACInfo->wlanID);
-					CW_COPY_MEMORY(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].capability, interfaceACInfo->capability, WLAN_CAPABILITY_NUM_FIELDS);
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].capabilityBit = interfaceACInfo->capabilityBit;
+			CW_COPY_MEMORY(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capability, interfaceACInfo->capability, WLAN_CAPABILITY_NUM_FIELDS);
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit = interfaceACInfo->capabilityBit;
 					
-					//---- Key
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].keyIndex = interfaceACInfo->keyIndex;
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].keyStatus = interfaceACInfo->keyStatus;
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].keyLength = interfaceACInfo->keyLength;
-					CW_COPY_MEMORY(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].key, interfaceACInfo->key, WLAN_KEY_LEN);
-					//---- Key
+			//---- Key
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].keyIndex = interfaceACInfo->keyIndex;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].keyStatus = interfaceACInfo->keyStatus;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].keyLength = interfaceACInfo->keyLength;
+			CW_COPY_MEMORY(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].key, interfaceACInfo->key, WLAN_KEY_LEN);
+			//---- Key
+			
+			CW_COPY_MEMORY(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].groupTSC, interfaceACInfo->groupTSC, WLAN_GROUP_TSC_LEN);
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].qos = interfaceACInfo->qos;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].authType = interfaceACInfo->authType;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACmode = interfaceACInfo->MACmode;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].tunnelMode = interfaceACInfo->tunnelMode;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].suppressSSID = interfaceACInfo->suppressSSID;
 					
-					CW_COPY_MEMORY(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].groupTSC, interfaceACInfo->groupTSC, WLAN_GROUP_TSC_LEN);
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].qos = interfaceACInfo->qos;
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].authType = interfaceACInfo->authType;
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].MACmode = interfaceACInfo->MACmode;
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].tunnelMode = interfaceACInfo->tunnelMode;
-					gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].suppressSSID = interfaceACInfo->suppressSSID;
-					
-					CW_CREATE_STRING_FROM_STRING_ERR(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].SSID, interfaceACInfo->SSID, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-					
-					if(!CWWTPCreateNewWlanInterface(tmpRadioID, &(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index])))
-						goto failure;
-					
-					goto success;
-				}
-			}
+			CW_CREATE_STRING_FROM_STRING_ERR(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID, interfaceACInfo->SSID, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+			
+			if(!CWWTPSetAPInterface(indexRadio, &(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan])))
+				goto failure;
+
+			goto success;
 		}
 		else
 			goto failure;
@@ -282,21 +274,20 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 	//Delete Wlan
 	else if(interfaceACInfo->operation == CW_OP_DEL_WLAN)
 	{
-		int realWlanID=0;
-		for(index=0; index < WTP_MAX_INTERFACES; index++)
+		if(
+			(indexWlan < WTP_MAX_INTERFACES) &&
+			(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE)
+		)
 		{
-			if(gRadiosInfo.radiosInfo[interfaceACInfo->radioID].gWTPPhyInfo.interfaces[index].wlanID == interfaceACInfo->wlanID)
-			{
-				if(!CWWTPDeleteWLANAPInterface(interfaceACInfo->radioID, gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].realWlanID))
+			if(!CWWTPDeleteWLANAPInterface(interfaceACInfo->radioID, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].realWlanID))
 					goto failure;
 				
-				//Delete interface from structure
-				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].ifName);
-				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].SSID);
-				gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].wlanID = -1;
-				gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.interfaces[index].realWlanID = -1;
-				gRadiosInfo.radiosInfo[tmpRadioID].gWTPPhyInfo.numInterfaces--;
-			}
+			//Delete interface from structure
+			CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName);
+			CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID);
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_STA_MODE;
+			//TODO: Serve?
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.numInterfaces--;	
 		}
 	}
 	//Update Wlan

@@ -128,22 +128,25 @@ CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 				if(resultCode != CW_PROTOCOL_SUCCESS)
 						CWLog("IEEE WLAN Error");
 					else
+					{
 						CWLog("IEEE WLAN OK");
+						if(radioIDtmp < WTP_RADIO_MAX && wlanIDtmp < WTP_MAX_INTERFACES)
+							gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].typeInterface = CW_AP_MODE;
+					}
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE:
 			
 				if(!(CWParseACAssignedWTPBSSID(WTPIndex, &completeMsg, elemLen, &radioIDtmp, &wlanIDtmp, &(bssIDTmp))))
 					return CW_FALSE;
 					
-					for(index=0; index < WTP_MAX_INTERFACES; index++)
+					if(radioIDtmp < WTP_RADIO_MAX && wlanIDtmp < WTP_MAX_INTERFACES)
 					{
-						if(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[index].wlanID == wlanIDtmp)
-						{
-							CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[index].BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-							CW_COPY_MEMORY(bssIDTmp, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[index].BSSID, ETH_ALEN);
-							break;
-						}
+						gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].typeInterface = CW_AP_MODE;
+						CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+						CW_COPY_MEMORY(bssIDTmp, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].BSSID, ETH_ALEN);
+						break;
 					}
+					
 					CW_FREE_OBJECT(bssIDTmp);
 				
 				break;
