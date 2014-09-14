@@ -234,7 +234,7 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 	int indexRadio = interfaceACInfo->radioID;
 	int indexWlan = interfaceACInfo->wlanID;
 	
-	CWLog("WLAN Interface op %s on radioID: %d wlanID: %d", interfaceACInfo->operation, indexRadio, indexWlan);
+	CWLog("WLAN Interface op %d on radioID: %d wlanID: %d", interfaceACInfo->operation, indexRadio, indexWlan);
 	//Add Wlan
 	if(interfaceACInfo->operation == CW_OP_ADD_WLAN)
 	{
@@ -280,16 +280,24 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE)
 		)
 		{
+			
 			if(!CWWTPDeleteWLANAPInterface(indexRadio, indexWlan))
 					goto failure;
-				
-			//Delete interface from structure
-			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName)
-				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName);
-			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID)
-				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID);
 			
-			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_STA_MODE;
+			//Delete interface from structure
+			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName != NULL)
+			{
+				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName);
+				gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName=NULL;
+			}
+
+			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID != NULL)
+			{
+				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID);
+				gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID=NULL;
+			}
+			
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface = CW_STA_MODE;
 			//TODO: Serve?
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.numInterfaces--;	
 		}
