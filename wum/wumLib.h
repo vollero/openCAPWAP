@@ -8,6 +8,7 @@
 #define MSG_ELEMENT_TYPE_VENDOR_WUM 3
 //Elena Agostini - 09/2014: IEEE Binding
 #define MSG_ELEMENT_TYPE_ADD_WLAN 4
+#define MSG_ELEMENT_TYPE_DEL_WLAN 5
 
 #define WTP_VERSION_REQUEST     1
 #define WTP_VERSION_RESPONSE    2
@@ -26,6 +27,9 @@
 
 #define WTP_WLAN_ADD_REQUEST       11
 #define WTP_WLAN_ADD_RESPONSE      12
+
+#define WTP_WLAN_DEL_REQUEST       13
+#define WTP_WLAN_DEL_RESPONSE      14
 
 #define SUCCESS	0
 #define ERROR	1

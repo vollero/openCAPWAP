@@ -139,7 +139,7 @@ CWBool nl80211CmdSetInterfaceSTAType(char * interface){
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
-	
+	CWLog("nl80211CmdSetInterfaceSTAType ret: %d", ret);
 	if( ret != 0)
 		return CW_FALSE;
 		

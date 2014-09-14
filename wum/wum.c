@@ -391,8 +391,24 @@ void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, ch
  * Elena Agostini - 09/2014: WLAN add interface
  */
 void do_wlan_del_cmd(int acserver, char *wtpIds, char *wtpNames, char * radioID, char * wlanID)
-{
+{	
+	int *wtps, n, i;
+	struct version_info v_info;
+
 	printf("DEL cmd radioID: %s, wlanID: %s\n", radioID, wlanID);
+	
+	/* WTP work list */
+	wtps = get_id_list(wtpIds, wtpNames, &n);
+	
+	if (wtps == NULL) {
+		fprintf(stderr, "Either a list of wtp ids or wtp names must be specified!\n");
+		return;
+	}
+
+	for (i = 0; i < n; i++) {
+		printf("invio a wtp %d\n", i);
+		WUMWTPwlanDel(acserver, wtps[i], radioID, wlanID, &v_info);
+	}
 }
 
 int WTP_name2id(char *name)

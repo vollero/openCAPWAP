@@ -148,8 +148,18 @@ CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID)
 		return CW_FALSE;
 	*/
 	
+	int tmpIndexif = if_nametoindex(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName);
+	/*IF_OPER_DOWN*/
+	/*if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, 2 ))
+		return CW_FALSE;
+	*/
+	
+	CWLog("Dentro CWWTPDeleteWLANAPInterface. interfaace: %s", gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName);
 	if(!nl80211CmdSetInterfaceSTAType(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName))
 		return CW_FALSE;
-	
+	/*
+	if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, IF_OPER_UP))
+		return CW_FALSE;
+	*/
 	return CW_TRUE;
 }

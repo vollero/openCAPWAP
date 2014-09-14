@@ -196,7 +196,7 @@ CWBool CWParseIEEEConfigurationRequestMessage (char *msg,
 		unsigned short int len=0;	/* = CWProtocolRetrieve16(&completeMsg); */
 		
 		CWParseFormatMsgElem(&completeMsg,&type,&len);
-		 CWLog("Parsing Message Element: %u, len: %u complete: %d", type, len, completeMsg.offset);
+		// CWLog("Parsing Message Element: %u, len: %u complete: %d", type, len, completeMsg.offset);
 
 		switch(type) {
 			case CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE:
@@ -234,6 +234,7 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 	int indexRadio = interfaceACInfo->radioID;
 	int indexWlan = interfaceACInfo->wlanID;
 	
+	CWLog("WLAN Interface op %s on radioID: %d wlanID: %d", interfaceACInfo->operation, indexRadio, indexWlan);
 	//Add Wlan
 	if(interfaceACInfo->operation == CW_OP_ADD_WLAN)
 	{
@@ -279,12 +280,15 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE)
 		)
 		{
-			if(!CWWTPDeleteWLANAPInterface(interfaceACInfo->radioID, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].realWlanID))
+			if(!CWWTPDeleteWLANAPInterface(indexRadio, indexWlan))
 					goto failure;
 				
 			//Delete interface from structure
-			CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName);
-			CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID);
+			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName)
+				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName);
+			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID)
+				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID);
+			
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_STA_MODE;
 			//TODO: Serve?
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.numInterfaces--;	
