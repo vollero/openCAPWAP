@@ -154,6 +154,8 @@ extern char *gWTPPassword;
 extern int WTP_PORT_CONTROL;
 extern int WTP_PORT_DATA;
 
+#define MAC_ADDR_LEN 6
+
 /*__________________________________________________________*/
 /*  *******************___PROTOTYPES___*******************  */
 

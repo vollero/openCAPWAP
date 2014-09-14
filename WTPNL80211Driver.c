@@ -58,6 +58,19 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 		
 	msg = NULL;
 
+	//retrive MAC address
+	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->MACaddr, MAC_ADDR_LEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	getInterfaceMacAddr(interfaceInfo->ifName, interfaceInfo->MACaddr);
+
+      CWLog("Ethernet %02x:%02x:%02x:%02x:%02x:%02x\n", 
+      (int) interfaceInfo->MACaddr[0],
+      (int) interfaceInfo->MACaddr[1],
+      (int) interfaceInfo->MACaddr[2],
+      (int) interfaceInfo->MACaddr[3],
+      (int) interfaceInfo->MACaddr[4],
+      (int) interfaceInfo->MACaddr[5]);
+ 
+
 	CWLog("Interface %s created", interfaceInfo->ifName);
 	return CW_TRUE;
 	

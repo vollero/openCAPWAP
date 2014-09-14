@@ -366,13 +366,13 @@ int CB_setNewInterface(struct nl_msg *msg, void * arg) {
 	
 	
 	//MAC address
-	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->MACaddr, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	/*CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->MACaddr, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	if (tb_msg[NL80211_ATTR_MAC]) {
 		CW_COPY_MEMORY(nla_data(tb_msg[NL80211_ATTR_MAC]), interfaceInfo->MACaddr, ETH_ALEN);
 		/*char mac_addr[20];
 		mac_addr_n2a(interfaceInfo->MACaddr, nla_data(tb_msg[NL80211_ATTR_MAC]));
-		CWLog("MAC ADDR %s\n", mac_addr);*/
-	}
+		CWLog("MAC ADDR %s\n", mac_addr);
+	}*/
 	
 	CWLog("CB_setNewInterface");
 }
