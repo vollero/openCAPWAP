@@ -958,7 +958,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			 {
 				int seqNum = CWGetSeqNum();
 				
-				CWLog("IEEE Assembling Configuration Request");
+				CWLog("Assembling WLAN Configuration Request (op. %d)", gWTPs[i].cmdWLAN->typeCmd);
 				
 				if(gWTPs[i].cmdWLAN->typeCmd == CW_OP_ADD_WLAN)
 				{
@@ -967,7 +967,6 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 						break;//return CW_FALSE;
 				}
 				
-				CWLog("Operation Request: %d", gWTPs[i].cmdWLAN->typeCmd);
 				//Create Configuration Request. Add or Del
 				if((CWAssembleIEEEConfigurationRequest(&(gWTPs[i].messages), 
 									 &(gWTPs[i].messagesCount), 
@@ -979,12 +978,12 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 									 i
 									 )))  {
 						
-						if(!CWACSendFragments(i)) 
+					/*	if(!CWACSendFragments(i)) 
 							CWLog("CWACSendFragments NO");
 						else
 							bResult = CW_TRUE;
+						*/
 						
-						/*
 						if(CWACSendAcknowledgedPacket(i, CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST, seqNum)) 
 						{
 							bResult = CW_TRUE;
@@ -994,7 +993,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 						 {
 							 CWLog("***** INVIATO NO");
 							CWACStopRetransmission(i);
-											}*/
+						}
 					}	
 				
 				break;

@@ -197,9 +197,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			valPtr = CWParseSessionID(msgPtr, elemLen);
 			CWAssembleMsgElemSessionID(&sessionIDmsgElem, valPtr);
 			/*
-			 * Elena Agostini - 02/2014
-			 *
-			 * BUG Valgrind: sessionIDmsgElem.data_msgType not initialized
+			 * Elena Agostini - 02/2014: BUG Valgrind: sessionIDmsgElem.data_msgType not initialized
 			 */
 			sessionIDmsgElem.data_msgType = CW_DATA_MSG_KEEP_ALIVE_TYPE;
 			if (!CWAssembleDataMessage(&messages, 
@@ -239,9 +237,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			for(i = 0; i < fragmentsNum; i++) {
 
 			/*
-			 * Elena Agostini - 03/2014
-			 * 
-			 * DTLS Data Session AC
+			 * Elena Agostini - 03/2014: DTLS Data Session AC
 			 */
 			 
 #ifdef CW_DTLS_DATA_CHANNEL
