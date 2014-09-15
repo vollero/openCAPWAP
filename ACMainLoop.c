@@ -984,16 +984,10 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							bResult = CW_TRUE;
 						*/
 						
-						if(CWACSendAcknowledgedPacket(i, CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST, seqNum)) 
-						{
+						if(CWACSendAcknowledgedPacket(i, CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST, seqNum))
 							bResult = CW_TRUE;
-							CWLog("***** INVIATO OK");
-						 }
 						 else
-						 {
-							 CWLog("***** INVIATO NO");
 							CWACStopRetransmission(i);
-						}
 					}	
 				
 				break;

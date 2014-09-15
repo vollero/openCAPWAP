@@ -244,7 +244,7 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 		)
 		{
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].wlanID = indexWlan;
-					
+			
 			CW_COPY_MEMORY(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capability, interfaceACInfo->capability, WLAN_CAPABILITY_NUM_FIELDS);
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit = interfaceACInfo->capabilityBit;
 					
@@ -261,7 +261,7 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACmode = interfaceACInfo->MACmode;
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].tunnelMode = interfaceACInfo->tunnelMode;
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].suppressSSID = interfaceACInfo->suppressSSID;
-					
+			CWLog("interfaceACInfo->SSID: %s", interfaceACInfo->SSID);
 			CW_CREATE_STRING_FROM_STRING_ERR(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID, interfaceACInfo->SSID, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 			
 			if(!CWWTPSetAPInterface(indexRadio, &(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan])))
@@ -280,17 +280,10 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE)
 		)
 		{
-			
 			if(!CWWTPDeleteWLANAPInterface(indexRadio, indexWlan))
 					goto failure;
 			
 			//Delete interface from structure
-			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName != NULL)
-			{
-				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName);
-				gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName=NULL;
-			}
-
 			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID != NULL)
 			{
 				CW_FREE_OBJECT(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID);
@@ -300,7 +293,11 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface = CW_STA_MODE;
 			//TODO: Serve?
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.numInterfaces--;	
+			
+			goto success;
 		}
+		else
+			goto failure;
 	}
 	//Update Wlan
 	else if(interfaceACInfo->operation == CW_OP_UPDATE_WLAN)

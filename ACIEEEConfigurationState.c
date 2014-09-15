@@ -119,7 +119,7 @@ CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 		
 		CWParseFormatMsgElem(&completeMsg,&elemType,&elemLen);		
 
-		//CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
+		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
 									
 		switch(elemType) {
 			case CW_MSG_ELEMENT_RESULT_CODE_CW_TYPE:
@@ -128,26 +128,23 @@ CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 				if(resultCode != CW_PROTOCOL_SUCCESS)
 						CWLog("IEEE WLAN Error");
 					else
-					{
 						CWLog("IEEE WLAN OK");
-						if(radioIDtmp < WTP_RADIO_MAX && wlanIDtmp < WTP_MAX_INTERFACES)
-							gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].typeInterface = CW_AP_MODE;
-					}
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE:
-			
-				if(!(CWParseACAssignedWTPBSSID(WTPIndex, &completeMsg, elemLen, &radioIDtmp, &wlanIDtmp, &(bssIDTmp))))
+				CWLog("CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE");
+				CW_CREATE_ARRAY_CALLOC_ERR(bssIDTmp, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				if(!(CWParseACAssignedWTPBSSID(WTPIndex, &completeMsg, elemLen, &radioIDtmp, &wlanIDtmp, bssIDTmp)))
 					return CW_FALSE;
 					
-					if(radioIDtmp < WTP_RADIO_MAX && wlanIDtmp < WTP_MAX_INTERFACES)
-					{
-						gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].typeInterface = CW_AP_MODE;
-						CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-						CW_COPY_MEMORY(bssIDTmp, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].BSSID, ETH_ALEN);
-						break;
-					}
-					
-					CW_FREE_OBJECT(bssIDTmp);
+				if(radioIDtmp < WTP_RADIO_MAX && wlanIDtmp < WTP_MAX_INTERFACES)
+				{
+					//Settato solo se era un add. Come lo rimetto in modalita STA?
+					gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].typeInterface = CW_AP_MODE;
+					CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+					CW_COPY_MEMORY(bssIDTmp, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIDtmp].gWTPPhyInfo.interfaces[wlanIDtmp].BSSID, ETH_ALEN);
+					break;
+				}	
+				CW_FREE_OBJECT(bssIDTmp);
 				
 				break;
 			/*
@@ -288,7 +285,7 @@ CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, c
 	//QoS
 	interfaceInfo->capability[9]=0;
 	//Short Slot Time
-	interfaceInfo->capability[10]=0;
+	interfaceInfo->capability[10]=1;
 	//APSD
 	interfaceInfo->capability[11]=0;
 	//Reserved: MUST be 0
@@ -302,8 +299,9 @@ CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, c
 	
 	//Bitwise operation for capability 16-bit version
 	interfaceInfo->capabilityBit=0;
-	for(index=0; index<WLAN_CAPABILITY_NUM_FIELDS; index++)
+	for(index=WLAN_CAPABILITY_NUM_FIELDS-1; index>= 0; index--)
 		interfaceInfo->capabilityBit |= interfaceInfo->capability[index] << index;
+
 	
 	//Key not used
 	interfaceInfo->keyIndex=0;
@@ -326,6 +324,6 @@ CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, c
 	interfaceInfo->suppressSSID=1;
 	//SSID
 	CW_CREATE_STRING_FROM_STRING_ERR(interfaceInfo->SSID, SSID, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-		
+	
 	return CW_TRUE;
 }

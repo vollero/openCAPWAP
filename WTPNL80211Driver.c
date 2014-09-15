@@ -46,8 +46,7 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, interfaceInfo->ifName);
 	
-	/* Elena: Not working, it depends on mac80211 module. */
-	enum nl80211_iftype typeIf = NL80211_IFTYPE_AP;
+	enum nl80211_iftype typeIf = NL80211_IFTYPE_STATION;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_setNewInterface, interfaceInfo);
@@ -118,12 +117,12 @@ CWBool nl80211CmdSetInterfaceAPType(char * interface){
 
 	int index = if_nametoindex(interface);
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_INTERFACE, 0);
+
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, index);
 	enum nl80211_iftype typeIf = NL80211_IFTYPE_AP;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
-	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
-	
+	CWLog("ret: %d", ret);
 	if( ret != 0)
 		return CW_FALSE;
 		
@@ -221,11 +220,11 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_BEACON, 0);
 
 /* ***************** BEACON FRAME: DO IT BETTER ******************** */
-	char headHomeMade[MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+strlen(interfaceInfo->SSID)];
+	char headHomeMade[MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10];
 	int offset=0;
 	
 	//frame control: 2 byte
-	int val = htons(IEEE80211_FC(WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_BEACON));
+	short int val = IEEE80211_FC(WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_BEACON);
 	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 2);
 	offset += 2;
 
@@ -239,25 +238,38 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), ETH_ALEN);
 	offset += ETH_ALEN;
 	
-	//sa: 6 byte. TODO
-	CW_COPY_MEMORY(&(headHomeMade[offset]), "abcdef", ETH_ALEN);
+	//sa: 6 byte. TODO      
+	CW_COPY_MEMORY(&(headHomeMade[offset]), interfaceInfo->MACaddr, ETH_ALEN);
 	offset += ETH_ALEN;
 	
 	//bssid: 6 byte
 	//mac address phy + wlanId = bssid
 	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(interfaceInfo->MACaddr, interfaceInfo->BSSID, ETH_ALEN);
-	interfaceInfo->BSSID[0] += interfaceInfo->realWlanID;
+	interfaceInfo->BSSID[5] += interfaceInfo->realWlanID;
+	
+	CWLog("BSSID %02x:%02x:%02x:%02x:%02x:%02x\n", 
+      (int) interfaceInfo->BSSID[0],
+      (int) interfaceInfo->BSSID[1],
+      (int) interfaceInfo->BSSID[2],
+      (int) interfaceInfo->BSSID[3],
+      (int) interfaceInfo->BSSID[4],
+      (int) interfaceInfo->BSSID[5]);
+      
 	CW_COPY_MEMORY(&(headHomeMade[offset]), interfaceInfo->BSSID, ETH_ALEN);
 	offset += ETH_ALEN;
 	
+	//2 (sequence ctl) + 8 (timestamp): vengono impostati in automatico
+	offset += 10;
+	
+	
 	//beacon interval: 2 byte
-	val = htons(host_to_le16(1));
+	val = 2; // htons(host_to_le16(1));
 	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 2);
 	offset += 2;
 	
 	//capability: 2 byte
-	val = htons(interfaceInfo->capabilityBit);
+	val = interfaceInfo->capabilityBit;
 	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 2);
 	offset += 2;
 	
@@ -265,8 +277,11 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	val=0;
 	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 1);
 	offset += 1;
+	val=strlen(interfaceInfo->SSID);
+	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 1);
+	offset += 1;
 	CW_COPY_MEMORY(&(headHomeMade[offset]), interfaceInfo->SSID, strlen(interfaceInfo->SSID));
-	offset += 6;
+	offset += strlen(interfaceInfo->SSID);
 	
 /* *************************************************** */
 

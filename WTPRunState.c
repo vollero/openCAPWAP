@@ -750,7 +750,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 			 */
 			case CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST:
 			{
-				CWProtocolResultCode resultCode = CW_PROTOCOL_SUCCESS;
+				CWProtocolResultCode resultCode = CW_PROTOCOL_FAILURE;
 				ACInterfaceRequestInfo interfaceACInfo;
 				int radioIDsend, wlanIDsend;
 				char * bssidAssigned;
@@ -775,11 +775,12 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 					}
 					return CW_FALSE;
 				}
+				
+				radioIDsend = interfaceACInfo.radioID;
+				wlanIDsend = interfaceACInfo.wlanID;
 					
 				if((CWSaveIEEEConfigurationRequestMessage(&(interfaceACInfo)))) {
 					resultCode = CW_PROTOCOL_SUCCESS;
-					radioIDsend = interfaceACInfo.radioID;
-					wlanIDsend = interfaceACInfo.wlanID;
 					
 					if(interfaceACInfo.operation == CW_OP_ADD_WLAN)
 					{

@@ -1098,51 +1098,36 @@ CWBool CWParseACAddWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestIn
 	CWParseMessageElementStart();
 	
 	valPtr->operation=CW_OP_ADD_WLAN;
-
 	//Radio ID
 	valPtr->radioID = CWProtocolRetrieve8(msgPtr);
-
 	//Wlan ID
 	valPtr->wlanID = CWProtocolRetrieve8(msgPtr);
-
 	//Capability
 	valPtr->capabilityBit = CWProtocolRetrieve16(msgPtr);
-
 	//key Index
 	valPtr->keyIndex = CWProtocolRetrieve8(msgPtr);
-
 	//Key Status
 	valPtr->keyStatus = CWProtocolRetrieve8(msgPtr);
-
 	//key Length
 	valPtr->keyLength = CWProtocolRetrieve16(msgPtr);
-
 	//Key
 	CW_COPY_MEMORY(valPtr->key, CWProtocolRetrieveRawBytes(msgPtr, WLAN_KEY_LEN), WLAN_KEY_LEN);
-
 	//Group TSC
 	CW_COPY_MEMORY(valPtr->groupTSC, CWProtocolRetrieveRawBytes(msgPtr, WLAN_GROUP_TSC_LEN), WLAN_GROUP_TSC_LEN);
-
 	//qos
 	valPtr->qos = CWProtocolRetrieve8(msgPtr);
-
 	//Auth TYpe
 	valPtr->authType = CWProtocolRetrieve8(msgPtr);
-
 	//MAC Mode
 	valPtr->MACmode = CWProtocolRetrieve8(msgPtr);
-
 	//Tunnel Mode
 	valPtr->tunnelMode = CWProtocolRetrieve8(msgPtr);
-
 	//Suppress SSID
 	valPtr->suppressSSID = CWProtocolRetrieve8(msgPtr);
-
 	//SSID
 	CW_CREATE_ARRAY_CALLOC_ERR(valPtr->SSID, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(valPtr->SSID, CWProtocolRetrieveRawBytes(msgPtr, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN), len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN);	
-
-	
+		
 	CWParseMessageElementEnd();
 }
 

@@ -299,6 +299,8 @@ CWBool CWAssembleMsgElemACAddWlan(int radioID, WTPInterfaceInfo interfaceInfo, C
 	CWProtocolStore8(msgPtr, interfaceInfo.keyIndex);
 	//Key Status
 	CWProtocolStore8(msgPtr, interfaceInfo.keyStatus);
+	//key Length
+	CWProtocolStore16(msgPtr, WLAN_KEY_LEN);	
 	//Key
 	CWProtocolStoreRawBytes(msgPtr, interfaceInfo.key, WLAN_KEY_LEN);
 	//Group TSC
@@ -1014,7 +1016,7 @@ CWBool CWParseMsgElemDecryptErrorReport(CWProtocolMessage *msgPtr, int len, CWDe
 }
 
 /* Elena Agostini: 09/2914. IEEE Binding */
-CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char ** valPtr)
+CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char * valPtr)
 {	
 	CWParseMessageElementStart();
 	//Radio ID
@@ -1022,9 +1024,8 @@ CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int le
 	//WLAN ID
 	*wlanID = CWProtocolRetrieve8(msgPtr);
 	//BSSID
-	CW_CREATE_ARRAY_CALLOC_ERR((*valPtr), ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	CW_COPY_MEMORY((*valPtr), CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN), len-ETH_ALEN);	
-	
+	CW_COPY_MEMORY(valPtr, CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN), ETH_ALEN);	
+
 	CWParseMessageElementEnd();
 }
 
