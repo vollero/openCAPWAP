@@ -231,8 +231,12 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 	if(interfaceACInfo == NULL)
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
-	int indexRadio = interfaceACInfo->radioID;
-	int indexWlan = interfaceACInfo->wlanID;
+	//RFC radioID > 0 wlanID > 0
+	if(interfaceACInfo->radioID <= 0 || interfaceACInfo->wlanID <= 0)
+		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+		
+	int indexRadio = CWIEEEBindingGetIndexFromDevID(interfaceACInfo->radioID);
+	int indexWlan = CWIEEEBindingGetIndexFromDevID(interfaceACInfo->wlanID);
 	
 	CWLog("WLAN Interface op %d on radioID: %d wlanID: %d", interfaceACInfo->operation, indexRadio, indexWlan);
 	//Add Wlan
@@ -240,10 +244,11 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 	{
 		if(
 			(indexWlan < WTP_MAX_INTERFACES) &&
+			(indexRadio < WTP_RADIO_MAX) &&
 			(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_STA_MODE)
 		)
 		{
-			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].wlanID = indexWlan;
+			//gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].wlanID = indexWlan;
 			
 			CW_COPY_MEMORY(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capability, interfaceACInfo->capability, WLAN_CAPABILITY_NUM_FIELDS);
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit = interfaceACInfo->capabilityBit;
@@ -277,6 +282,7 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 	{
 		if(
 			(indexWlan < WTP_MAX_INTERFACES) &&
+			(indexRadio < WTP_RADIO_MAX) &&
 			(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE)
 		)
 		{

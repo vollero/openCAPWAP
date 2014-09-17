@@ -753,7 +753,8 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				CWProtocolResultCode resultCode = CW_PROTOCOL_FAILURE;
 				ACInterfaceRequestInfo interfaceACInfo;
 				int radioIDsend, wlanIDsend;
-				char * bssidAssigned;
+				int radioIDindex, wlanIDindex;
+				char * bssidAssigned=NULL;
 				
 				if (!CWResetEchoRequestRetransmit()) {
 					CWFreeMessageFragments(messages, fragmentsNum);
@@ -778,7 +779,10 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				
 				radioIDsend = interfaceACInfo.radioID;
 				wlanIDsend = interfaceACInfo.wlanID;
-					
+				
+				radioIDindex = CWIEEEBindingGetIndexFromDevID(interfaceACInfo.radioID);
+				wlanIDindex = CWIEEEBindingGetIndexFromDevID(interfaceACInfo.wlanID);
+				
 				if((CWSaveIEEEConfigurationRequestMessage(&(interfaceACInfo)))) {
 					resultCode = CW_PROTOCOL_SUCCESS;
 					
@@ -790,18 +794,17 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 						)
 						{
 							CW_CREATE_ARRAY_CALLOC_ERR(bssidAssigned, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-							CW_COPY_MEMORY(bssidAssigned, gRadiosInfo.radiosInfo[radioIDsend].gWTPPhyInfo.interfaces[wlanIDsend].BSSID, ETH_ALEN);
+							CW_COPY_MEMORY(bssidAssigned, gRadiosInfo.radiosInfo[radioIDindex].gWTPPhyInfo.interfaces[wlanIDindex].BSSID, ETH_ALEN);
 						}
 					}
-					else bssidAssigned=NULL;
-				} 
+				}
 				
 				if(!(CWAssembleIEEEConfigurationResponse(&messages, &fragmentsNum, gWTPPathMTU, controlVal.seqNum,
 														resultCode, radioIDsend, wlanIDsend, bssidAssigned)
 					)) {
 					return CW_FALSE;
 				}
-			
+				
 				toSend=CW_TRUE;
 				break;
 			}

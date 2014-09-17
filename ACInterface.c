@@ -484,19 +484,19 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 						
 						CW_CREATE_OBJECT_ERR(cmdWLAN, WUMWLANCmdParameters, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
 						
-						CWLog("MSG_ELEMENT_TYPE_ADD_WLAN");
+						CWLog("Received ADD WLAN command");
 						
 						if ( (n = Readn(sock, &(typeRequest), sizeof(unsigned char))) < 0 ) {
 							CWLog("Error while reading from socket.");
 							goto quit_manage;
 						}
-						CWLog("typeRequest : %d\n", typeRequest);
+						//CWLog("typeRequest : %d\n", typeRequest);
 						
 						if ( (n = Readn(sock, &msgLen, sizeof(int))) < 0 ) {
 							CWLog("Error while reading from socket.");
 							goto quit_manage;
 						}
-						CWLog("msgLen : %d\n", msgLen);
+						//CWLog("msgLen : %d\n", msgLen);
 						
 						
 						CW_CREATE_ARRAY_CALLOC_ERR(payload, msgLen+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
@@ -505,7 +505,7 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 							CWLog("Error while reading from socket.");
 							goto quit_manage;
 						}
-						CWLog("payload : %s", payload);
+						//CWLog("payload : %s", payload);
 						
 						cmdWLAN->typeCmd = CW_OP_ADD_WLAN;
 						
@@ -529,7 +529,13 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 							countChar++;
 							token = strtok(NULL, ":");
 						}
-					
+						//RFC vieta radioID <= 0 e wlanID <= 0
+						if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
+						{
+							CWLog("ERROR: radioID or wlanID <= 0");
+							CW_FREE_OBJECT(cmdWLAN);
+							break;
+						}
 						/****************************************************
 						 * Two behaviors availables:                        *
 						 *    - One message element For All WTPs Active     *
@@ -574,19 +580,19 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 						
 						CW_CREATE_OBJECT_ERR(cmdWLAN, WUMWLANCmdParameters, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
 						
-						CWLog("MSG_ELEMENT_TYPE_DEL_WLAN");
-						
+						CWLog("Received DEL WLAN command");	
+		
 						if ( (n = Readn(sock, &(typeRequest), sizeof(unsigned char))) < 0 ) {
 							CWLog("Error while reading from socket.");
 							goto quit_manage;
 						}
-						CWLog("typeRequest : %d\n", typeRequest);
+					//	CWLog("typeRequest : %d\n", typeRequest);
 						
 						if ( (n = Readn(sock, &msgLen, sizeof(int))) < 0 ) {
 							CWLog("Error while reading from socket.");
 							goto quit_manage;
 						}
-						CWLog("msgLen : %d\n", msgLen);
+						//CWLog("msgLen : %d\n", msgLen);
 						
 						CW_CREATE_ARRAY_CALLOC_ERR(payload, msgLen+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
 
@@ -594,7 +600,7 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 							CWLog("Error while reading from socket.");
 							goto quit_manage;
 						}
-						CWLog("payload : %s", payload);
+					//	CWLog("payload : %s", payload);
 						
 						cmdWLAN->typeCmd = CW_OP_DEL_WLAN;
 						
@@ -616,6 +622,13 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 							token = strtok(NULL, ":");
 						}
 					
+						//RFC vieta radioID <= 0 e wlanID <= 0
+						if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
+						{
+							CWLog("ERROR: radioID or wlanID <= 0");
+							CW_FREE_OBJECT(cmdWLAN);
+							break;
+						}
 						/****************************************************
 						 * Two behaviors availables:                        *
 						 *    - One message element For All WTPs Active     *

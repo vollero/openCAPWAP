@@ -398,7 +398,7 @@ CWBool CWSaveConfigureRequestMessage (CWProtocolConfigureRequestValues *configur
 	int i, j;
 	for(i=0; i< configureRequest->numPhyFrequencyInfo; i++) {
 		for(j=0; j< WTPProtocolManager->radiosInfo.radioCount; j++) {
-			if(WTPProtocolManager->radiosInfo.radiosInfo[j].radioID == configureRequest->phyFrequencyInfo[i].radioID)
+			if(WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.radioID == configureRequest->phyFrequencyInfo[i].radioID)
 			{
 				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.totChannels = configureRequest->phyFrequencyInfo[i].totChannels;
 				CW_CREATE_ARRAY_CALLOC_ERR(WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyFrequencyInfo.frequencyList, 1, PhyFrequencyInfoList, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););

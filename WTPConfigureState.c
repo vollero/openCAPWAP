@@ -139,6 +139,7 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	int indexWTPRadioInfo=0;
 	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
 	{
+		CWLog("radioID: %d", gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID);
 		if(
 		!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), 
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 

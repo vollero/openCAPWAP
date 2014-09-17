@@ -199,8 +199,9 @@ CWBool CWAssembleJoinResponse(CWProtocolMessage **messagesPtr,
 	int indexWTPRadio;
 	unsigned char phyStandardValue;
 	for(indexWTPRadio=0; indexWTPRadio< WTPProtocolManager->radiosInfo.radioCount; indexWTPRadio++) {
+		
 		if(!(CWAssembleMsgElemACWTPRadioInformation(&(msgElems[++k]), 
-													WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].radioID, 
+													WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.radioID, 
 													WTPProtocolManager->radiosInfo.radiosInfo[indexWTPRadio].gWTPPhyInfo.phyStandardValue))
 		)
 		{
@@ -466,9 +467,10 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
         WTPProtocolManager->radiosInfo.radiosInfo[i].operationalCause = OP_NORMAL;
         WTPProtocolManager->radiosInfo.radiosInfo[i].TxQueueLevel = 0;
         WTPProtocolManager->radiosInfo.radiosInfo[i].wirelessLinkFramesPerSec = 0;
+        CWLog("joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID: %d", joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID);
         //Duplicate
-        WTPProtocolManager->radiosInfo.radiosInfo[i].radioID = joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID;
-        WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.radioID = WTPProtocolManager->radiosInfo.radiosInfo[i].radioID;
+        WTPProtocolManager->radiosInfo.radiosInfo[i].radioID = CWIEEEBindingGetIndexFromDevID(joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID);
+        WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.radioID = joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID;
         
 		//802.11a/b/g/n total value
 		WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyStandardValue = PHY_NO_STANDARD;
@@ -508,7 +510,10 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 		
 		//Set all interface WTP_MAX_INTERFACES in STA mode
 		for(indexWlan=0; indexWlan < WTP_MAX_INTERFACES; indexWlan++)
-			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].typeInterface = CW_STA_MODE;	
+		{
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].typeInterface = CW_STA_MODE;
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].wlanID = CWIEEEBindingGetDevFromIndexID(indexWlan);
+		}
 	}
 	CWDebugLog("Join Request Saved");
 	return CW_TRUE;

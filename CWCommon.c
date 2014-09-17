@@ -62,3 +62,22 @@ int CWTimevalSubtract(struct timeval *res, const struct timeval *x, const struct
 	// Return 1 if result is negative (x < y)
 	return ((x->tv_sec < z.tv_sec) || ((x->tv_sec == z.tv_sec) && (x->tv_usec < z.tv_usec)));
 }
+
+/*
+ * Elena Agostini - 09/2014: IEEE Binding utils: radioID and wlanID cannot be <= 0
+ */
+int CWIEEEBindingGetIndexFromDevID(int devID)
+{
+	 if(devID <= 0)
+		return -1;
+		
+	return (devID-1);
+}
+
+int CWIEEEBindingGetDevFromIndexID(int indexID)
+{
+	 if(indexID < 0)
+		return -1;
+		
+	return (indexID+1);
+}

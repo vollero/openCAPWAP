@@ -133,7 +133,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 	if(tb_msg[NL80211_ATTR_WIPHY])
 	{
 		CWLog("[NL80211] PHY index: %d\n", nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]));
-		singlePhyInfo->radioID=nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]);
+		singlePhyInfo->realRadioID=nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]);
 	}
 	if(tb_msg[NL80211_ATTR_WIPHY_NAME])
 	{

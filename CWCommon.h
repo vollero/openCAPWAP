@@ -189,4 +189,10 @@ int CWTimevalSubtract(struct timeval *res, const struct timeval *x, const struct
 CWBool CWParseSettingsFile();
 void CWErrorHandlingInitLib();
 
+/*
+ * Elena Agostini - 09/2014: IEEE Binding utils: radioID and wlanID cannot be <= 0
+ */
+int CWIEEEBindingGetIndexFromDevID(int devID);
+int CWIEEEBindingGetDevFromIndexID(int indexID);
+
 #endif

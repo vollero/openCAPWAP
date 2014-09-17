@@ -39,7 +39,8 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	for(indexPhy=0; indexPhy < gRadiosInfo.radioCount; indexPhy++)
 	{
 		CWLog("[NL80211] Retrieving info for phy interface %d name: %s ...", indexPhy, gPhyInterfaceName[indexPhy]);
-		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = -1;
+		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = CWIEEEBindingGetDevFromIndexID(indexPhy);
+		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.realRadioID = -1;
 		//Not best practice with define
 		//Frequencies array
 		CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyFrequencyInfo.frequencyList, WTP_NL80211_CHANNELS_NUM, PhyFrequencyInfoList, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
@@ -54,7 +55,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			return CW_FALSE;
 		}
 		
-		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID == -1)
+		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.realRadioID == -1)
 		{
 			//free
 			CW_FREE_OBJECT(gRadiosInfo.radiosInfo);
@@ -62,7 +63,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			return CW_FALSE;
 		}
 		
-		gRadiosInfo.radiosInfo[indexPhy].radioID = gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID;
+		gRadiosInfo.radiosInfo[indexPhy].radioID = CWIEEEBindingGetIndexFromDevID(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID);
 		/* gRadiosInfo.radiosInfo[i].numEntries = 0; */
 		gRadiosInfo.radiosInfo[indexPhy].decryptErrorMACAddressList = NULL;
 		gRadiosInfo.radiosInfo[indexPhy].reportInterval= CW_REPORT_INTERVAL_DEFAULT;
@@ -114,6 +115,8 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * 
 		return CW_FALSE;
 	
 	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].typeInterface = CW_STA_MODE;
+	//RFC wlanID > 0
+	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].wlanID = CWIEEEBindingGetDevFromIndexID(wlanID);
 	
 	return CW_TRUE;
 }

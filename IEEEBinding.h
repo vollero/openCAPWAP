@@ -112,6 +112,7 @@ enum {
 
 typedef struct ACInterfaceRequestInfo {
 	int radioID;
+	int realRadioID;
 	//ID assigned by AC
 	int wlanID;
 		
@@ -189,6 +190,8 @@ typedef struct PhyFrequencyInfo {
 
 typedef struct WTPSinglePhyInfo {	
 	int radioID;
+	int realRadioID;
+
 	char * phyName;
 	CWBool phyStandard2400MH; //802.11b/g
 	CWBool phyStandard5000MH; //802.11a/n
