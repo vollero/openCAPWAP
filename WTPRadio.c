@@ -141,6 +141,10 @@ CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
 	
 	interfaceInfo->typeInterface = CW_AP_MODE;
 
+	//Register mgmt functions
+	if(nl80211_mgmt_ap(interfaceInfo) < 0)
+		return CW_FALSE;
+		
 	return CW_TRUE;
 }
 
