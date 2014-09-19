@@ -425,7 +425,7 @@ int nl80211GetTxqParams(struct nl80211SocketUnit *nlSockUnit, WTPQosValues * qos
  * AP: Registra ricezione mgmt frame
  ***********************************/
  
-int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo)
+int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo, int radioID)
 {
 	static const int stypes[] = {
 		WLAN_FC_STYPE_AUTH,
@@ -433,7 +433,7 @@ int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo)
 		WLAN_FC_STYPE_REASSOC_REQ,
 		WLAN_FC_STYPE_DISASSOC,
 		WLAN_FC_STYPE_DEAUTH,
-		//WLAN_FC_STYPE_ACTION,
+		WLAN_FC_STYPE_ACTION,
 		WLAN_FC_STYPE_PROBE_REQ,
 /* Beacon doesn't work as mac80211 doesn't currently allow
  * it, but it wouldn't really be the right thing anyway as
@@ -445,10 +445,12 @@ int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo)
 	unsigned int i;
 
 	//Creo callback specifica per interfaccia e poi la assegno al nl_mgmt
-	interface_nl80211_init_nl(interfaceInfo);
-
-	if (nl80211_alloc_mgmt_handle(interfaceInfo))
+	if(interface_nl80211_init_nl(interfaceInfo) == -1)
 		return -1;
+
+	if (nl80211_alloc_mgmt_handle(interfaceInfo) != 0)
+		return -1;
+	
 	CWLog("nl80211: Subscribe to mgmt frames with AP handle %p", interfaceInfo->nl_mgmt);
 
 	for (i = 0; i < ARRAY_SIZE(stypes); i++) {
@@ -456,12 +458,8 @@ int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo)
 		
 			CWLog("WLAN_FC_TYPE_MGMT: %d, type: %d", WLAN_FC_TYPE_MGMT, stypes[i]);
 
-
-		if (nl80211_register_frame(interfaceInfo, interfaceInfo->nl_mgmt,
-					IEEE80211_FC(WLAN_FC_TYPE_MGMT, stypes[i]),
-//					   (WLAN_FC_TYPE_MGMT << 2) |
-	//				   (stypes[i] << 4),
-					   NULL, 0) < 0) {
+//	IEEE80211_FC(WLAN_FC_TYPE_MGMT, stypes[i]),
+		if (nl80211_register_frame(interfaceInfo, interfaceInfo->nl_mgmt, (WLAN_FC_TYPE_MGMT << 2) | (stypes[i] << 4), NULL, 0) < 0) {
 			goto out_err;
 		}
 		
@@ -469,8 +467,9 @@ int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo)
 
 	if (nl80211_register_spurious_class3(interfaceInfo))
 		goto out_err;
+
 /*
-	if (nl80211_get_wiphy_data_ap(interfaceInfo) == NULL)
+	if (nl80211_get_wiphy_data_ap(interfaceInfo, radioID) == NULL)
 		goto out_err;
 */
 	nl80211_mgmt_handle_register_eloop(interfaceInfo);
@@ -481,6 +480,97 @@ out_err:
 	return -1;
 }
 
+/*
+int nl80211_get_wiphy_data_ap(WTPInterfaceInfo * interfaceInfo, int radioID)
+{	
+	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb = nl_cb_alloc(NL_CB_DEFAULT);
+	if (!gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb) {
+		return -1;
+	}
+	nl_cb_set(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, no_seq_check, NULL);
+	nl_cb_set(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb, NL_CB_VALID, NL_CB_CUSTOM, process_beacon_event, interfaceInfo);
+
+	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_beacons = nl_create_handle(bss->drv->global->nl_cb, "wiphy beacons");
+	if (gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_beacons == NULL) {
+		os_free(w);
+		return NULL;
+	}
+
+	if (nl80211_register_beacons(bss->drv, w)) {
+		nl_destroy_handles(&w->nl_beacons);
+		os_free(w);
+		return NULL;
+	}
+
+	nl80211_register_eloop_read(&w->nl_beacons, nl80211_recv_beacons, w);
+
+	return 0;
+}
+
+
+int nl80211_register_beacons(int radioID, struct wpa_driver_nl80211_data *drv,
+				    struct nl80211_wiphy_data *w)
+{
+	struct nl_msg *msg;
+	int ret = -1;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -1;
+
+	nl80211_cmd(drv, msg, 0, NL80211_CMD_REGISTER_BEACONS);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, radioID);
+
+	ret = send_and_recv(drv->global, w->nl_beacons, msg, NULL, NULL);
+	msg = NULL;
+	if (ret) {
+		wpa_printf(MSG_DEBUG, "nl80211: Register beacons command "
+			   "failed: ret=%d (%s)",
+			   ret, strerror(-ret));
+		goto nla_put_failure;
+	}
+	ret = 0;
+nla_put_failure:
+	nlmsg_free(msg);
+	return ret;
+}
+
+
+int process_beacon_event(struct nl_msg *msg, void *arg)
+{
+	
+	CWLog("DENTRO A process_beacon_event");
+
+	struct nl80211_wiphy_data *w = arg;
+	struct wpa_driver_nl80211_data *drv;
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	struct nlattr *tb[NL80211_ATTR_MAX + 1];
+	union wpa_event_data event;
+
+	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (gnlh->cmd != NL80211_CMD_FRAME) {
+		wpa_printf(MSG_DEBUG, "nl80211: Unexpected beacon event? (%d)",
+			   gnlh->cmd);
+		return NL_SKIP;
+	}
+
+	if (!tb[NL80211_ATTR_FRAME])
+		return NL_SKIP;
+
+	dl_list_for_each(drv, &w->drvs, struct wpa_driver_nl80211_data,
+			 wiphy_list) {
+		os_memset(&event, 0, sizeof(event));
+		event.rx_mgmt.frame = nla_data(tb[NL80211_ATTR_FRAME]);
+		event.rx_mgmt.frame_len = nla_len(tb[NL80211_ATTR_FRAME]);
+		wpa_supplicant_event(drv->ctx, EVENT_RX_MGMT, &event);
+	}
+
+	return NL_SKIP;
+}
+*/
 
 int nl80211_alloc_mgmt_handle(WTPInterfaceInfo * interfaceInfo)
 {
@@ -491,11 +581,13 @@ int nl80211_alloc_mgmt_handle(WTPInterfaceInfo * interfaceInfo)
 
 	interfaceInfo->nl_mgmt = nl_create_handle(interfaceInfo->nl_cb, "mgmt");
 	if (interfaceInfo->nl_mgmt == NULL)
+	{
+		CWLog("nl80211: nl80211_alloc_mgmt_handle error");
 		return -1;
-
+	}
+	
 	return 0;
 }
-
 
 int nl80211_register_frame(WTPInterfaceInfo * interfaceInfo,
 				  struct nl_handle *nl_handle,
@@ -516,7 +608,7 @@ int nl80211_register_frame(WTPInterfaceInfo * interfaceInfo,
 	
 	CWLog("nl80211: Register frame type=0x%x (%d) nl_handle=%p interface: %d", type, type, nl_handle, interfaceInfo->realWlanID);
 	
-	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_REGISTER_ACTION, 0);
+	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_REGISTER_FRAME, 0);
 	//Associo la ricezione dei frame management all'interfaccia in questione
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, interfaceInfo->realWlanID);
 	NLA_PUT_U16(msg, NL80211_ATTR_FRAME_TYPE, type);
@@ -583,7 +675,10 @@ int nl80211_register_spurious_class3(WTPInterfaceInfo * interfaceInfo)
 		CWLog("nl80211: Register spurious class3 failed: ret=%d (%s)", ret, strerror(-ret));
 		goto nla_put_failure;
 	}
+	
+	CWLog("nl80211_register_spurious_class3 ret: %d", ret);
 	ret = 0;
+	
 nla_put_failure:
 	nlmsg_free(msg);
 	return ret;
@@ -604,8 +699,8 @@ void nl80211_register_eloop_read(struct nl_handle **handle,
 					void *eloop_data)
 {
 	nl_socket_set_nonblocking(*handle);
-	eloop_register_read_sock(nl_socket_get_fd(*handle), handler,
-				 eloop_data, *handle);
+		
+	int ret = eloop_register_read_sock(nl_socket_get_fd(*handle), handler, eloop_data, *handle);
 	*handle = (void *) (((intptr_t) *handle) ^ ELOOP_SOCKET_INVALID);
 }
 
@@ -627,170 +722,206 @@ void do_process_drv_event(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlat
 {
 	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), interfaceInfo->ifName);
 	
-	union wpa_event_data data;
+	//union wpa_event_data data;
+	int frameLen = nla_len(tb[NL80211_ATTR_FRAME]);
+	unsigned char frameReceived[frameLen+1];
+	
+	CW_COPY_MEMORY(frameReceived, nla_data(tb[NL80211_ATTR_FRAME]), frameLen);
+	
+	const struct ieee80211_mgmt *mgmt;
+	u16 fc;
+	mgmt = (struct ieee80211_mgmt *) frameReceived;
+	fc = le_to_host16(mgmt->frame_control);
+	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
+	    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_PROBE_REQ)
+	
+	CWLog("PROBE!!");
+	
+	u8 *resp;
+	struct ieee802_11_elems elems;
+	const u8 *ie;
+	size_t ie_len;
+	struct sta_info *sta = NULL;
+	size_t i, resp_len;
+	int noack;
 
-	exit(1);
-/*
-	if (drv->ap_scan_as_station != NL80211_IFTYPE_UNSPECIFIED &&
-	    (cmd == NL80211_CMD_NEW_SCAN_RESULTS ||
-	     cmd == NL80211_CMD_SCAN_ABORTED)) {
-		wpa_driver_nl80211_set_mode(drv->first_bss,
-					    drv->ap_scan_as_station);
-		drv->ap_scan_as_station = NL80211_IFTYPE_UNSPECIFIED;
+	ie = mgmt->u.probe_req.variable;
+	if (frameLen < IEEE80211_HDRLEN + sizeof(mgmt->u.probe_req))
+		return;
+	ie_len = frameLen - (IEEE80211_HDRLEN + sizeof(mgmt->u.probe_req));
+	
+	
+	if (ieee802_11_parse_elems(ie, ie_len, &elems, 0) == ParseFailed) {
+		CWLog("Could not parse ProbeReq from " MACSTR,  MAC2STR(mgmt->sa));
+		return;
 	}
 
-	switch (cmd) {
-	case NL80211_CMD_TRIGGER_SCAN:
-		wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: Scan trigger");
-		drv->scan_state = SCAN_STARTED;
-		if (drv->scan_for_auth) {
-			*/
-			/*
-			 * Cannot indicate EVENT_SCAN_STARTED here since we skip
-			 * EVENT_SCAN_RESULTS in scan_for_auth case and the
-			 * upper layer implementation could get confused about
-			 * scanning state.
-			 */
-	/*		wpa_printf(MSG_DEBUG, "nl80211: Do not indicate scan-start event due to internal scan_for_auth");
+	if ((!elems.ssid || !elems.supp_rates)) {
+		CWLog("STA " MACSTR " sent probe request "
+			   "without SSID or supported rates element",
+			   MAC2STR(mgmt->sa));
+		return;
+	}
+	
+	
+}
+/*
+ * Scan ieee80211 frame body arguments
+ */
+ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
+				struct ieee802_11_elems *elems,
+				int show_errors)
+{
+	size_t left = len;
+	const u8 *pos = start;
+	int unknown = 0;
+
+	os_memset(elems, 0, sizeof(*elems));
+
+	while (left >= 2) {
+		u8 id, elen;
+
+		id = *pos++;
+		elen = *pos++;
+		left -= 2;
+
+		if (elen > left) {
+			if (show_errors) {
+				CWLog("IEEE 802.11 element "
+					   "parse failed (id=%d elen=%d "
+					   "left=%lu)",
+					   id, elen, (unsigned long) left);
+				//wpa_hexdump(MSG_MSGDUMP, "IEs", start, len);
+			}
+			return ParseFailed;
+		}
+
+		switch (id) {
+		case WLAN_EID_SSID:
+			elems->ssid = pos;
+			elems->ssid_len = elen;
+			CWLog("SSID[0]: %c", elems->ssid[0]);
+			break;
+		case WLAN_EID_SUPP_RATES:
+			elems->supp_rates = pos;
+			elems->supp_rates_len = elen;
+			CWLog("SUPP RATES[0]: %c", elems->supp_rates[0]);
+			break;
+		case WLAN_EID_DS_PARAMS:
+			elems->ds_params = pos;
+			elems->ds_params_len = elen;
+			break;
+		case WLAN_EID_CF_PARAMS:
+		case WLAN_EID_TIM:
+			break;
+		case WLAN_EID_CHALLENGE:
+			elems->challenge = pos;
+			elems->challenge_len = elen;
+			break;
+		case WLAN_EID_ERP_INFO:
+			elems->erp_info = pos;
+			elems->erp_info_len = elen;
+			break;
+		case WLAN_EID_EXT_SUPP_RATES:
+			elems->ext_supp_rates = pos;
+			elems->ext_supp_rates_len = elen;
+			break;
+		/*case WLAN_EID_VENDOR_SPECIFIC:
+			if (ieee802_11_parse_vendor_specific(pos, elen,
+							     elems,
+							     show_errors))
+				unknown++;
+			break;
+		*/
+		case WLAN_EID_RSN:
+			elems->rsn_ie = pos;
+			elems->rsn_ie_len = elen;
+			break;
+		case WLAN_EID_PWR_CAPABILITY:
+			break;
+		case WLAN_EID_SUPPORTED_CHANNELS:
+			elems->supp_channels = pos;
+			elems->supp_channels_len = elen;
+			break;
+		case WLAN_EID_MOBILITY_DOMAIN:
+			elems->mdie = pos;
+			elems->mdie_len = elen;
+			break;
+		case WLAN_EID_FAST_BSS_TRANSITION:
+			elems->ftie = pos;
+			elems->ftie_len = elen;
+			break;
+		case WLAN_EID_TIMEOUT_INTERVAL:
+			elems->timeout_int = pos;
+			elems->timeout_int_len = elen;
+			break;
+		case WLAN_EID_HT_CAP:
+			elems->ht_capabilities = pos;
+			elems->ht_capabilities_len = elen;
+			break;
+		case WLAN_EID_HT_OPERATION:
+			elems->ht_operation = pos;
+			elems->ht_operation_len = elen;
+			break;
+		case WLAN_EID_VHT_CAP:
+			elems->vht_capabilities = pos;
+			elems->vht_capabilities_len = elen;
+			break;
+		case WLAN_EID_VHT_OPERATION:
+			elems->vht_operation = pos;
+			elems->vht_operation_len = elen;
+			break;
+		case WLAN_EID_VHT_OPERATING_MODE_NOTIFICATION:
+			if (elen != 1)
+				break;
+			elems->vht_opmode_notif = pos;
+			break;
+		case WLAN_EID_LINK_ID:
+			if (elen < 18)
+				break;
+			elems->link_id = pos;
+			break;
+		case WLAN_EID_INTERWORKING:
+			elems->interworking = pos;
+			elems->interworking_len = elen;
+			break;
+		case WLAN_EID_QOS_MAP_SET:
+			if (elen < 16)
+				break;
+			elems->qos_map_set = pos;
+			elems->qos_map_set_len = elen;
+			break;
+		case WLAN_EID_EXT_CAPAB:
+			elems->ext_capab = pos;
+			elems->ext_capab_len = elen;
+			break;
+		case WLAN_EID_BSS_MAX_IDLE_PERIOD:
+			if (elen < 3)
+				break;
+			elems->bss_max_idle_period = pos;
+			break;
+		case WLAN_EID_SSID_LIST:
+			elems->ssid_list = pos;
+			elems->ssid_list_len = elen;
+			break;
+		default:
+			unknown++;
+			if (!show_errors)
+				break;
+			CWLog("IEEE 802.11 element parse "
+				   "ignored unknown element (id=%d elen=%d)",
+				   id, elen);
 			break;
 		}
-		wpa_supplicant_event(drv->ctx, EVENT_SCAN_STARTED, NULL);
-		break;
-	case NL80211_CMD_START_SCHED_SCAN:
-		wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: Sched scan started");
-		drv->scan_state = SCHED_SCAN_STARTED;
-		break;
-	case NL80211_CMD_SCHED_SCAN_STOPPED:
-		wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: Sched scan stopped");
-		drv->scan_state = SCHED_SCAN_STOPPED;
-		wpa_supplicant_event(drv->ctx, EVENT_SCHED_SCAN_STOPPED, NULL);
-		break;
-	case NL80211_CMD_NEW_SCAN_RESULTS:
-		wpa_dbg(drv->ctx, MSG_DEBUG,
-			"nl80211: New scan results available");
-		drv->scan_state = SCAN_COMPLETED;
-		drv->scan_complete_events = 1;
-		eloop_cancel_timeout(wpa_driver_nl80211_scan_timeout, drv,
-				     drv->ctx);
-		send_scan_event(drv, 0, tb);
-		break;
-	case NL80211_CMD_SCHED_SCAN_RESULTS:
-		wpa_dbg(drv->ctx, MSG_DEBUG,
-			"nl80211: New sched scan results available");
-		drv->scan_state = SCHED_SCAN_RESULTS;
-		send_scan_event(drv, 0, tb);
-		break;
-	case NL80211_CMD_SCAN_ABORTED:
-		wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: Scan aborted");
-		drv->scan_state = SCAN_ABORTED;
-		*/
-		/*
-		 * Need to indicate that scan results are available in order
-		 * not to make wpa_supplicant stop its scanning.
-		 */
-	/*	eloop_cancel_timeout(wpa_driver_nl80211_scan_timeout, drv,
-				     drv->ctx);
-		send_scan_event(drv, 1, tb);
-		break;
-	case NL80211_CMD_AUTHENTICATE:
-	case NL80211_CMD_ASSOCIATE:
-	case NL80211_CMD_DEAUTHENTICATE:
-	case NL80211_CMD_DISASSOCIATE:
-	case NL80211_CMD_FRAME_TX_STATUS:
-	case NL80211_CMD_UNPROT_DEAUTHENTICATE:
-	case NL80211_CMD_UNPROT_DISASSOCIATE:
-		mlme_event(bss, cmd, tb[NL80211_ATTR_FRAME],
-			   tb[NL80211_ATTR_MAC], tb[NL80211_ATTR_TIMED_OUT],
-			   tb[NL80211_ATTR_WIPHY_FREQ], tb[NL80211_ATTR_ACK],
-			   tb[NL80211_ATTR_COOKIE],
-			   tb[NL80211_ATTR_RX_SIGNAL_DBM]);
-		break;
-	case NL80211_CMD_CONNECT:
-	case NL80211_CMD_ROAM:
-		mlme_event_connect(drv, cmd,
-				   tb[NL80211_ATTR_STATUS_CODE],
-				   tb[NL80211_ATTR_MAC],
-				   tb[NL80211_ATTR_REQ_IE],
-				   tb[NL80211_ATTR_RESP_IE]);
-		break;
-	case NL80211_CMD_CH_SWITCH_NOTIFY:
-		mlme_event_ch_switch(drv,
-				     tb[NL80211_ATTR_IFINDEX],
-				     tb[NL80211_ATTR_WIPHY_FREQ],
-				     tb[NL80211_ATTR_WIPHY_CHANNEL_TYPE],
-				     tb[NL80211_ATTR_CHANNEL_WIDTH],
-				     tb[NL80211_ATTR_CENTER_FREQ1],
-				     tb[NL80211_ATTR_CENTER_FREQ2]);
-		break;
-	case NL80211_CMD_DISCONNECT:
-		mlme_event_disconnect(drv, tb[NL80211_ATTR_REASON_CODE],
-				      tb[NL80211_ATTR_MAC],
-				      tb[NL80211_ATTR_DISCONNECTED_BY_AP]);
-		break;
-	case NL80211_CMD_MICHAEL_MIC_FAILURE:
-		mlme_event_michael_mic_failure(bss, tb);
-		break;
-	case NL80211_CMD_JOIN_IBSS:
-		mlme_event_join_ibss(drv, tb);
-		break;
-	case NL80211_CMD_REMAIN_ON_CHANNEL:
-		mlme_event_remain_on_channel(drv, 0, tb);
-		break;
-	case NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL:
-		mlme_event_remain_on_channel(drv, 1, tb);
-		break;
-	case NL80211_CMD_NOTIFY_CQM:
-		nl80211_cqm_event(drv, tb);
-		break;
-	case NL80211_CMD_REG_CHANGE:
-		nl80211_reg_change_event(drv, tb);
-		break;
-	case NL80211_CMD_REG_BEACON_HINT:
-		wpa_printf(MSG_DEBUG, "nl80211: Regulatory beacon hint");
-		os_memset(&data, 0, sizeof(data));
-		data.channel_list_changed.initiator = REGDOM_BEACON_HINT;
-		wpa_supplicant_event(drv->ctx, EVENT_CHANNEL_LIST_CHANGED,
-				     &data);
-		break;
-	case NL80211_CMD_NEW_STATION:
-		nl80211_new_station_event(drv, tb);
-		break;
-	case NL80211_CMD_DEL_STATION:
-		nl80211_del_station_event(drv, tb);
-		break;
-	case NL80211_CMD_SET_REKEY_OFFLOAD:
-		nl80211_rekey_offload_event(drv, tb);
-		break;
-	case NL80211_CMD_PMKSA_CANDIDATE:
-		nl80211_pmksa_candidate_event(drv, tb);
-		break;
-	case NL80211_CMD_PROBE_CLIENT:
-		nl80211_client_probe_event(drv, tb);
-		break;
-	case NL80211_CMD_TDLS_OPER:
-		nl80211_tdls_oper_event(drv, tb);
-		break;
-	case NL80211_CMD_CONN_FAILED:
-		nl80211_connect_failed_event(drv, tb);
-		break;
-	case NL80211_CMD_FT_EVENT:
-		mlme_event_ft_event(drv, tb);
-		break;
-	case NL80211_CMD_RADAR_DETECT:
-		nl80211_radar_event(drv, tb);
-		break;
-	case NL80211_CMD_STOP_AP:
-		nl80211_stop_ap(drv, tb);
-		break;
-	case NL80211_CMD_VENDOR:
-		nl80211_vendor_event(drv, tb);
-		break;
-	default:
-		wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: Ignored unknown event "
-			"(cmd=%d)", cmd);
-		break;
+
+		left -= elen;
+		pos += elen;
 	}
-	*/
+
+	if (left)
+		return ParseFailed;
+
+	return unknown ? ParseUnknown : ParseOK;
 }
 
 const char * nl80211_command_to_string(enum nl80211_commands cmd)

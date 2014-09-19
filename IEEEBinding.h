@@ -230,6 +230,10 @@ typedef struct WTPSinglePhyInfo {
 	int numInterfaces;
 	WTPInterfaceInfo interfaces[WTP_MAX_INTERFACES];
 	
+	//Netlink: Receive frames on each interface
+	struct nl_handle *nl_beacons;
+	struct nl_cb *nl_cb;
+	
 } WTPSinglePhyInfo;
 
 typedef struct WTPglobalPhyInfo {
@@ -1138,7 +1142,7 @@ CWBool nl80211CmdStopAP(char * ifName);
 CWBool ioctlActivateInterface(char * interface);
 const char * nl80211_command_to_string(enum nl80211_commands cmd);
 
-int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo);
+int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo, int radioID);
 int nl80211_alloc_mgmt_handle(WTPInterfaceInfo * interfaceInfo);
 int nl80211_register_frame(WTPInterfaceInfo * interfaceInfo,
 				  struct nl_handle *nl_handle,

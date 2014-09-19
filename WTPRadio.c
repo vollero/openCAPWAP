@@ -123,6 +123,13 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * 
 
 CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
 {
+	if (eloop_init()) {
+		CWLog("Failed to initialize event loop");
+		return -1;
+	}
+	
+	
+	
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
 		
@@ -142,9 +149,12 @@ CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
 	interfaceInfo->typeInterface = CW_AP_MODE;
 
 	//Register mgmt functions
-	if(nl80211_mgmt_ap(interfaceInfo) < 0)
+	if(nl80211_mgmt_ap(interfaceInfo, radioID) < 0)
 		return CW_FALSE;
-		
+	
+	//Start reading from AP readers
+	eloop_run();
+	
 	return CW_TRUE;
 }
 

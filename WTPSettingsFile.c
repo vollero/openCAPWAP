@@ -129,7 +129,6 @@ CWBool CWParseSettingsFile()
 			strncpy(port_str, startValue, offset);
 			port_str[offset] ='\0';
 			gPhyInterfaceCount = atoi(port_str);
-			fprintf(stderr, "gPhyInterfaceCount: %d\n",gPhyInterfaceCount);
 			if(gPhyInterfaceCount > 0)
 				CW_CREATE_ARRAY_ERR(gPhyInterfaceName, gPhyInterfaceCount, char *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL);)
 				
@@ -155,7 +154,6 @@ CWBool CWParseSettingsFile()
 					CW_CREATE_STRING_ERR(gPhyInterfaceName[indexPhy], offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
 					strncpy(gPhyInterfaceName[indexPhy], startValue, offset);
 					gPhyInterfaceName[indexPhy][offset] ='\0';
-					fprintf(stderr, "gPhyInterfaceName[%d]: %s\n", indexPhy, gPhyInterfaceName[indexPhy]);
 					CW_FREE_OBJECT(line);
 				}
 			}

@@ -149,10 +149,11 @@ int eloop_init(void)
 {
 	os_memset(&eloop, 0, sizeof(eloop));
 	dl_list_init(&eloop.timeout);
+
 #ifdef CONFIG_ELOOP_EPOLL
 	eloop.epollfd = epoll_create1(0);
 	if (eloop.epollfd < 0) {
-		CWLog("%s: epoll_create1 failed. %s\n",
+		fprintf(stderr, "%s: epoll_create1 failed. %s\n",
 			   __func__, strerror(errno));
 		return -1;
 	}
@@ -229,7 +230,7 @@ static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
 		temp_events = os_realloc_array(eloop.epoll_events, next,
 					       sizeof(struct epoll_event));
 		if (temp_events == NULL) {
-			CWLog("%s: malloc for epoll failed. "
+			fprintf(stderr, "%s: malloc for epoll failed. "
 				   "%s\n", __func__, strerror(errno));
 			return -1;
 		}
@@ -279,7 +280,7 @@ static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
 	}
 	ev.data.fd = sock;
 	if (epoll_ctl(eloop.epollfd, EPOLL_CTL_ADD, sock, &ev) < 0) {
-		CWLog("%s: epoll_ctl(ADD) for fd=%d "
+		fprintf(stderr, "%s: epoll_ctl(ADD) for fd=%d "
 			   "failed. %s\n", __func__, sock, strerror(errno));
 		return -1;
 	}
@@ -318,7 +319,7 @@ static void eloop_sock_table_remove_sock(struct eloop_sock_table *table,
 	eloop_trace_sock_add_ref(table);
 #ifdef CONFIG_ELOOP_EPOLL
 	if (epoll_ctl(eloop.epollfd, EPOLL_CTL_DEL, sock, NULL) < 0) {
-		CWLog("%s: epoll_ctl(DEL) for fd=%d "
+		fprintf(stderr, "%s: epoll_ctl(DEL) for fd=%d "
 			   "failed. %s\n", __func__, sock, strerror(errno));
 		return;
 	}
@@ -531,7 +532,7 @@ static void eloop_sock_table_destroy(struct eloop_sock_table *table)
 	if (table) {
 		int i;
 		for (i = 0; i < table->count && table->table; i++) {
-			CWLog("ELOOP: remaining socket: "
+			fprintf(stderr, "ELOOP: remaining socket: "
 				   "sock=%d eloop_data=%p user_data=%p "
 				   "handler=%p",
 				   table->table[i].sock,
@@ -620,7 +621,7 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
 		 * Integer overflow - assume long enough timeout to be assumed
 		 * to be infinite, i.e., the timeout would never happen.
 		 */
-		CWLog("ELOOP: Too long timeout (secs=%u) to "
+		fprintf(stderr, "ELOOP: Too long timeout (secs=%u) to "
 			   "ever happen - ignore it", secs);
 		os_free(timeout);
 		return 0;
@@ -791,7 +792,7 @@ int eloop_replenish_timeout(unsigned int req_secs, unsigned int req_usecs,
 #ifndef CONFIG_NATIVE_WINDOWS
 static void eloop_handle_alarm(int sig)
 {
-	CWLog("eloop: could not process SIGINT or SIGTERM in "
+	fprintf(stderr, "eloop: could not process SIGINT or SIGTERM in "
 		   "two seconds. Looks like there\n"
 		   "is a bug that ends up in a busy loop that "
 		   "prevents clean shutdown.\n"
@@ -917,6 +918,14 @@ void eloop_run(void)
 		goto out;
 #endif /* CONFIG_ELOOP_SELECT */
 
+/*
+if(!eloop.terminate) fprintf(stderr, "!eloop.terminate\n");
+if(!dl_list_empty(&eloop.timeout)) fprintf(stderr, "!dl_list_empty(&eloop.timeout)\n");
+fprintf(stderr, "eloop.readers.count: %d\n", eloop.readers.count);
+fprintf(stderr, "eloop.writers.count: %d\n", eloop.writers.count);
+fprintf(stderr, "eloop.exceptions.count: %d\n", eloop.exceptions.count);
+*/
+
 	while (!eloop.terminate &&
 	       (!dl_list_empty(&eloop.timeout) || eloop.readers.count > 0 ||
 		eloop.writers.count > 0 || eloop.exceptions.count > 0)) {
@@ -952,6 +961,7 @@ void eloop_run(void)
 		eloop_sock_table_set_fds(&eloop.exceptions, efds);
 		res = select(eloop.max_sock + 1, rfds, wfds, efds,
 			     timeout ? &_tv : NULL);
+		
 #endif /* CONFIG_ELOOP_SELECT */
 #ifdef CONFIG_ELOOP_EPOLL
 		if (eloop.count == 0) {
@@ -962,7 +972,7 @@ void eloop_run(void)
 		}
 #endif /* CONFIG_ELOOP_EPOLL */
 		if (res < 0 && errno != EINTR && errno != 0) {
-			CWLog("eloop: %s: %s",
+			fprintf(stderr, "eloop: %s: %s",
 #ifdef CONFIG_ELOOP_POLL
 				   "poll"
 #endif /* CONFIG_ELOOP_POLL */
@@ -1043,7 +1053,7 @@ void eloop_destroy(void)
 			sec--;
 			usec += 1000000;
 		}
-		CWLog("ELOOP: remaining timeout: %d.%06d "
+		fprintf(stderr, "ELOOP: remaining timeout: %d.%06d "
 			   "eloop_data=%p user_data=%p handler=%p",
 			   sec, usec, timeout->eloop_data, timeout->user_data,
 			   timeout->handler);

@@ -124,10 +124,17 @@ int interface_nl80211_init_nl(WTPInterfaceInfo * interfaceInfo)
 		return -1;
 	}
 
-	nl_cb_set(interfaceInfo->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
-		  no_seq_check, NULL);
-	nl_cb_set(interfaceInfo->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
-		  process_drv_event, interfaceInfo);
+	if(nl_cb_set(interfaceInfo->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, no_seq_check, NULL) != 0)
+	{
+		CWLog("nl80211: Errore nl_cb_set no_seq_check");
+		return -1;
+	}
+	
+	if(nl_cb_set(interfaceInfo->nl_cb, NL_CB_VALID, NL_CB_CUSTOM, process_drv_event, interfaceInfo) != 0)
+	{
+		CWLog("nl80211: Errore nl_cb_set process_drv_event");
+		return -1;
+	}
 
 	return 0;
 }
@@ -136,9 +143,11 @@ int process_drv_event(struct nl_msg *msg, void *arg)
 {
 	WTPInterfaceInfo * interfaceInfo = arg;
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
 	int ifidx = -1;
-
+	
+	
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
 
 	if (tb[NL80211_ATTR_IFINDEX]) {
