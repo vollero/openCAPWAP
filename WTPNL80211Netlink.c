@@ -33,7 +33,14 @@ int nl80211_init_socket(struct nl80211SocketUnit *nlSockUnit)
 		err = -ENOENT;
 		goto out_handle_destroy;
 	}
-
+	
+	nlSockUnit->nl_cb = nl_cb_alloc(NL_CB_DEFAULT);
+	if (!nlSockUnit->nl_cb)
+		return -1;
+/*
+	nl_cb_set(nlSockUnit->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, no_seq_check, NULL);
+	nl_cb_set(nlSockUnit->nl_cb, NL_CB_VALID, NL_CB_CUSTOM, process_bss_event, bss);
+	*/	  
 	return 0;
 
  out_handle_destroy:
@@ -198,7 +205,7 @@ int nl80211_send_recv_cb_input(struct nl80211SocketUnit *nlSockUnit,
 {
 	struct nl_cb *cb;
 	int err = -ENOMEM;
-
+	
 	//Prepara handler del netlink
 	cb = nl_cb_alloc(NL_CB_DEFAULT);
 	if (!cb) {
@@ -206,8 +213,8 @@ int nl80211_send_recv_cb_input(struct nl80211SocketUnit *nlSockUnit,
 		err = 2;
 		return err;
 	}
-
-	err = nl_send_auto_complete(nlSockUnit->nl_sock, msg);
+	
+	err = nl_send_auto(nlSockUnit->nl_sock, msg);
 	if (err < 0)
 		goto out;
 
@@ -216,12 +223,13 @@ int nl80211_send_recv_cb_input(struct nl80211SocketUnit *nlSockUnit,
 	nl_cb_err(cb, NL_CB_CUSTOM, error_handler, &err);
 	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, finish_handler, &err);
 	nl_cb_set(cb, NL_CB_ACK, NL_CB_CUSTOM, ack_handler, &err);
-	
+
 	if (valid_handler)
 		nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, valid_handler, valid_data);
 
 	while (err > 0) {
 		int res = nl_recvmsgs(nlSockUnit->nl_sock, cb);
+		CWLog("nl_recvmsgs res: %d err: %d", res, err);
 		if (res < 0) {
 			CWLog("nl80211: %s->nl_recvmsgs failed: %d", __func__, res);
 		}
@@ -244,8 +252,9 @@ int send_and_recv(struct nl80211SocketUnit *global,
 	cb = nl_cb_clone(global->nl_cb);
 	if (!cb)
 		goto out;
-
-	err = nl_send_auto_complete(nl_handle, msg);
+	
+	err = nl_send_auto(nl_handle, msg);
+	//err = nl_send_auto_complete(nl_handle, msg);
 	if (err < 0)
 		goto out;
 
@@ -270,6 +279,8 @@ int send_and_recv(struct nl80211SocketUnit *global,
 	nlmsg_free(msg);
 	return err;
 }
+
+
 
 /* ************* NETLINK SOCKET *************** */
 int netlink_create_socket(struct nl80211SocketUnit *nlSockUnit)

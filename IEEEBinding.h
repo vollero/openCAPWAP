@@ -84,6 +84,7 @@ struct nl80211SocketUnit {
 	int nl80211_id;
 	
 	struct nl_cb *nl_cb;
+	struct nl_handle * nl;
 	
 	int sockNetlink;
 };
@@ -102,6 +103,7 @@ extern struct nl80211SocketUnit globalNLSock;
 
 #define MAC80211_HEADER_FIXED_LEN 24
 #define MAC80211_BEACON_BODY_MANDATORY_MIN_LEN 12
+#define MAC80211_MAX_PROBERESP_LEN 768
 
 #define WTP_NAME_WLAN_PREFIX "WTPWLan"
 #define WTP_NAME_WLAN_PREFIX_LEN 7
@@ -1104,7 +1106,7 @@ int nl80211_init_socket(struct nl80211SocketUnit *nlSockUnit);
 int netlink_create_socket(struct nl80211SocketUnit *nlSockUnit);
 CWBool netlink_send_oper_ifla(int sock, int ifindex, int linkmode, int operstate);
 struct nl_handle * nl_create_handle(struct nl_cb *cb, const char *dbg);
-
+			 
 //struct nl_handle *nl80211_handle_alloc(void *cb);
 //void nl80211_handle_destroy(struct nl_handle *handle);
 
@@ -1129,8 +1131,11 @@ int CB_getQoSValues(struct nl_msg *msg, void *arg);
 int CB_getPhyInfo(struct nl_msg *msg, void * arg);
 int CB_setNewInterface(struct nl_msg *msg, void * arg);
 int CB_startAP(struct nl_msg *msg, void * arg);
+int CB_cookieHandler(struct nl_msg *msg, void *arg);
+int CB_getChannelInterface(struct nl_msg *msg, void *arg);
 
 /* NL80211Driver.c */
+CWBool nl80211CmdGetChannelInterface(char * interface, int * channel);
 CWBool nl80211CmdGetPhyInfo(int indexPhy, struct WTPSinglePhyInfo * singlePhyInfo);
 CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo);
 CWBool nl80211CmdDelInterface(int indexPhy, char * ifName);
@@ -1156,6 +1161,9 @@ void wpa_driver_nl80211_event_receive(int sock, void *eloop_ctx, void *handle);
 void do_process_drv_event(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlattr **tb);
 
 
+char * nl80211ProbeResponseCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int * offset);
+int nl80211_send_frame_cmd(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
+int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
 int ieee80211_frequency_to_channel(int freq);
 

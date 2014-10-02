@@ -1125,7 +1125,7 @@ CWBool CWParseACAddWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestIn
 	//Suppress SSID
 	valPtr->suppressSSID = CWProtocolRetrieve8(msgPtr);
 	//SSID
-	CW_CREATE_ARRAY_CALLOC_ERR(valPtr->SSID, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(valPtr->SSID, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(valPtr->SSID, CWProtocolRetrieveRawBytes(msgPtr, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN), len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN);	
 		
 	CWParseMessageElementEnd();

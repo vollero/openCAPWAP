@@ -24,6 +24,7 @@ int finish_handler(struct nl_msg *msg, void *arg)
 
 int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *err, void *arg)
 {
+	CWLog("CALLBACK ERROR");
 	int *ret = arg;
 	*ret = err->error;
 	return NL_SKIP;
@@ -344,6 +345,47 @@ int CB_getQoSValues(struct nl_msg *msg, void *arg)
 	
 	if (tb_msg[NL80211_TXQ_ATTR_AIFS])
 		qosValues->AIFS = nla_get_u8(tb_msg[NL80211_TXQ_ATTR_AIFS]);
+	
+	return NL_SKIP;
+}
+
+int CB_getChannelInterface(struct nl_msg *msg, void *arg)
+{
+	int * channel = arg;
+	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	
+	int ch1=0, ch2=0;
+	
+	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+	
+	if (tb_msg[NL80211_ATTR_WIPHY_FREQ])
+		ch1 = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_FREQ]);
+
+	if (tb_msg[NL80211_ATTR_CHANNEL_WIDTH])
+		ch2 = nla_get_u32(tb_msg[NL80211_ATTR_CHANNEL_WIDTH]);
+	
+	
+	CWLog("ch1: %d, ch2: %d", ch1, ch2);
+	
+	return NL_SKIP;
+}
+
+int CB_cookieHandler(struct nl_msg *msg, void *arg)
+{
+	
+	CWLog("CB_cookieHandler dentro");
+	struct nlattr *tb[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	u64 *cookie = arg;
+	
+	CWLog("CB_cookieHandler dentro");
+	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+		  
+	if (tb[NL80211_ATTR_COOKIE])
+		*cookie = nla_get_u64(tb[NL80211_ATTR_COOKIE]);
+	
+	CWLog("cookie: %d", (*cookie));
 	
 	return NL_SKIP;
 }

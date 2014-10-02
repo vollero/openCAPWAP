@@ -114,6 +114,14 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * 
 	if(!nl80211CmdSetNewInterface(radioID, &(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID])))
 		return CW_FALSE;
 	
+	 CWLog("Ethernet2 %02x:%02x:%02x:%02x:%02x:%02x\n", 
+      (int) gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].MACaddr[0],
+      (int) gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].MACaddr[1],
+      (int) gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].MACaddr[2],
+      (int) gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].MACaddr[3],
+      (int) gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].MACaddr[4],
+      (int) gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].MACaddr[5]);
+      
 	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].typeInterface = CW_STA_MODE;
 	//RFC wlanID > 0
 	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].wlanID = CWIEEEBindingGetDevFromIndexID(wlanID);
@@ -127,8 +135,6 @@ CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
 		CWLog("Failed to initialize event loop");
 		return -1;
 	}
-	
-	
 	
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
@@ -147,7 +153,10 @@ CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
 		return CW_FALSE;
 	
 	interfaceInfo->typeInterface = CW_AP_MODE;
-
+	
+	if(!nl80211_set_bss(interfaceInfo, 1, 1))
+		return CW_FALSE;
+		
 	//Register mgmt functions
 	if(nl80211_mgmt_ap(interfaceInfo, radioID) < 0)
 		return CW_FALSE;
