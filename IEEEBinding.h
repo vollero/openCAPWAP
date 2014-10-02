@@ -1162,6 +1162,9 @@ void do_process_drv_event(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlat
 
 
 char * nl80211ProbeResponseCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int * offset);
+char * nl80211AuthCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int *offset);
+char * nl80211AssociationResponseCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int *offset);
+
 int nl80211_send_frame_cmd(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
 int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 

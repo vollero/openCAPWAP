@@ -130,7 +130,7 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * 
 }
 
 CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
-{
+{      
 	if (eloop_init()) {
 		CWLog("Failed to initialize event loop");
 		return -1;
@@ -144,19 +144,19 @@ CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo)
 	
 	if(!nl80211CmdSetChannelInterface(interfaceInfo->ifName, gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency))
 		return CW_FALSE;
-	
+	  
 	if(!nl80211CmdStartAP(interfaceInfo))
 		return CW_FALSE;
-	
+	  
 	int tmpIndexif = if_nametoindex(interfaceInfo->ifName);
 	if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, IF_OPER_UP))
 		return CW_FALSE;
 	
 	interfaceInfo->typeInterface = CW_AP_MODE;
-	
+	  
 	if(!nl80211_set_bss(interfaceInfo, 1, 1))
 		return CW_FALSE;
-		
+	  
 	//Register mgmt functions
 	if(nl80211_mgmt_ap(interfaceInfo, radioID) < 0)
 		return CW_FALSE;
