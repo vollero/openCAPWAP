@@ -79,7 +79,7 @@
 #endif
 
 //Netlink socket
-struct nl80211SocketUnit {
+typedef struct nl80211SocketUnit {
 	struct nl_sock *nl_sock;
 	int nl80211_id;
 	
@@ -87,13 +87,15 @@ struct nl80211SocketUnit {
 	struct nl_handle * nl;
 	
 	int sockNetlink;
-};
+}nl80211SocketUnit;
 extern struct nl80211SocketUnit globalNLSock;
 
 //Max num WTP radio interface
 #define WTP_RADIO_MAX 5
 //Max num WTP interface for each radio
 #define WTP_MAX_INTERFACES 3
+//Max num STA for each interface
+#define WTP_MAX_STA 3
 
 #define WLAN_CAPABILITY_NUM_FIELDS 16
 #define WLAN_KEY_LEN 4
@@ -101,13 +103,41 @@ extern struct nl80211SocketUnit globalNLSock;
 #define CW_MSG_IEEE_ADD_WLAN_MIN_LEN 23
 #define CW_MSG_IEEE_UPDATE_WLAN_MIN_LEN 23
 
-#define MAC80211_HEADER_FIXED_LEN 24
 #define MAC80211_BEACON_BODY_MANDATORY_MIN_LEN 12
 #define MAC80211_MAX_PROBERESP_LEN 768
 
 #define WTP_NAME_WLAN_PREFIX "WTPWLan"
 #define WTP_NAME_WLAN_PREFIX_LEN 7
 #define WTP_NAME_WLAN_SUFFIX_LEN 2
+
+/* ++++++++ IE Frame Management ++++++++++ */
+#define MGMT_FRAME_FIXED_LEN_BEACON 36
+#define MGMT_FRAME_FIXED_LEN_PROBE_RESP 36
+#define MGMT_FRAME_FIXED_LEN_AUTH 30
+#define MGMT_FRAME_FIXED_LEN_ASSOCIATION 30
+#define MGMT_FRAME_IE_FIXED_LEN 2
+
+#define LEN_IE_FRAME_CONTROL 2
+#define LEN_IE_DURATION 2
+#define LEN_IE_BEACON_INT 2
+#define LEN_IE_CAPABILITY 2
+#define LEN_IE_SEQ_CTRL 2
+#define LEN_IE_TIMESTAMP 8
+#define LEN_IE_AUTH_ALG 2
+#define LEN_IE_AUTH_TRANS 2
+#define LEN_IE_STATUS_CODE 2
+#define LEN_IE_ASSOCIATION_ID 2
+
+#define IE_TYPE_LEN 1
+#define IE_SIZE_LEN 1
+#define IE_TYPE_SSID 0
+#define IE_TYPE_SUPP_RATES 1
+#define IE_TYPE_DSSS 3
+
+#define IE_AUTH_OPEN_SYSTEM 0
+
+#define IE_STATUS_CODE_SUCCESS 0
+#define IE_STATUS_CODE_FAILURE 1
 
 enum {
 	CW_OP_ADD_WLAN,
@@ -200,8 +230,6 @@ typedef struct PhyFrequencyInfo {
 	PhyFrequencyInfoList * frequencyList;
 } PhyFrequencyInfo;
 
-
-
 typedef struct WTPSinglePhyInfo {	
 	int radioID;
 	int realRadioID;
@@ -272,6 +300,27 @@ typedef struct ACWTPglobalPhyInfo {
 	int numPhyActive;
 	ACWTPSinglePhyInfo * singlePhyInfo;
 } ACWTPglobalPhyInfo;
+
+typedef struct WTPSTAInfo {
+	unsigned char address[ETH_ALEN];
+} WTPSTAInfo;
+
+
+typedef struct WTPBSSInfo {
+	CWBool active;
+	
+	CWThread threadBSS;
+	
+	nl80211SocketUnit interfaceNLSock;
+	
+	WTPSinglePhyInfo * radioInfo;
+	WTPInterfaceInfo * interfaceInfo;
+	
+	int numSTAActive;
+	WTPSTAInfo staList[WTP_MAX_STA];
+	
+} WTPBSSInfo;
+extern struct WTPBSSInfo ** WTPGlobalBSSList;
 
 typedef struct wpa_driver_ap_params {
 	/**
@@ -1087,12 +1136,50 @@ typedef struct WUMWLANCmdParameters {
 	char * ssid;
 } WUMWLANCmdParameters;
 
+typedef struct CWFrameProbeRequest {
+	short int frameControl;
+	short int duration;
+	unsigned char DA[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char BSSID[ETH_ALEN];
+	short int seqCtrl;
+	
+	char * SSID;
+	
+} CWFrameProbeRequest;
+
+typedef struct CWFrameAuthRequest {
+	short int frameControl;
+	short int duration;
+	unsigned char DA[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char BSSID[ETH_ALEN];
+	short int seqCtrl;
+	char * SSID;
+	
+	short int authAlg;
+	short int authTransaction;
+	short int statusCode;
+} CWFrameAuthRequest;
+
+typedef struct CWFrameAssociationRequest {
+	short int frameControl;
+	short int duration;
+	unsigned char DA[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char BSSID[ETH_ALEN];
+	short int seqCtrl;
+	
+	char * SSID;
+	
+} CWFrameAssociationRequest;
 
 //WTPRadio.c
 CWBool CWWTPGetRadioGlobalInfo(void);
 CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID);
-CWBool CWWTPSetAPInterface(int radioID, WTPInterfaceInfo * interfaceInfo);
+CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * interfaceInfo);
 CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID);
+CWBool CWWTPCreateNewBSS(int radioID, int wlanID);
 
 //Define create per allocazione array in CB_getPhyInfo
 //la dove dovrei fare due cicli per sapere la quantita di bitrate e di canali
@@ -1112,7 +1199,7 @@ struct nl_handle * nl_create_handle(struct nl_cb *cb, const char *dbg);
 
 int no_seq_check(struct nl_msg *msg, void *arg);
 int interface_nl80211_init_nl(WTPInterfaceInfo * interfaceInfo);
-int process_drv_event(struct nl_msg *msg, void *arg);
+int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg);
 int send_and_recv(struct nl80211SocketUnit *global,
 			 struct nl_handle *nl_handle, struct nl_msg *msg,
 			 int (*valid_handler)(struct nl_msg *, void *),
@@ -1147,7 +1234,7 @@ CWBool nl80211CmdStopAP(char * ifName);
 CWBool ioctlActivateInterface(char * interface);
 const char * nl80211_command_to_string(enum nl80211_commands cmd);
 
-int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo, int radioID);
+int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID);
 int nl80211_alloc_mgmt_handle(WTPInterfaceInfo * interfaceInfo);
 int nl80211_register_frame(WTPInterfaceInfo * interfaceInfo,
 				  struct nl_handle *nl_handle,
@@ -1157,17 +1244,51 @@ void nl80211_mgmt_handle_register_eloop(WTPInterfaceInfo * interfaceInfo);
 void nl80211_register_eloop_read(struct nl_handle **handle,
 					eloop_sock_handler handler,
 					void *eloop_data);
-void wpa_driver_nl80211_event_receive(int sock, void *eloop_ctx, void *handle);
-void do_process_drv_event(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlattr **tb);
-
-
-char * nl80211ProbeResponseCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int * offset);
-char * nl80211AuthCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int *offset);
-char * nl80211AssociationResponseCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int *offset);
-
-int nl80211_send_frame_cmd(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
+void CW80211EventReceive(void *eloop_ctx, void *handle);
+void CW80211EventProcess(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlattr **tb);
 int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
+
+/* CW80211ManagementFrame.c */
+char * CW80211AssembleProbeResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameProbeRequest *request, int *offset);
+char * CW80211AssembleAuthResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameAuthRequest *request, int *offset);
+char * CW80211AssembleAssociationResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameAssociationRequest *request, int *offset);
+int CW80211SendFrame(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
+
+CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest);
+CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest);
+
+CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg);
+typedef void (*cw_sock_handler)(void *cb, void *handle);
+void CW80211ManagementFrameEvent(struct nl_handle **handle, cw_sock_handler handler, void * cb);
+
+
 int ieee80211_frequency_to_channel(int freq);
+
+
+/* CW80211InformationElements.c */
+CWBool CWAssembleIEFrameControl(char * frame, int * offset, int frameType, int frameSubtype);
+CWBool CWAssembleIEDuration(char * frame, int * offset, int value);
+CWBool CWAssembleIEAddr(char * frame, int * offset, char * value);
+CWBool CWAssembleIEBeaconInterval(char * frame, int * offset, short int value);
+CWBool CWAssembleIECapability(char * frame, int * offset, short int value);
+CWBool CWAssembleIEAuthAlgoNum(char * frame, int * offset, short int value);
+CWBool CWAssembleIEAuthTransNum(char * frame, int * offset, short int value);
+CWBool CWAssembleIEStatusCode(char * frame, int * offset, short int value);
+CWBool CWAssembleIEAssID(char * frame, int * offset, short int value);
+
+CWBool CWAssembleIESSID(char * frame, int * offset, char * value);
+CWBool CWAssembleIESupportedRates(char * frame, int * offset, char * value, int numRates);
+CWBool CWAssembleIEDSSS(char * frame, int * offset, char value);
+
+CWBool CW80211ParseFrameIEControl(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIEDuration(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIEAddr(char * frameReceived, int * offsetFrameReceived, unsigned char * addr);
+CWBool CW80211ParseFrameIECapability(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIESeqCtrl(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIEStatusCode(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIEAuthAlgo(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIEAuthTransaction(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIESSID(char * frameReceived, int * offsetFrameReceived, char ** value);
 
 

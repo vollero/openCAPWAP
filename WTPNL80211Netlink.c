@@ -137,16 +137,16 @@ int interface_nl80211_init_nl(WTPInterfaceInfo * interfaceInfo)
 		return -1;
 	}
 	
-	if(nl_cb_set(interfaceInfo->nl_cb, NL_CB_VALID, NL_CB_CUSTOM, process_drv_event, interfaceInfo) != 0)
+	if(nl_cb_set(interfaceInfo->nl_cb, NL_CB_VALID, NL_CB_CUSTOM, CW80211CheckTypeEvent, interfaceInfo) != 0)
 	{
-		CWLog("nl80211: Errore nl_cb_set process_drv_event");
+		CWLog("nl80211: Errore nl_cb_set CW80211CheckTypeEvent");
 		return -1;
 	}
 
 	return 0;
 }
 
-int process_drv_event(struct nl_msg *msg, void *arg)
+int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg)
 {
 	WTPInterfaceInfo * interfaceInfo = arg;
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
@@ -161,7 +161,7 @@ int process_drv_event(struct nl_msg *msg, void *arg)
 		ifidx = nla_get_u32(tb[NL80211_ATTR_IFINDEX]);
 
 		if (ifidx == -1 || ifidx == interfaceInfo->realWlanID) {
-				do_process_drv_event(interfaceInfo, gnlh->cmd, tb);
+				CW80211EventProcess(interfaceInfo, gnlh->cmd, tb);
 				return NL_SKIP;
 		}
 		CWLog("nl80211: Ignored event (cmd=%d) for foreign interface (ifindex %d)", gnlh->cmd, ifidx);
@@ -171,7 +171,7 @@ int process_drv_event(struct nl_msg *msg, void *arg)
 		CWLog("nl80211: Process event on P2P device");
 		/*for (bss = drv->first_bss; bss; bss = bss->next) {
 			if (bss->wdev_id_set && wdev_id == bss->wdev_id) {
-				do_process_drv_event(bss, gnlh->cmd, tb);
+				CW80211EventProcess(bss, gnlh->cmd, tb);
 				return NL_SKIP;
 			}
 		}

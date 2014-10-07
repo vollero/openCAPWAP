@@ -251,7 +251,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 
 /* ***************** BEACON FRAME: DO IT BETTER ******************** */
 	char * headHomeMade;
-	CW_CREATE_ARRAY_CALLOC_ERR(headHomeMade, (MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(headHomeMade, (MGMT_FRAME_FIXED_LEN_BEACON+2+strlen(interfaceInfo->SSID)+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	int offset=0;
 	
 	//frame control: 2 byte
@@ -268,8 +268,6 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	//da: 6 byte
 	//val2 = htons(0xff);
 	memset(&(headHomeMade[offset]), 0xff, ETH_ALEN);
-	
-	//CW_COPY_MEMORY(&(headHomeMade[offset]), &(val2), ETH_ALEN);
 	offset += ETH_ALEN;
 	
 	//sa: 6 byte. TODO      
@@ -503,7 +501,7 @@ int nl80211GetTxqParams(struct nl80211SocketUnit *nlSockUnit, WTPQosValues * qos
  * AP: Registra ricezione mgmt frame
  ***********************************/
  
-int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo, int radioID)
+int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID)
 {
 	static const int stypes[] = {
 		WLAN_FC_STYPE_AUTH,
@@ -522,15 +520,6 @@ int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo, int radioID)
 	};
 	unsigned int i;
 
-	
-	 CWLog("Ethernet nl80211_mgmt_ap %02x:%02x:%02x:%02x:%02x:%02x\n", 
-      (int) interfaceInfo->MACaddr[0],
-      (int) interfaceInfo->MACaddr[1],
-      (int) interfaceInfo->MACaddr[2],
-      (int) interfaceInfo->MACaddr[3],
-      (int) interfaceInfo->MACaddr[4],
-      (int) interfaceInfo->MACaddr[5]);
-      
 	//Creo callback specifica per interfaccia e poi la assegno al nl_mgmt
 	if(interface_nl80211_init_nl(interfaceInfo) == -1)
 		return -1;
@@ -542,7 +531,6 @@ int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo, int radioID)
 	CWLog("nl80211: Subscribe to mgmt frames with AP handle %p", interfaceInfo->nl_mgmt);
 
 	for (i = 0; i < ARRAY_SIZE(stypes); i++) {
-		CWLog("nl80211: Register %d (%d) type", stypes[i], i);
 		if (nl80211_register_frame(interfaceInfo, interfaceInfo->nl_mgmt, (WLAN_FC_TYPE_MGMT << 2) | (stypes[i] << 4), NULL, 0) < 0) {
 			goto out_err;
 		}	
@@ -555,7 +543,7 @@ int nl80211_mgmt_ap(WTPInterfaceInfo * interfaceInfo, int radioID)
 	if (nl80211_get_wiphy_data_ap(interfaceInfo, radioID) == NULL)
 		goto out_err;
 */
-	nl80211_mgmt_handle_register_eloop(interfaceInfo);
+	//nl80211_mgmt_handle_register_eloop(interfaceInfo);
 	//Prova con select qui
 	
 	return 0;
@@ -657,6 +645,7 @@ int process_beacon_event(struct nl_msg *msg, void *arg)
 }
 */
 
+
 int nl80211_alloc_mgmt_handle(WTPInterfaceInfo * interfaceInfo)
 {
 	if (interfaceInfo->nl_mgmt) {
@@ -755,10 +744,11 @@ nla_put_failure:
 	nlmsg_free(msg);
 	return ret;
 }
-
+ 
 /*
  * Lettura dal socket con eloop_*. Hostapd functions
  */
+ /*
 void nl80211_mgmt_handle_register_eloop(WTPInterfaceInfo * interfaceInfo)
 {
 	nl80211_register_eloop_read(&interfaceInfo->nl_mgmt,
@@ -775,104 +765,10 @@ void nl80211_register_eloop_read(struct nl_handle **handle,
 	int ret = eloop_register_read_sock(nl_socket_get_fd(*handle), handler, eloop_data, *handle);
 	*handle = (void *) (((intptr_t) *handle) ^ ELOOP_SOCKET_INVALID);
 }
+*/
 
-void wpa_driver_nl80211_event_receive(int sock, void *eloop_ctx, void *handle)
-{
-	struct nl_cb *cb = eloop_ctx;
-	int res;
 
-	CWLog("nl80211: Event message available");
-
-	res = nl_recvmsgs(handle, cb);
-	if (res < 0) {
-		CWLog("nl80211: %s->nl_recvmsgs failed: %d",  __func__, res);
-	}
-}
-
-void do_process_drv_event(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlattr **tb)
-{
-	char * frameResponse = NULL;
-	u64 cookie_out;
-	int frameRespLen=0;
-	
-	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), interfaceInfo->ifName);
-	
-	//union wpa_event_data data;
-	int frameLen = nla_len(tb[NL80211_ATTR_FRAME]);
-	unsigned char frameReceived[frameLen+1];
-	
-	CW_COPY_MEMORY(frameReceived, nla_data(tb[NL80211_ATTR_FRAME]), frameLen);
-	
-	const struct ieee80211_mgmt *mgmt;
-	u16 fc;
-	mgmt = (struct ieee80211_mgmt *) frameReceived;
-	fc = le_to_host16(mgmt->frame_control);
-	
-	u8 *resp;
-	struct ieee802_11_elems elems;
-	const u8 *ie;
-	size_t ie_len;
-	struct sta_info *sta = NULL;
-	size_t i, resp_len;
-	int noack;
-
-	/* +++ PROBE Request/Response +++ */
-	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
-	    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_PROBE_REQ)
-	{
-		
-		ie = mgmt->u.probe_req.variable;
-		if (frameLen < IEEE80211_HDRLEN + sizeof(mgmt->u.probe_req))
-			return;
-		ie_len = frameLen - (IEEE80211_HDRLEN + sizeof(mgmt->u.probe_req));
-		
-		
-		if (ieee802_11_parse_elems(ie, ie_len, &elems, 0) == ParseFailed) {
-			CWLog("Could not parse ProbeReq from " MACSTR,  MAC2STR(mgmt->sa));
-			return;
-		}
-		CWLog("PROBE!!");
-	
-		if ((!elems.ssid || !elems.supp_rates)) {
-			CWLog("STA " MACSTR " sent probe request without SSID or supported rates element", MAC2STR(mgmt->sa));
-			return;
-		}
-		
-		frameResponse = nl80211ProbeResponseCreate(interfaceInfo, mgmt, &frameRespLen);
-	}
-	
-	/* +++ AUTH +++ */
-	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
-	    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_AUTH)
-
-	{
-		CWLog("AUTH!!");
-		
-		frameResponse = nl80211AuthCreate(interfaceInfo, mgmt, &frameRespLen);
-	}
-	
-	/* +++ Association Response +++ */
-	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
-	    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_ASSOC_REQ)
-
-	{
-		CWLog("Association!!");
-		
-		frameResponse = nl80211AssociationResponseCreate(interfaceInfo, mgmt, &frameRespLen);
-	}
-	
-	CWLog("frameRespLen: %d interfaceInfo->realWlanID: %d", frameRespLen, interfaceInfo->realWlanID);
-	if(frameResponse)
-		if(!nl80211_send_frame_cmd(interfaceInfo, 0,CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
-			CWLog("NL80211: Errore nl80211_send_frame_cmd");
-}
-
-int nl80211_send_frame_cmd(WTPInterfaceInfo * interfaceInfo,
-			unsigned int freq, 
-			unsigned int wait,
-			char * buf, size_t buf_len,
-			u64 *cookie_out,
-			int no_cck, int no_ack)
+int CW80211SendFrame(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack)
 {
 	struct nl_msg *msg;
 	u64 cookie;
@@ -885,12 +781,10 @@ int nl80211_send_frame_cmd(WTPInterfaceInfo * interfaceInfo,
 	CWLog("nl80211: CMD_FRAME freq=%u wait=%u no_cck=%d no_ack=%d", freq, wait, no_cck, no_ack);
 
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_FRAME, 0);
-//	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, 0);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, interfaceInfo->realWlanID);
 	
-	CWLog("Frame len: %d wlanid: %d", buf_len, interfaceInfo->realWlanID);
 	//Frame da inviare
-	NLA_PUT(msg, NL80211_ATTR_FRAME, buf_len+1, buf);
+	NLA_PUT(msg, NL80211_ATTR_FRAME, buf_len, buf);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
 	
 	/*
@@ -937,13 +831,6 @@ int nl80211_send_frame_cmd(WTPInterfaceInfo * interfaceInfo,
 	cookie = 0;
 //	ret = send_and_recv(&(globalNLSock), interfaceInfo->nl_mgmt, msg, CB_cookieHandler, &cookie);
 	
-	struct nlmsghdr * nm_nlhTMP = nlmsg_hdr(msg);
-	CWLog("flags: %d", nm_nlhTMP->nlmsg_flags);
-	CWLog("len: %d", nm_nlhTMP->nlmsg_len);
-	CWLog("pid: %d", nm_nlhTMP->nlmsg_pid);
-	CWLog("seq: %d", nm_nlhTMP->nlmsg_seq);
-	CWLog("type: %d", nm_nlhTMP->nlmsg_type);
-	
 	ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_cookieHandler, &cookie);
 //	ret = send_and_recv(drv, msg, CB_cookieHandler, &cookie);
 	
@@ -963,423 +850,6 @@ nla_put_failure:
 	return ret;
 }
 
-/*
- * Scan ieee80211 frame body arguments
- */
-ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
-				struct ieee802_11_elems *elems,
-				int show_errors)
-{
-	size_t left = len;
-	const u8 *pos = start;
-	int unknown = 0;
-
-	os_memset(elems, 0, sizeof(*elems));
-
-	while (left >= 2) {
-		u8 id, elen;
-
-		id = *pos++;
-		elen = *pos++;
-		left -= 2;
-
-		if (elen > left) {
-			if (show_errors) {
-				CWLog("IEEE 802.11 element "
-					   "parse failed (id=%d elen=%d "
-					   "left=%lu)",
-					   id, elen, (unsigned long) left);
-				//wpa_hexdump(MSG_MSGDUMP, "IEs", start, len);
-			}
-			return ParseFailed;
-		}
-
-		switch (id) {
-		case WLAN_EID_SSID:
-			elems->ssid = pos;
-			elems->ssid_len = elen;
-			CWLog("SSID[0]: %c", elems->ssid[0]);
-			break;
-		case WLAN_EID_SUPP_RATES:
-			elems->supp_rates = pos;
-			elems->supp_rates_len = elen;
-			CWLog("SUPP RATES[0]: %c", elems->supp_rates[0]);
-			break;
-		case WLAN_EID_DS_PARAMS:
-			elems->ds_params = pos;
-			elems->ds_params_len = elen;
-			break;
-		case WLAN_EID_CF_PARAMS:
-		case WLAN_EID_TIM:
-			break;
-		case WLAN_EID_CHALLENGE:
-			elems->challenge = pos;
-			elems->challenge_len = elen;
-			break;
-		case WLAN_EID_ERP_INFO:
-			elems->erp_info = pos;
-			elems->erp_info_len = elen;
-			break;
-		case WLAN_EID_EXT_SUPP_RATES:
-			elems->ext_supp_rates = pos;
-			elems->ext_supp_rates_len = elen;
-			break;
-		/*case WLAN_EID_VENDOR_SPECIFIC:
-			if (ieee802_11_parse_vendor_specific(pos, elen,
-							     elems,
-							     show_errors))
-				unknown++;
-			break;
-		*/
-		case WLAN_EID_RSN:
-			elems->rsn_ie = pos;
-			elems->rsn_ie_len = elen;
-			break;
-		case WLAN_EID_PWR_CAPABILITY:
-			break;
-		case WLAN_EID_SUPPORTED_CHANNELS:
-			elems->supp_channels = pos;
-			elems->supp_channels_len = elen;
-			break;
-		case WLAN_EID_MOBILITY_DOMAIN:
-			elems->mdie = pos;
-			elems->mdie_len = elen;
-			break;
-		case WLAN_EID_FAST_BSS_TRANSITION:
-			elems->ftie = pos;
-			elems->ftie_len = elen;
-			break;
-		case WLAN_EID_TIMEOUT_INTERVAL:
-			elems->timeout_int = pos;
-			elems->timeout_int_len = elen;
-			break;
-		case WLAN_EID_HT_CAP:
-			elems->ht_capabilities = pos;
-			elems->ht_capabilities_len = elen;
-			break;
-		case WLAN_EID_HT_OPERATION:
-			elems->ht_operation = pos;
-			elems->ht_operation_len = elen;
-			break;
-		case WLAN_EID_VHT_CAP:
-			elems->vht_capabilities = pos;
-			elems->vht_capabilities_len = elen;
-			break;
-		case WLAN_EID_VHT_OPERATION:
-			elems->vht_operation = pos;
-			elems->vht_operation_len = elen;
-			break;
-		case WLAN_EID_VHT_OPERATING_MODE_NOTIFICATION:
-			if (elen != 1)
-				break;
-			elems->vht_opmode_notif = pos;
-			break;
-		case WLAN_EID_LINK_ID:
-			if (elen < 18)
-				break;
-			elems->link_id = pos;
-			break;
-		case WLAN_EID_INTERWORKING:
-			elems->interworking = pos;
-			elems->interworking_len = elen;
-			break;
-		case WLAN_EID_QOS_MAP_SET:
-			if (elen < 16)
-				break;
-			elems->qos_map_set = pos;
-			elems->qos_map_set_len = elen;
-			break;
-		case WLAN_EID_EXT_CAPAB:
-			elems->ext_capab = pos;
-			elems->ext_capab_len = elen;
-			break;
-		case WLAN_EID_BSS_MAX_IDLE_PERIOD:
-			if (elen < 3)
-				break;
-			elems->bss_max_idle_period = pos;
-			break;
-		case WLAN_EID_SSID_LIST:
-			elems->ssid_list = pos;
-			elems->ssid_list_len = elen;
-			break;
-		default:
-			unknown++;
-			if (!show_errors)
-				break;
-			CWLog("IEEE 802.11 element parse "
-				   "ignored unknown element (id=%d elen=%d)",
-				   id, elen);
-			break;
-		}
-
-		left -= elen;
-		pos += elen;
-	}
-
-	if (left)
-		return ParseFailed;
-
-	return unknown ? ParseUnknown : ParseOK;
-}
-
-//Genera probe response
-char * nl80211ProbeResponseCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int *offset)
-{
-	CWLog("Probe response per ifname: %s", interfaceInfo->ifName);
-	(*offset)=0;
-	/* ***************** PROBE RESPONSE FRAME: DO IT BETTER ******************** */
-	char * frameProbeResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, 44+strlen(interfaceInfo->SSID)+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
-	
-	//frame control: 2 byte
-	short int val = IEEE80211_FC(WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_PROBE_RESP);
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//duration: 2 byte
-	val = htons(host_to_le16(0));
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//da: 6 byte
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), probeRequest->sa, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//sa: 6 byte.
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), interfaceInfo->MACaddr, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//bssid: 6 byte
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), interfaceInfo->BSSID, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//2 (sequence ctl) + 8 (timestamp): vengono impostati in automatico
-	(*offset) += 10;
-	
-	//beacon interval: 2 byte
-	val = htons(host_to_le16(100));
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//capability: 2 byte
-	val = interfaceInfo->capabilityBit;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	
-	//SSID: 2 byte + strlen
-	val=0;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	val=strlen(interfaceInfo->SSID);
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), interfaceInfo->SSID, strlen(interfaceInfo->SSID));
-	(*offset) += strlen(interfaceInfo->SSID);
-	
-	/* *************************************************** */
-
-	//Supported Rates: 2 byte hdr + 1 rate (numero variabile, dopo modifichi)
-	val=1;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	val=1;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	unsigned char suppRate = 2;// 64; //2 << 6;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(suppRate), 1);
-	(*offset) += 1;
-	
-	
-	//IE DSSS
-	val=3;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	val=1;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
-	CW_COPY_MEMORY(&(frameProbeResponse[(*offset)]), &(channel), 1);
-	(*offset) += 1;
-	
-	/* Supported rates */
-	//pos = hostapd_eid_supp_rates(hapd, pos);
-
-	/* DS Params */
-	//pos = hostapd_eid_ds_params(hapd, pos);
-
-	//pos = hostapd_eid_country(hapd, pos, epos - pos);
-
-	/* Power Constraint element */
-	//pos = hostapd_eid_pwr_constraint(hapd, pos);
-
-	/* ERP Information element */
-	//pos = hostapd_eid_erp_info(hapd, pos);
-
-	/* Extended supported rates */
-	//pos = hostapd_eid_ext_supp_rates(hapd, pos);
-
-	/* RSN, MDIE, WPA */
-	/*pos = hostapd_eid_wpa(hapd, pos, epos - pos);
-
-	pos = hostapd_eid_bss_load(hapd, pos, epos - pos);
-
-//CONFIG_IEEE80211N
-
-#ifdef CONFIG_IEEE80211N
-	pos = hostapd_eid_ht_capabilities(hapd, pos);
-	pos = hostapd_eid_ht_operation(hapd, pos);
-#endif 
-
-	pos = hostapd_eid_ext_capab(hapd, pos);
-
-	pos = hostapd_eid_time_adv(hapd, pos);
-	pos = hostapd_eid_time_zone(hapd, pos);
-
-	pos = hostapd_eid_interworking(hapd, pos);
-	pos = hostapd_eid_adv_proto(hapd, pos);
-	pos = hostapd_eid_roaming_consortium(hapd, pos);
-
-	pos = hostapd_add_csa_elems(hapd, pos, (u8 *)resp,
-				    &hapd->iface->cs_c_off_proberesp);
-//CONFIG_IEEE80211AC
-#ifdef CONFIG_IEEE80211AC
-	pos = hostapd_eid_vht_capabilities(hapd, pos);
-	pos = hostapd_eid_vht_operation(hapd, pos);
-#endif
-	//Wi-Fi Alliance WMM
-	pos = hostapd_eid_wmm(hapd, pos);
-
-	if (hapd->conf->vendor_elements) {
-		os_memcpy(pos, wpabuf_head(hapd->conf->vendor_elements),
-			  wpabuf_len(hapd->conf->vendor_elements));
-		pos += wpabuf_len(hapd->conf->vendor_elements);
-	}
-*/
-	return frameProbeResponse;
-}
-
-//Genera auth response
-char * nl80211AuthCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int *offset)
-{
-	CWLog("Auth response per ifname: %s", interfaceInfo->ifName);
-	(*offset)=0;
-	
-	/* ***************** HEADER ******************** */
-	char * frameAuthResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameAuthResponse, 30, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
-	
-	//frame control: 2 byte
-	short int val = IEEE80211_FC(WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_AUTH);
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//duration: 2 byte
-	val = htons(host_to_le16(0));
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//da: 6 byte
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), probeRequest->sa, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//sa: 6 byte.
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), interfaceInfo->MACaddr, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//bssid: 6 byte
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), interfaceInfo->BSSID, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//2 (sequence ctl)
-	(*offset) += 2;
-	
-	/* *************************************************** */
-	
-	//Auth Algorithm Number: 2 byte
-	val=0;
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-
-	//Auth Algorithm Number: 2 byte (valore seq: 2)
-	val=2;
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//Status Code: 2 byte (valore: 0 status code success)
-	val=0;
-	CW_COPY_MEMORY(&(frameAuthResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	return frameAuthResponse;
-}
-
-//Genera association response
-char * nl80211AssociationResponseCreate(WTPInterfaceInfo * interfaceInfo, struct ieee80211_mgmt *probeRequest, int *offset)
-{
-	CWLog("Association response per ifname: %s", interfaceInfo->ifName);
-	
-	(*offset)=0;
-	/* ***************** ASSOCIATION RESPONSE FRAME: DO IT BETTER ******************** */
-	char * frameAssociationResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, 34, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
-	
-	//frame control: 2 byte
-	short int val = IEEE80211_FC(WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_ASSOC_RESP);
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//duration: 2 byte
-	val = htons(host_to_le16(0));
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//da: 6 byte
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), probeRequest->sa, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//sa: 6 byte.
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), interfaceInfo->MACaddr, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//bssid: 6 byte
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), interfaceInfo->BSSID, ETH_ALEN);
-	(*offset) += ETH_ALEN;
-	
-	//2 (sequence ctl) + 8 (timestamp): vengono impostati in automatico
-	(*offset) += 2;
-	/* *************************************************** */
-		
-	//capability: 2 byte
-	val = interfaceInfo->capabilityBit;
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//Status Code: 2 byte (valore: 0 status code success)
-	val=0;
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-	
-	//Association ID: 2 byte
-	val=1234;
-	val = val | BIT(14);
-	val = val | BIT(15);
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(val), 2);
-	(*offset) += 2;
-
-	//Supported Rates: 2 byte hdr + 1 rate (numero variabile, dopo modifichi)
-	val=1;
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	val=1;
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(val), 1);
-	(*offset) += 1;
-	unsigned char suppRate = 2;// 64; //2 << 6;
-	CW_COPY_MEMORY(&(frameAssociationResponse[(*offset)]), &(suppRate), 1);
-	(*offset) += 1;
-	
-	return frameAssociationResponse;
-}
 
 
 const char * nl80211_command_to_string(enum nl80211_commands cmd)

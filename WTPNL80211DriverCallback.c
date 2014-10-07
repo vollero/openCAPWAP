@@ -25,17 +25,8 @@ int finish_handler(struct nl_msg *msg, void *arg)
 int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *err, void *arg)
 {
 	int *ret = arg;
-	CWLog("CALLBACK ERROR: %d", (*ret));
-	
 	*ret = err->error;
-	
-	CWLog("CALLBACK ERROR err->error: %d", err->error);
-		CWLog("flags: %d", err->msg.nlmsg_flags);
-	CWLog("len: %d", err->msg.nlmsg_len);
-	CWLog("pid: %d", err->msg.nlmsg_pid);
-	CWLog("seq: %d", err->msg.nlmsg_seq);
-	CWLog("type: %d", err->msg.nlmsg_type);
-	
+
 	return NL_SKIP;
 }
 
