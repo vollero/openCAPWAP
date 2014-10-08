@@ -8,42 +8,42 @@
 
 /* +++++++++++++++++++++ ASSEMBLE +++++++++++++++++++++++ */
 //Genera probe response
-char * CW80211AssembleProbeResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameProbeRequest *request, int *offset)
+char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameProbeRequest *request, int *offset)
 {
 	int index=0;
 	
-	CWLog("Probe response per ifname: %s", interfaceInfo->ifName);
+	CWLog("Probe response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
 	(*offset)=0;
 	/* ***************** PROBE RESPONSE FRAME FIXED ******************** */
 	char * frameProbeResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, MGMT_FRAME_FIXED_LEN_PROBE_RESP+strlen(interfaceInfo->SSID)+9+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, MGMT_FRAME_FIXED_LEN_PROBE_RESP+MGMT_FRAME_IE_FIXED_LEN*3+strlen(WTPBSSInfoPtr->interfaceInfo->SSID)+CW_80211_MAX_SUPP_RATES+1+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 	
 	//frame control: 2 byte
-	if(!CWAssembleIEFrameControl(&(frameProbeResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_PROBE_RESP))
+	if(!CW80211AssembleIEFrameControl(&(frameProbeResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_PROBE_RESP))
 		return NULL;
 	
 	//duration: 2 byte
-	if(!CWAssembleIEDuration(&(frameProbeResponse[(*offset)]), offset, 0))
+	if(!CW80211AssembleIEDuration(&(frameProbeResponse[(*offset)]), offset, 0))
 		return NULL;
 	
 	//da: 6 byte
 	if(request)
 	{
-		if(!CWAssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, request->SA))
+		if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, request->SA))
 			return NULL;
 	}
 	else
 	{
-		if(!CWAssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, NULL))
+		if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, NULL))
 			return NULL;
 	}
 
 	//sa: 6 byte
-	if(!CWAssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, interfaceInfo->MACaddr))
+	if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->MACaddr))
 			return NULL;
 
 	//bssid: 6 byte
-	if(!CWAssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, interfaceInfo->BSSID))
+	if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->BSSID))
 			return NULL;
 	
 	//2 (sequence ctl) + 8 (timestamp): vengono impostati in automatico
@@ -51,27 +51,31 @@ char * CW80211AssembleProbeResponse(WTPInterfaceInfo * interfaceInfo, struct CWF
 	(*offset) += LEN_IE_TIMESTAMP;
 	
 	//beacon interval: 2 byte
-	if(!CWAssembleIEBeaconInterval(&(frameProbeResponse[(*offset)]), offset, 100))
+	if(!CW80211AssembleIEBeaconInterval(&(frameProbeResponse[(*offset)]), offset, 100))
 			return NULL;
 	
 	//capability: 2 byte
-	if(!CWAssembleIECapability(&(frameProbeResponse[(*offset)]), offset, interfaceInfo->capabilityBit))
+	if(!CW80211AssembleIECapability(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
 			return NULL;
 
 	/* *************************************************** */
 		
 	//SSID
-	if(!CWAssembleIESSID(&(frameProbeResponse[(*offset)]), offset, interfaceInfo->SSID))
+	if(!CW80211AssembleIESSID(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->SSID))
 		return NULL;
 
 	//Supported Rates
-	unsigned char suppRate = 2;
-	if(!CWAssembleIESupportedRates(&(frameProbeResponse[(*offset)]), offset, &(suppRate), 1))
+	int indexRates=0;
+	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES; indexRates++)
+		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+	
+	if(!CW80211AssembleIESupportedRates(&(frameProbeResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
 
 	//DSSS
 	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
-	if(!CWAssembleIEDSSS(&(frameProbeResponse[(*offset)]), offset, channel))
+	if(!CW80211AssembleIEDSSS(&(frameProbeResponse[(*offset)]), offset, channel))
 		return NULL;
 		
 	return frameProbeResponse;
@@ -88,46 +92,46 @@ char * CW80211AssembleAuthResponse(WTPInterfaceInfo * interfaceInfo, struct CWFr
 	CW_CREATE_ARRAY_CALLOC_ERR(frameAuthResponse, MGMT_FRAME_FIXED_LEN_AUTH, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 	
 	//frame control: 2 byte
-	if(!CWAssembleIEFrameControl(&(frameAuthResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_AUTH))
+	if(!CW80211AssembleIEFrameControl(&(frameAuthResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_AUTH))
 		return NULL;
 	
 	//duration: 2 byte
-	if(!CWAssembleIEDuration(&(frameAuthResponse[(*offset)]), offset, 0))
+	if(!CW80211AssembleIEDuration(&(frameAuthResponse[(*offset)]), offset, 0))
 		return NULL;
 	
 	//da: 6 byte
 	if(request)
 	{
-		if(!CWAssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, request->SA))
+		if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, request->SA))
 			return NULL;
 	}
 	else
 	{
-		if(!CWAssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, NULL))
+		if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, NULL))
 			return NULL;
 	}
 	
 	//sa: 6 byte
-	if(!CWAssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, interfaceInfo->MACaddr))
+	if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, interfaceInfo->MACaddr))
 			return NULL;
 	
 	//bssid: 6 byte
-	if(!CWAssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, interfaceInfo->BSSID))
+	if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, interfaceInfo->BSSID))
 			return NULL;
 	
 	//2 (sequence ctl)
 	(*offset) += LEN_IE_SEQ_CTRL;
 	
 	//Auth Algorithm Number: 2 byte
-	if(!CWAssembleIEAuthAlgoNum(&(frameAuthResponse[(*offset)]), offset, IE_AUTH_OPEN_SYSTEM))
+	if(!CW80211AssembleIEAuthAlgoNum(&(frameAuthResponse[(*offset)]), offset, IE_AUTH_OPEN_SYSTEM))
 			return NULL;
 
 	//Auth Algorithm Number: 2 byte (valore seq: 2)
-	if(!CWAssembleIEAuthTransNum(&(frameAuthResponse[(*offset)]), offset, 2))
+	if(!CW80211AssembleIEAuthTransNum(&(frameAuthResponse[(*offset)]), offset, 2))
 		return NULL;
 
 	//Status Code: 2 byte (valore: 0 status code success)
-	if(!CWAssembleIEStatusCode(&(frameAuthResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
+	if(!CW80211AssembleIEStatusCode(&(frameAuthResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
 		return NULL;
 	
 	/* ************************************************* */
@@ -136,66 +140,70 @@ char * CW80211AssembleAuthResponse(WTPInterfaceInfo * interfaceInfo, struct CWFr
 }
 
 //Genera association response
-char * CW80211AssembleAssociationResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameAssociationRequest *request, int *offset)
+char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameAssociationRequest *request, int *offset)
 {
-	CWLog("Association response per ifname: %s", interfaceInfo->ifName);
+	CWLog("Association response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
 	
 	(*offset)=0;
 	
 	/* ***************** FRAME FIXED ******************** */
 	char * frameAssociationResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN+strlen(interfaceInfo->SSID)+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN*3+CW_80211_MAX_SUPP_RATES+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 	
 	//frame control: 2 byte
-	if(!CWAssembleIEFrameControl(&(frameAssociationResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_ASSOC_RESP))
+	if(!CW80211AssembleIEFrameControl(&(frameAssociationResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_ASSOC_RESP))
 		return NULL;
 	
 	//duration: 2 byte
-	if(!CWAssembleIEDuration(&(frameAssociationResponse[(*offset)]), offset, 0))
+	if(!CW80211AssembleIEDuration(&(frameAssociationResponse[(*offset)]), offset, 0))
 		return NULL;
 	
 	//da: 6 byte
 	if(request)
 	{
-		if(!CWAssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, request->SA))
+		if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, request->SA))
 			return NULL;
 	}
 	else
 	{
-		if(!CWAssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, NULL))
+		if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, NULL))
 			return NULL;
 	}
 	
 	//sa: 6 byte
-	if(!CWAssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, interfaceInfo->MACaddr))
+	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->MACaddr))
 			return NULL;
 	
 	//bssid: 6 byte
-	if(!CWAssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, interfaceInfo->BSSID))
+	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->BSSID))
 			return NULL;
 	
 	//2 (sequence ctl)
 	(*offset) += LEN_IE_SEQ_CTRL;
 	
 	//capability: 2 byte
-	if(!CWAssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, interfaceInfo->capabilityBit))
+	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
 			return NULL;
 	/* ************************************************* */
 
 	//Status Code: 2 byte (valore: 0 status code success)
-	if(!CWAssembleIEStatusCode(&(frameAssociationResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
+	if(!CW80211AssembleIEStatusCode(&(frameAssociationResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
 		return NULL;
 	
 	//Association ID: 2 byte
 	short int val=1234;
-	if(!CWAssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, val))
+	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, val))
 		return NULL;
 	
 	//Supported Rates
-	unsigned char suppRate = 2;
-	if(!CWAssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, &(suppRate), 1))
+	int indexRates=0;
+	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES; indexRates++)
+		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+		
+	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
-
+	
 	return frameAssociationResponse;
 }
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -268,7 +276,17 @@ CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authReq
 	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(authRequest->seqCtrl)))
 		return CW_FALSE;
 	
-	//Add parsing variable elements
+	//Auth Algo
+	if(!CW80211ParseFrameIEAuthAlgo((frame+offset), &(offset), &(authRequest->authAlg)))
+		return CW_FALSE;
+		
+	//Auth Trans
+	if(!CW80211ParseFrameIEAuthTransaction((frame+offset), &(offset), &(authRequest->authTransaction)))
+		return CW_FALSE;
+
+	//Status Code
+	if(!CW80211ParseFrameIEStatusCode((frame+offset), &(offset), &(authRequest->statusCode)))
+		return CW_FALSE;
 	
 	return CW_TRUE;
 }
@@ -303,14 +321,59 @@ CWBool CW80211ParseAssociationRequest(char * frame, struct CWFrameAssociationReq
 	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(assocRequest->seqCtrl)))
 		return CW_FALSE;
 	
-	//Seq Ctrl
-	if(!CW80211ParseFrameIECapability((frame+offset), &(offset), &(assocRequest->seqCtrl)))
+	//Capability	
+	if(!CW80211ParseFrameIECapability((frame+offset), &(offset), &(assocRequest->capabilityBit)))
 		return CW_FALSE;
-		
-	//Add parsing variable elements
 	
+	//Listen Interval	
+	if(!CW80211ParseFrameIEListenInterval((frame+offset), &(offset), &(assocRequest->listenInterval)))
+		return CW_FALSE;
+	
+	//SSID		
+	if(!CW80211ParseFrameIESSID((frame+offset), &(offset), &(assocRequest->SSID)))
+		return CW_FALSE;
+
 	return CW_TRUE;
 }
+
+CWBool CW80211ParseDeauthDisassociationRequest(char * frame, struct CWFrameDeauthDisassociationRequest * disassocRequest) {
+	int offset=0;
+	
+	if(disassocRequest == NULL)
+		return CW_FALSE;
+		
+	//Frame Control
+	if(!CW80211ParseFrameIEControl(frame, &(offset), &(disassocRequest->frameControl)))
+		return CW_FALSE;
+	
+	//Duration
+	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(disassocRequest->duration)))
+		return CW_FALSE;
+		
+	//DA
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), disassocRequest->DA))
+		return CW_FALSE;
+	
+	//SA
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), disassocRequest->SA))
+		return CW_FALSE;
+		
+	//BSSID
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), disassocRequest->BSSID))
+		return CW_FALSE;
+	
+	//Seq Ctrl
+	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(disassocRequest->seqCtrl)))
+		return CW_FALSE;
+	
+	//Reason Code
+	if(!CW80211ParseFrameIEReasonCode((frame+offset), &(offset), &(disassocRequest->reasonCode)))
+		return CW_FALSE;
+
+	return CW_TRUE;
+}
+
+
 /* ------------------------------------------------ */
 
 
@@ -365,14 +428,16 @@ void CW80211EventReceive(void *cbPtr, void *handlePtr)
 	}
 }
 
-void CW80211EventProcess(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlattr **tb)
+void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb)
 {
 	char * frameResponse = NULL;
+	WTPSTAInfo * thisSTA;
+	
 	u64 cookie_out;
 	int frameRespLen=0, offsetFrameReceived=0;
-	short int fc;
+	short int fc, stateSTA = CW_80211_STA_OFF;
 	int frameLen;
-	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), interfaceInfo->ifName);
+	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
 	
 	//union wpa_event_data data;
 	if(tb[NL80211_ATTR_FRAME])
@@ -417,13 +482,19 @@ void CW80211EventProcess(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlatt
 			return;
 		}
 		
-		if(strcmp(probeRequest.SSID, interfaceInfo->SSID))
+		if(strcmp(probeRequest.SSID, WTPBSSInfoPtr->interfaceInfo->SSID))
 		{
 			CWLog("[80211] SSID is not the same of this interface. Aborted");
 			return;
 		}
+		
+		thisSTA = addSTABySA(WTPBSSInfoPtr, probeRequest.SA);
+		if(thisSTA)
+			thisSTA->state = CW_80211_STA_PROBE;
+		else
+			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) probeRequest.SA[0], (int) probeRequest.SA[1], (int) probeRequest.SA[2], (int) probeRequest.SA[3], (int) probeRequest.SA[4], (int) probeRequest.SA[5]);
 			
-		frameResponse = CW80211AssembleProbeResponse(interfaceInfo, &(probeRequest), &frameRespLen);
+		frameResponse = CW80211AssembleProbeResponse(WTPBSSInfoPtr, &(probeRequest), &frameRespLen);
 	}
 	
 	/* +++ AUTH +++ */
@@ -437,8 +508,22 @@ void CW80211EventProcess(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlatt
 			CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
 			return;
 		}
-					
-		frameResponse = CW80211AssembleAuthResponse(interfaceInfo, &authRequest, &frameRespLen);
+		
+		thisSTA = findSTABySA(WTPBSSInfoPtr, authRequest.SA);
+		if(thisSTA)
+		{
+			if(thisSTA->state == CW_80211_STA_PROBE)
+				thisSTA->state = CW_80211_STA_AUTH;
+			else
+			{
+					CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x hasn't send a Probe Request before sending Auth Request.", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
+					return;
+			}
+		}
+		else
+			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
+			
+		frameResponse = CW80211AssembleAuthResponse(WTPBSSInfoPtr->interfaceInfo, &authRequest, &frameRespLen);
 	}
 	
 	/* +++ Association Response +++ */
@@ -452,10 +537,107 @@ void CW80211EventProcess(WTPInterfaceInfo * interfaceInfo, int cmd, struct nlatt
 			return;
 		}
 		
-		frameResponse = CW80211AssembleAssociationResponse(interfaceInfo, &assocRequest, &frameRespLen);
+		thisSTA = findSTABySA(WTPBSSInfoPtr, assocRequest.SA);
+		if(thisSTA)
+		{
+			if(thisSTA->state == CW_80211_STA_AUTH)
+				thisSTA->state = CW_80211_STA_ASSOCIATION;
+			else
+			{
+				CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x hasn't send an Auth Request before sending Association Request.", (int) assocRequest.SA[0], (int) assocRequest.SA[1], (int) assocRequest.SA[2], (int) assocRequest.SA[3], (int) assocRequest.SA[4], (int) assocRequest.SA[5]);
+				return;
+			}
+		}
+		else
+			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) assocRequest.SA[0], (int) assocRequest.SA[1], (int) assocRequest.SA[2], (int) assocRequest.SA[3], (int) assocRequest.SA[4], (int) assocRequest.SA[5]);
+		
+		frameResponse = CW80211AssembleAssociationResponse(WTPBSSInfoPtr, &assocRequest, &frameRespLen);
 	}
 	
 	if(frameResponse)
-		if(!CW80211SendFrame(interfaceInfo, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
+	{
+		if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
 			CWLog("NL80211: Errore CW80211SendFrame");
+	}
+	
+	/* +++ Dissassociation or Deauthentication Frame: cleanup of STA parameters +++ */
+	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && (WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DEAUTH || WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DISASSOC))
+	{
+		CWLog("[CW80211] Deauth/Disassociation Request Received");
+		struct CWFrameDeauthDisassociationRequest disassocRequest;
+		if(!CW80211ParseDeauthDisassociationRequest(frameReceived, &disassocRequest))
+		{
+			CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+			return;
+		}
+		
+		if(!delSTABySA(WTPBSSInfoPtr, disassocRequest.SA))
+			CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
+	}
+}
+
+WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
+	int indexSTA;
+	
+	if(sa == NULL)
+		return NULL;
+		
+	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
+	{
+		//Se gia c'era, riazzero tutto
+		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL && !strcmp(WTPBSSInfoPtr->staList[indexSTA].address, sa))
+		{
+			WTPBSSInfoPtr->staList[indexSTA].state = CW_80211_STA_OFF;
+			return &(WTPBSSInfoPtr->staList[indexSTA]);
+		}
+	}
+	
+	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
+	{
+		if(WTPBSSInfoPtr->staList[indexSTA].address == NULL || WTPBSSInfoPtr->staList[indexSTA].state == CW_80211_STA_OFF)
+		{
+			CW_CREATE_ARRAY_CALLOC_ERR(WTPBSSInfoPtr->staList[indexSTA].address, ETH_ALEN+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+			CW_COPY_MEMORY(WTPBSSInfoPtr->staList[indexSTA].address, sa, ETH_ALEN);
+			
+			return &(WTPBSSInfoPtr->staList[indexSTA]);
+		}
+	}
+	
+	return NULL;
+}
+
+WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
+	int indexSTA;
+	
+	if(sa == NULL)
+		return NULL;
+		
+	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
+	{
+		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL && !strcmp(WTPBSSInfoPtr->staList[indexSTA].address, sa))
+			return &(WTPBSSInfoPtr->staList[indexSTA]);
+	}
+	
+	return NULL;
+}
+
+CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
+	int indexSTA;
+	
+	if(sa == NULL)
+		return CW_FALSE;
+		
+	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
+	{
+		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL && !strcmp(WTPBSSInfoPtr->staList[indexSTA].address, sa))
+		{
+			CW_FREE_OBJECT(WTPBSSInfoPtr->staList[indexSTA].address);
+			WTPBSSInfoPtr->staList[indexSTA].address = NULL;
+			WTPBSSInfoPtr->staList[indexSTA].state = CW_80211_STA_OFF;
+			//Altro da liberare?
+			return CW_TRUE;
+		}
+	}
+	
+	return CW_FALSE;
 }

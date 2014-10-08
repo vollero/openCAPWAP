@@ -8,7 +8,7 @@
 
 /* +++++++++++++++++++ ASSEMBLE +++++++++++++++++++++ */
 /* FIXED LEN IE */
-CWBool CWAssembleIEFrameControl(char * frame, int * offset, int frameType, int frameSubtype) {
+CWBool CW80211AssembleIEFrameControl(char * frame, int * offset, int frameType, int frameSubtype) {
 	
 	short int val = IEEE80211_FC(frameType, frameSubtype);
 	
@@ -18,7 +18,7 @@ CWBool CWAssembleIEFrameControl(char * frame, int * offset, int frameType, int f
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEDuration(char * frame, int * offset, int value) {
+CWBool CW80211AssembleIEDuration(char * frame, int * offset, int value) {
 	
 	short int val = htons(host_to_le16(value));
 	
@@ -28,7 +28,7 @@ CWBool CWAssembleIEDuration(char * frame, int * offset, int value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEAddr(char * frame, int * offset, char * value) {
+CWBool CW80211AssembleIEAddr(char * frame, int * offset, char * value) {
 	//Broadcast
 	if(value == NULL)
 		memset(frame, 0xff, ETH_ALEN);
@@ -40,7 +40,7 @@ CWBool CWAssembleIEAddr(char * frame, int * offset, char * value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEBeaconInterval(char * frame, int * offset, short int value) {
+CWBool CW80211AssembleIEBeaconInterval(char * frame, int * offset, short int value) {
 	
 	short int val = htons(host_to_le16(value));
 	
@@ -50,7 +50,7 @@ CWBool CWAssembleIEBeaconInterval(char * frame, int * offset, short int value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIECapability(char * frame, int * offset, short int value) {
+CWBool CW80211AssembleIECapability(char * frame, int * offset, short int value) {
 
 	CW_COPY_MEMORY(frame, &(value), LEN_IE_CAPABILITY);
 	(*offset) += LEN_IE_CAPABILITY;
@@ -58,7 +58,7 @@ CWBool CWAssembleIECapability(char * frame, int * offset, short int value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEAuthAlgoNum(char * frame, int * offset, short int value) {
+CWBool CW80211AssembleIEAuthAlgoNum(char * frame, int * offset, short int value) {
 
 	CW_COPY_MEMORY(frame, &(value), LEN_IE_AUTH_ALG);
 	(*offset) += LEN_IE_AUTH_ALG;
@@ -66,7 +66,7 @@ CWBool CWAssembleIEAuthAlgoNum(char * frame, int * offset, short int value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEAuthTransNum(char * frame, int * offset, short int value) {
+CWBool CW80211AssembleIEAuthTransNum(char * frame, int * offset, short int value) {
 
 	CW_COPY_MEMORY(frame, &(value), LEN_IE_AUTH_TRANS);
 	(*offset) += LEN_IE_AUTH_TRANS;
@@ -74,7 +74,7 @@ CWBool CWAssembleIEAuthTransNum(char * frame, int * offset, short int value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEStatusCode(char * frame, int * offset, short int value) {
+CWBool CW80211AssembleIEStatusCode(char * frame, int * offset, short int value) {
 
 	CW_COPY_MEMORY(frame, &(value), LEN_IE_STATUS_CODE);
 	(*offset) += LEN_IE_STATUS_CODE;
@@ -82,7 +82,7 @@ CWBool CWAssembleIEStatusCode(char * frame, int * offset, short int value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEAssID(char * frame, int * offset, short int value) {
+CWBool CW80211AssembleIEAssID(char * frame, int * offset, short int value) {
 
 	value |= BIT(14);
 	value |= BIT(15);
@@ -94,7 +94,7 @@ CWBool CWAssembleIEAssID(char * frame, int * offset, short int value) {
 
 /* VARIABLE LEN IE */
 
-CWBool CWAssembleIESSID(char * frame, int * offset, char * value) {
+CWBool CW80211AssembleIESSID(char * frame, int * offset, char * value) {
 	//Type
 	unsigned char val=IE_TYPE_SSID;	
 	CW_COPY_MEMORY(frame, &(val), IE_TYPE_LEN);
@@ -112,7 +112,77 @@ CWBool CWAssembleIESSID(char * frame, int * offset, char * value) {
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIESupportedRates(char * frame, int * offset, char * value, int numRates) {
+float mapSupportedRatesValues(float rate, short int mode)
+{
+	
+	if(mode == CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME)
+	{
+		if(rate == 1)
+				return 2;
+		if(rate == 2)
+				return 4;
+		if(rate == 5.5)
+				return 11;
+		if(rate == 6)
+				return 12;
+		if(rate == 9)
+				return 18;
+		if(rate == 11)
+				return 22;
+		if(rate == 12)
+				return 24;
+		if(rate == 18)
+				return 36;
+		if(rate == 22)
+				return 44;
+		if(rate == 24)
+				return 48;
+		if(rate == 33)
+				return 66;
+		if(rate == 36)
+				return 72;
+		if(rate == 48)
+				return 96;
+		if(rate == 54)
+				return 108;
+	}
+	
+	if(mode == CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE)
+	{
+		if(rate == 2)
+				return 1;
+		if(rate == 4)
+				return 2;
+		if(rate == 11)
+				return 5.5;
+		if(rate == 12)
+				return 6;
+		if(rate == 18)
+				return 9;
+		if(rate == 22)
+				return 11;
+		if(rate == 24)
+				return 12;
+		if(rate == 36)
+				return 18;
+		if(rate == 44)
+				return 22;
+		if(rate == 48)
+				return 24;
+		if(rate == 66)
+				return 33;
+		if(rate == 72)
+				return 36;
+		if(rate == 96)
+				return 48;
+		if(rate == 108)
+				return 54;
+	}
+	
+	return -1;
+}
+
+CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value, int numRates) {
 	
 	short int index=0;
 	
@@ -128,11 +198,11 @@ CWBool CWAssembleIESupportedRates(char * frame, int * offset, char * value, int 
 	
 	CW_COPY_MEMORY((frame+IE_TYPE_LEN+IE_SIZE_LEN), value, numRates);
 	(*offset) += numRates;
-
+	
 	return CW_TRUE;
 }
 
-CWBool CWAssembleIEDSSS(char * frame, int * offset, char value) {
+CWBool CW80211AssembleIEDSSS(char * frame, int * offset, char value) {
 	
 	char val=IE_TYPE_DSSS;	
 	CW_COPY_MEMORY(frame, &(val), IE_TYPE_LEN);
@@ -190,6 +260,14 @@ CWBool CW80211ParseFrameIEStatusCode(char * frameReceived, int * offsetFrameRece
 	return CW_TRUE;
 }
 
+CWBool CW80211ParseFrameIEReasonCode(char * frameReceived, int * offsetFrameReceived, short int * value) {
+	
+	CW_COPY_MEMORY(value,frameReceived, LEN_IE_REASON_CODE);
+	(*offsetFrameReceived) += LEN_IE_REASON_CODE;
+	
+	return CW_TRUE;
+}
+
 CWBool CW80211ParseFrameIEAuthAlgo(char * frameReceived, int * offsetFrameReceived, short int * value) {
 	
 	CW_COPY_MEMORY(value,frameReceived, LEN_IE_AUTH_ALG);
@@ -210,6 +288,14 @@ CWBool CW80211ParseFrameIECapability(char * frameReceived, int * offsetFrameRece
 	
 	CW_COPY_MEMORY(value,frameReceived, LEN_IE_CAPABILITY);
 	(*offsetFrameReceived) += LEN_IE_CAPABILITY;
+	
+	return CW_TRUE;
+}
+
+CWBool CW80211ParseFrameIEListenInterval(char * frameReceived, int * offsetFrameReceived, short int * value) {
+	
+	CW_COPY_MEMORY(value,frameReceived, LEN_IE_LISTEN_INTERVAL);
+	(*offsetFrameReceived) += LEN_IE_LISTEN_INTERVAL;
 	
 	return CW_TRUE;
 }

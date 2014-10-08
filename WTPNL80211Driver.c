@@ -278,7 +278,6 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	//mac address phy + wlanId = bssid
 	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(interfaceInfo->BSSID, interfaceInfo->MACaddr, ETH_ALEN);
-
 	CW_COPY_MEMORY(&(headHomeMade[offset]), interfaceInfo->BSSID, ETH_ALEN);
 	offset += ETH_ALEN;
 	
@@ -458,50 +457,11 @@ int nl80211GetTxqParams(struct nl80211SocketUnit *nlSockUnit, WTPQosValues * qos
 	return -1;
 }
 
-	//SET
-	/*
-	txq = nla_nest_start(msg, NL80211_ATTR_WIPHY_TXQ_PARAMS);
-	if (!txq)
-		goto nla_put_failure;
-
-	// We are only sending parameters for a single TXQ at a time
-	params = nla_nest_start(msg, 1);
-	if (!params)
-		goto nla_put_failure;
-
-	switch (queue) {
-	case 0:
-		NLA_PUT_U8(msg, NL80211_TXQ_ATTR_QUEUE, NL80211_TXQ_Q_VO);
-		break;
-	case 1:
-		NLA_PUT_U8(msg, NL80211_TXQ_ATTR_QUEUE, NL80211_TXQ_Q_VI);
-		break;
-	case 2:
-		NLA_PUT_U8(msg, NL80211_TXQ_ATTR_QUEUE, NL80211_TXQ_Q_BE);
-		break;
-	case 3:
-		NLA_PUT_U8(msg, NL80211_TXQ_ATTR_QUEUE, NL80211_TXQ_Q_BK);
-		break;
-	}
-*/
-	/* Burst time is configured in units of 0.1 msec and TXOP parameter in
-	 * 32 usec, so need to convert the value here. */
-/*	NLA_PUT_U16(msg, NL80211_TXQ_ATTR_TXOP, (burst_time * 100 + 16) / 32);
-	NLA_PUT_U16(msg, NL80211_TXQ_ATTR_CWMIN);
-	NLA_PUT_U16(msg, NL80211_TXQ_ATTR_CWMAX);
-	NLA_PUT_U8(msg, NL80211_TXQ_ATTR_AIFS);
-
-	nla_nest_end(msg, params);
-
-	nla_nest_end(msg, txq);
-*/
-
-
 /************************************
  * AP: Registra ricezione mgmt frame
  ***********************************/
  
-int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID)
+int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID, WTPBSSInfo * WTPBSSInfoPtr)
 {
 	static const int stypes[] = {
 		WLAN_FC_STYPE_AUTH,
@@ -521,7 +481,7 @@ int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID)
 	unsigned int i;
 
 	//Creo callback specifica per interfaccia e poi la assegno al nl_mgmt
-	if(interface_nl80211_init_nl(interfaceInfo) == -1)
+	if(CW80211InitNlCb(WTPBSSInfoPtr) == -1)
 		return -1;
 
 	interfaceInfo->nl_mgmt = NULL;
@@ -544,7 +504,6 @@ int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID)
 		goto out_err;
 */
 	//nl80211_mgmt_handle_register_eloop(interfaceInfo);
-	//Prova con select qui
 	
 	return 0;
 
@@ -552,99 +511,6 @@ out_err:
 	nl_destroy_handles(&interfaceInfo->nl_mgmt);
 	return -1;
 }
-
-/*
-int nl80211_get_wiphy_data_ap(WTPInterfaceInfo * interfaceInfo, int radioID)
-{	
-	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb = nl_cb_alloc(NL_CB_DEFAULT);
-	if (!gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb) {
-		return -1;
-	}
-	nl_cb_set(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, no_seq_check, NULL);
-	nl_cb_set(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_cb, NL_CB_VALID, NL_CB_CUSTOM, process_beacon_event, interfaceInfo);
-
-	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_beacons = nl_create_handle(bss->drv->global->nl_cb, "wiphy beacons");
-	if (gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.nl_beacons == NULL) {
-		os_free(w);
-		return NULL;
-	}
-
-	if (nl80211_register_beacons(bss->drv, w)) {
-		nl_destroy_handles(&w->nl_beacons);
-		os_free(w);
-		return NULL;
-	}
-
-	nl80211_register_eloop_read(&w->nl_beacons, nl80211_recv_beacons, w);
-
-	return 0;
-}
-
-
-int nl80211_register_beacons(int radioID, struct wpa_driver_nl80211_data *drv,
-				    struct nl80211_wiphy_data *w)
-{
-	struct nl_msg *msg;
-	int ret = -1;
-
-	msg = nlmsg_alloc();
-	if (!msg)
-		return -1;
-
-	nl80211_cmd(drv, msg, 0, NL80211_CMD_REGISTER_BEACONS);
-
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, radioID);
-
-	ret = send_and_recv(drv->global, w->nl_beacons, msg, NULL, NULL);
-	msg = NULL;
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "nl80211: Register beacons command "
-			   "failed: ret=%d (%s)",
-			   ret, strerror(-ret));
-		goto nla_put_failure;
-	}
-	ret = 0;
-nla_put_failure:
-	nlmsg_free(msg);
-	return ret;
-}
-
-
-int process_beacon_event(struct nl_msg *msg, void *arg)
-{
-	
-	CWLog("DENTRO A process_beacon_event");
-
-	struct nl80211_wiphy_data *w = arg;
-	struct wpa_driver_nl80211_data *drv;
-	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
-	struct nlattr *tb[NL80211_ATTR_MAX + 1];
-	union wpa_event_data event;
-
-	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
-		  genlmsg_attrlen(gnlh, 0), NULL);
-
-	if (gnlh->cmd != NL80211_CMD_FRAME) {
-		wpa_printf(MSG_DEBUG, "nl80211: Unexpected beacon event? (%d)",
-			   gnlh->cmd);
-		return NL_SKIP;
-	}
-
-	if (!tb[NL80211_ATTR_FRAME])
-		return NL_SKIP;
-
-	dl_list_for_each(drv, &w->drvs, struct wpa_driver_nl80211_data,
-			 wiphy_list) {
-		os_memset(&event, 0, sizeof(event));
-		event.rx_mgmt.frame = nla_data(tb[NL80211_ATTR_FRAME]);
-		event.rx_mgmt.frame_len = nla_len(tb[NL80211_ATTR_FRAME]);
-		wpa_supplicant_event(drv->ctx, EVENT_RX_MGMT, &event);
-	}
-
-	return NL_SKIP;
-}
-*/
-
 
 int nl80211_alloc_mgmt_handle(WTPInterfaceInfo * interfaceInfo)
 {
@@ -768,7 +634,7 @@ void nl80211_register_eloop_read(struct nl_handle **handle,
 */
 
 
-int CW80211SendFrame(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack)
+int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack)
 {
 	struct nl_msg *msg;
 	u64 cookie;
@@ -780,8 +646,8 @@ int CW80211SendFrame(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsign
 	
 	CWLog("nl80211: CMD_FRAME freq=%u wait=%u no_cck=%d no_ack=%d", freq, wait, no_cck, no_ack);
 
-	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_FRAME, 0);
-	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, interfaceInfo->realWlanID);
+	genlmsg_put(msg, 0, 0, WTPBSSInfoPtr->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_FRAME, 0);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, WTPBSSInfoPtr->interfaceInfo->realWlanID);
 	
 	//Frame da inviare
 	NLA_PUT(msg, NL80211_ATTR_FRAME, buf_len, buf);
@@ -831,7 +697,7 @@ int CW80211SendFrame(WTPInterfaceInfo * interfaceInfo, unsigned int freq, unsign
 	cookie = 0;
 //	ret = send_and_recv(&(globalNLSock), interfaceInfo->nl_mgmt, msg, CB_cookieHandler, &cookie);
 	
-	ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_cookieHandler, &cookie);
+	ret = nl80211_send_recv_cb_input(&(WTPBSSInfoPtr->BSSNLSock), msg, CB_cookieHandler, &cookie);
 //	ret = send_and_recv(drv, msg, CB_cookieHandler, &cookie);
 	
 	msg = NULL;

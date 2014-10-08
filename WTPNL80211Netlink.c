@@ -123,21 +123,21 @@ int no_seq_check(struct nl_msg *msg, void *arg)
 
 
 //Alloca nuova callback
-int interface_nl80211_init_nl(WTPInterfaceInfo * interfaceInfo)
+int CW80211InitNlCb(WTPBSSInfo * WTPBSSInfoPtr) //WTPInterfaceInfo * interfaceInfo)
 {
-	interfaceInfo->nl_cb = nl_cb_alloc(NL_CB_DEFAULT);
-	if (!interfaceInfo->nl_cb) {
+	WTPBSSInfoPtr->interfaceInfo->nl_cb = nl_cb_alloc(NL_CB_DEFAULT);
+	if (!WTPBSSInfoPtr->interfaceInfo->nl_cb) {
 		CWLog("nl80211: Failed to alloc cb struct");
 		return -1;
 	}
 
-	if(nl_cb_set(interfaceInfo->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, no_seq_check, NULL) != 0)
+	if(nl_cb_set(WTPBSSInfoPtr->interfaceInfo->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, no_seq_check, NULL) != 0)
 	{
 		CWLog("nl80211: Errore nl_cb_set no_seq_check");
 		return -1;
 	}
 	
-	if(nl_cb_set(interfaceInfo->nl_cb, NL_CB_VALID, NL_CB_CUSTOM, CW80211CheckTypeEvent, interfaceInfo) != 0)
+	if(nl_cb_set(WTPBSSInfoPtr->interfaceInfo->nl_cb, NL_CB_VALID, NL_CB_CUSTOM, CW80211CheckTypeEvent, WTPBSSInfoPtr) != 0)
 	{
 		CWLog("nl80211: Errore nl_cb_set CW80211CheckTypeEvent");
 		return -1;
@@ -148,7 +148,7 @@ int interface_nl80211_init_nl(WTPInterfaceInfo * interfaceInfo)
 
 int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg)
 {
-	WTPInterfaceInfo * interfaceInfo = arg;
+	WTPBSSInfo * WTPBSSInfoPtr = arg;
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
 	
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
@@ -160,8 +160,8 @@ int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg)
 	if (tb[NL80211_ATTR_IFINDEX]) {
 		ifidx = nla_get_u32(tb[NL80211_ATTR_IFINDEX]);
 
-		if (ifidx == -1 || ifidx == interfaceInfo->realWlanID) {
-				CW80211EventProcess(interfaceInfo, gnlh->cmd, tb);
+		if (ifidx == -1 || ifidx == WTPBSSInfoPtr->interfaceInfo->realWlanID) {
+				CW80211EventProcess(WTPBSSInfoPtr, gnlh->cmd, tb);
 				return NL_SKIP;
 		}
 		CWLog("nl80211: Ignored event (cmd=%d) for foreign interface (ifindex %d)", gnlh->cmd, ifidx);

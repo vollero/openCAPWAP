@@ -275,7 +275,7 @@ CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, c
 	//Privacy
 	interfaceInfo->capability[4]=0;
 	//Short Preamble
-	interfaceInfo->capability[5]=0;
+	interfaceInfo->capability[5]=1;
 	//PBCC
 	interfaceInfo->capability[6]=0;
 	//Channel Agility

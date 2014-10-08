@@ -130,39 +130,39 @@ int getBSSIndex(int radioID, int wlanID) {
 
 CWBool CWWTPCreateNewBSS(int radioIndex, int wlanIndex)
 {
-	int BSSId = getBSSIndex(radioIndex, wlanIndex);
+	int indexSTA, BSSId = getBSSIndex(radioIndex, wlanIndex);
 	
 	CW_CREATE_OBJECT_ERR(WTPGlobalBSSList[BSSId], WTPBSSInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
-	if(nl80211_init_socket(&(WTPGlobalBSSList[BSSId]->interfaceNLSock)))
+	if(nl80211_init_socket(&(WTPGlobalBSSList[BSSId]->BSSNLSock)))
 	{
 		CWLog("[NL80211]: Error nl80211_init_socket");
 		return CWErrorRaise(CW_ERROR_GENERAL, NULL);
 	}
 	
-	if(netlink_create_socket(&(WTPGlobalBSSList[BSSId]->interfaceNLSock)))
+	if(netlink_create_socket(&(WTPGlobalBSSList[BSSId]->BSSNLSock)))
 	{
 		CWLog("[NL80211]: Error netlink_create_socket");
 		return CWErrorRaise(CW_ERROR_GENERAL, NULL);
 	}
 	
-	WTPGlobalBSSList[BSSId]->radioInfo = &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo);
+	WTPGlobalBSSList[BSSId]->phyInfo = &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo);
 	WTPGlobalBSSList[BSSId]->interfaceInfo = &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex]);
 	
 	WTPGlobalBSSList[BSSId]->active = CW_FALSE;
-	WTPGlobalBSSList[BSSId]->numSTAActive = 0;
 	
+	WTPGlobalBSSList[BSSId]->numSTAActive = 0;
+	CW_CREATE_ARRAY_ERR(WTPGlobalBSSList[BSSId]->staList, WTP_MAX_STA, WTPSTAInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
+	{
+		WTPGlobalBSSList[BSSId]->staList[indexSTA].state = CW_80211_STA_OFF;
+		WTPGlobalBSSList[BSSId]->staList[indexSTA].address = NULL;
+	}
 	return CW_TRUE;
 }
 
 CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * interfaceInfo)
 {    
-	/*  
-	if (eloop_init()) {
-		CWLog("Failed to initialize event loop");
-		return -1;
-	}
-	*/
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
 		
@@ -184,13 +184,14 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	if(!nl80211_set_bss(interfaceInfo, 1, 1))
 		return CW_FALSE;
 	 
-	//Register mgmt functions
-	if(CW80211SetAPTypeFrame(interfaceInfo, radioIndex) < 0)
-		return CW_FALSE;
-	
 	//Setta nuova BSS
 	int BSSId = getBSSIndex(radioIndex, wlanIndex);
 	WTPGlobalBSSList[BSSId]->active = CW_TRUE;
+
+	//Register mgmt functions
+	if(CW80211SetAPTypeFrame(interfaceInfo, radioIndex, WTPGlobalBSSList[BSSId]) < 0)
+		return CW_FALSE;
+	
 
 	if(!CWErr(CWCreateThread(&(WTPGlobalBSSList[BSSId]->threadBSS), CWWTPBSSManagement, WTPGlobalBSSList[BSSId]))) {
 		CWLog("Error starting Thread that receive binding frame");
