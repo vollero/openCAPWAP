@@ -334,6 +334,49 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	return CW_FALSE;
 }
 
+CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
+	struct nl_msg *msg;
+	
+	msg = nlmsg_alloc();
+	if (!msg)
+		return CW_FALSE;
+	
+	genlmsg_put(msg, 0, 0, infoBSS->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_STATION, 0);
+	/* WLAN ID */
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
+	/* STA MAC Addr */
+	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
+	/* SUPPORTED RATES */
+	int lenRates=0;
+	if(infoBSS->phyInfo->lenSupportedRates < CW_80211_MAX_SUPP_RATES)
+		lenRates = infoBSS->phyInfo->lenSupportedRates;
+	else
+		lenRates = CW_80211_MAX_SUPP_RATES;
+	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, infoBSS->phyInfo->phyMbpsSet);
+	
+	/* Association ID */
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
+	/* Listen Interval */
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);		    
+	/* Capability */
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
+
+CWLog("Invio");
+	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
+	CWLog("ret: %d", ret);
+	if( ret != 0)
+		return CW_FALSE;
+	
+	CWLog("[NL80211] New station ok. Waiting for data from STA %02x:%02x:%02x:%02x:%02x:%02x", (int)staInfo.address[0], (int)staInfo.address[1], (int)staInfo.address[2], (int)staInfo.address[3], (int)staInfo.address[4], (int)staInfo.address[5]);
+	msg = NULL;
+	
+	return CW_TRUE;
+	
+ nla_put_failure:
+	nlmsg_free(msg);
+	return CW_FALSE;
+}
+
 int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble)
 /*
 			   int slot, int ht_opmode, int ap_isolate,

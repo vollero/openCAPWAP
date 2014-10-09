@@ -156,6 +156,9 @@ extern int WTP_PORT_DATA;
 
 #define MAC_ADDR_LEN 6
 
+
+extern int wtpInRunState;
+
 /*__________________________________________________________*/
 /*  *******************___PROTOTYPES___*******************  */
 

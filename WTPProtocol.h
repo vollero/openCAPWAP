@@ -130,7 +130,7 @@ CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr);
 CWBool CWParseACDescriptor(CWProtocolMessage *msgPtr, int len, CWACInfoValues *valPtr);					// 1
 CWBool CWParseACIPv4List(CWProtocolMessage *msgPtr, int len, ACIPv4ListValues *valPtr);					// 2
 CWBool CWParseACIPv6List(CWProtocolMessage *msgPtr, int len, ACIPv6ListValues *valPtr);					// 3
-CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len);								// 8
+CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address);
 CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len);								// 18
 CWBool CWParseCWControlIPv4Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv4NetworkInterface *valPtr);	//10 
 CWBool CWParseCWControlIPv6Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv6NetworkInterface *valPtr);	//11 

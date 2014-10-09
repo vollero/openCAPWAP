@@ -268,6 +268,8 @@ CWBool CWParseTransportHeaderMACAddress(CWProtocolMessage *msgPtr,  char *mac_pt
 CWBool CWParseTransportHeaderBinding(CWProtocolMessage *msgPtr, CWBindingTransportHeaderValues *valuesPtr){
 	unsigned int val = 0;
 	
+	CWLog("CWParseTransportHeaderBinding");
+	
 	if(msgPtr == NULL || valuesPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	//CWDebugLog("Parse Transport Header");

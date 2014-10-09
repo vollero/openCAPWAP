@@ -125,6 +125,8 @@ struct nl80211SocketUnit globalNLSock;
 
 #define CW_SINGLE_THREAD
 
+int wtpInRunState;
+
 /* 
  * Receive a message, that can be fragmented. This is useful not only for the Join State
  */

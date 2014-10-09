@@ -247,6 +247,8 @@ typedef struct WTPSinglePhyInfo {
 	CWBool phyStandard2400MH; //802.11b/g
 	CWBool phyStandard5000MH; //802.11a/n
 	float * phyMbpsSet;
+	int lenSupportedRates;
+	
 	CWBool phyHT20;
 	CWBool phyHT40;
 	//802.11a/b/g/n
@@ -321,6 +323,9 @@ typedef enum {
 typedef struct WTPSTAInfo {
 	CW80211StateSTA state;
 	unsigned char * address;
+	short int staAID;
+	short int capabilityBit;
+	short int listenInterval;
 	
 	//Phy Attr
 	CWBool phyStandard2400MH; //802.11b/g
@@ -1279,6 +1284,7 @@ CWBool nl80211CmdSetInterfaceSTAType(char * interface);
 CWBool nl80211CmdSetChannelInterface(char * interface, int channel);
 CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo);
 CWBool nl80211CmdStopAP(char * ifName);
+CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo);
 CWBool ioctlActivateInterface(char * interface);
 const char * nl80211_command_to_string(enum nl80211_commands cmd);
 
@@ -1300,15 +1306,16 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 /* CW80211ManagementFrame.c */
 char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameProbeRequest *request, int *offset);
 char * CW80211AssembleAuthResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameAuthRequest *request, int *offset);
-char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameAssociationRequest *request, int *offset);
+char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
 int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
 WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
-
+CWBool CWSendFrameMgmtFromWTPtoAC(char * frameReceived, int len);
 
 CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest);
 CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest);
+CWBool CW80211ParseAssociationRequest(char * frame, struct CWFrameAssociationRequest * assocRequest);
 
 CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg);
 typedef void (*cw_sock_handler)(void *cb, void *handle);

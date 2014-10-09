@@ -1045,46 +1045,30 @@ CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len)
 	CWParseMessageElementEnd();  
 }
 
-CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len) 
+CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address) 
 {
-	int radioID=0,Length=0;
-	unsigned char* StationMacAddress;
+	int Length=0;
 	
 	//CWParseMessageElementStart();	 sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
 	/*--------------------------------------------------------------------------------------*/
 	int oldOffset;												
-			if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
-						oldOffset = msgPtr->offset;
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
+	oldOffset = msgPtr->offset;
 	/*----------------------------------------------------------------------------------*/
 	
-	
-	radioID = CWProtocolRetrieve8(msgPtr);
-	//CWDebugLog("radio ID %d",radioID);
+	(*radioID) = CWProtocolRetrieve8(msgPtr);
 	Length = CWProtocolRetrieve8(msgPtr);
-	//CWDebugLog("Length of mac address field %d",Length);
-	StationMacAddress = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
+	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
 	
 	    
-    CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)StationMacAddress[0],
-														 (unsigned char)StationMacAddress[1],
-														  (unsigned char)StationMacAddress[2],
-														   (unsigned char)StationMacAddress[3],
-														    (unsigned char)StationMacAddress[4],
-														     (unsigned char)StationMacAddress[5]);
+    CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)(*address)[0],
+														 (unsigned char)(*address)[1],
+														  (unsigned char)(*address)[2],
+														   (unsigned char)(*address)[3],
+														    (unsigned char)(*address)[4],
+														     (unsigned char)(*address)[5]);
 	
-	unsigned char tmp_mac[7];
-	memcpy(tmp_mac+1, StationMacAddress, 6);
-	
-	//CWWTPsend_command_to_hostapd_SET_ADDR( tmp_mac,7);
-												     
-	CWDebugLog("STATION'S MAC ADDRESS TO FORWARD TRAFFIC: %02X:%02X:%02X:%02X:%02X:%02X",  
-								StationMacAddress[0] & 0xFF,
-      								StationMacAddress[1] & 0xFF,
-      								StationMacAddress[2] & 0xFF,
-      								StationMacAddress[3] & 0xFF,
-      								StationMacAddress[4] & 0xFF,
-      								StationMacAddress[5] & 0xFF);
-	
+	//CWWTPsend_command_to_hostapd_SET_ADDR( tmp_mac,7);												     
 
 	CWParseMessageElementEnd();  
 }

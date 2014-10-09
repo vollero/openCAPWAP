@@ -175,7 +175,6 @@ CWBool CWAssembleTransportHeader(CWProtocolMessage *transportHdrPtr, CWProtocolT
 	
 	char radio_mac_present = 0;
 	int i;
-	
 
 	for(i=0;i<6;i++){
 		//printf(":::: %02X\n",gRADIO_MAC[i]);
@@ -930,16 +929,20 @@ CWBool CWParseTransportHeader(CWProtocolMessage *msgPtr, CWProtocolTransportHead
 			 */
 			KeepAliveLenght = CWProtocolRetrieve16(msgPtr);
 		}else if (valuesPtr->type==0){	//IEEE 802.3 frame
-			CWDebugLog("802.3 frame");
+			CWLog("802.3 frame");
 			if (optionalWireless){
+				CWLog("optionalWireless");
 				CW_CREATE_OBJECT_ERR( valuesPtr->bindingValuesPtr, CWBindingTransportHeaderValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
 				if (!CWParseTransportHeaderBinding(msgPtr, valuesPtr->bindingValuesPtr)){
 					CW_FREE_OBJECT(valuesPtr->bindingValuesPtr);
 					return CW_FALSE;
 				}
 			}
-			msgPtr->data_msgType=CW_IEEE_802_3_FRAME_TYPE;
-			
+			else
+			{
+				CWLog("NO optionalWireless");
+				msgPtr->data_msgType=CW_IEEE_802_3_FRAME_TYPE;
+			}
 		}else if (valuesPtr->type==1){	//IEEE 802.11 frame
 			CWDebugLog("802.11 frame");
 			if (optionalWireless){

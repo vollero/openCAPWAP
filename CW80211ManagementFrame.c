@@ -67,7 +67,7 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	//Supported Rates
 	int indexRates=0;
 	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
-	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES; indexRates++)
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
 		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
 	
 	if(!CW80211AssembleIESupportedRates(&(frameProbeResponse[(*offset)]), offset, suppRate, indexRates))
@@ -140,7 +140,7 @@ char * CW80211AssembleAuthResponse(WTPInterfaceInfo * interfaceInfo, struct CWFr
 }
 
 //Genera association response
-char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameAssociationRequest *request, int *offset)
+char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * thisSTA, struct CWFrameAssociationRequest *request, int *offset)
 {
 	CWLog("Association response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
 	
@@ -191,14 +191,14 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWF
 		return NULL;
 	
 	//Association ID: 2 byte
-	short int val=1234;
-	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, val))
+	thisSTA->staAID = 1234;
+	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, thisSTA->staAID))
 		return NULL;
 	
 	//Supported Rates
 	int indexRates=0;
 	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
-	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES; indexRates++)
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
 		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
 		
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
@@ -551,7 +551,15 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		else
 			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) assocRequest.SA[0], (int) assocRequest.SA[1], (int) assocRequest.SA[2], (int) assocRequest.SA[3], (int) assocRequest.SA[4], (int) assocRequest.SA[5]);
 		
-		frameResponse = CW80211AssembleAssociationResponse(WTPBSSInfoPtr, &assocRequest, &frameRespLen);
+		thisSTA->capabilityBit = assocRequest.capabilityBit;
+		thisSTA->listenInterval = assocRequest.listenInterval;
+		
+		//Send Association Frame
+		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
+			return;
+		
+		//Local Mac
+		frameResponse = CW80211AssembleAssociationResponse(WTPBSSInfoPtr, thisSTA, &assocRequest, &frameRespLen);
 	}
 	
 	if(frameResponse)
@@ -640,4 +648,28 @@ CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
 	}
 	
 	return CW_FALSE;
+}
+
+CWBool CWSendFrameMgmtFromWTPtoAC(char * frameReceived, int frameLen)
+{
+	CWProtocolMessage* frameMsg = NULL;
+	CWBindingDataListElement* listElement = NULL;
+		
+	if (!extract802_11_Frame(&frameMsg, frameReceived, frameLen)){
+		CWLog("THR FRAME: Error extracting a frameMsg");
+		return CW_FALSE;
+	}
+					
+	CWLog("CW80211: Send 802.11 management(len:%d) to AC", frameLen);
+
+	CW_CREATE_OBJECT_ERR(listElement, CWBindingDataListElement, return CW_FALSE;);
+	listElement->frame = frameMsg;
+	listElement->bindingValues = NULL;
+	listElement->frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE; //CW_DATA_MSG_FRAME_TYPE; // CW_IEEE_802_11_FRAME_TYPE;
+
+	CWLockSafeList(gFrameList);
+	CWAddElementToSafeListTail(gFrameList, listElement, sizeof(CWBindingDataListElement));
+	CWUnlockSafeList(gFrameList);
+	
+	return CW_TRUE;
 }

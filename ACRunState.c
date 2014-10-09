@@ -158,7 +158,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 		CWDebugLog("--> Received a DATA Message");
 
 		if(msgPtr->data_msgType == CW_DATA_MSG_FRAME_TYPE)	{
-		
+
 		/*Retrive mac address station from msg*/
 		memset(StationMacAddr, 0, MAC_ADDR_LEN);
 		memcpy(StationMacAddr, msgPtr->msg+SOURCE_ADDR_START, MAC_ADDR_LEN);
@@ -270,13 +270,51 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			
 			CWDebugLog("Write 802.3 data to TAP[%d], len:%d",gWTPs[WTPIndex].tap_fd,msglen);
 			write(gWTPs[WTPIndex].tap_fd, msgPtr->msg, msglen);
-			
-		}else if(msgPtr->data_msgType == CW_IEEE_802_11_FRAME_TYPE)	{
+		}
+		/* Elena Agostini: 80211 Frame Management or Data */
+		else if(msgPtr->data_msgType == CW_IEEE_802_11_FRAME_TYPE)	{
 			
 			struct ieee80211_hdr *hdr;
 			u16 fc;
 			hdr = (struct ieee80211_hdr *) msgPtr->msg;
 			fc = le_to_host16(hdr->frame_control);
+			
+			if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT)
+			{
+				CWLog("CW80211: Management Frame Received");
+				
+				if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_ASSOC_REQ)
+				{
+				
+				CWLog("CW80211: Management Association request received");
+				/*Retrive mac address station from msg*/
+				memset(StationMacAddr, 0, MAC_ADDR_LEN);
+				memcpy(StationMacAddr, msgPtr->msg+SOURCE_ADDR_START, MAC_ADDR_LEN);
+				int seqNum = CWGetSeqNum();
+
+				//Send a Station Configuration Request
+					if (CWAssembleStationConfigurationRequest(&(gWTPs[WTPIndex].messages),
+									  &(gWTPs[WTPIndex].messagesCount),
+									  gWTPs[WTPIndex].pathMTU,
+									  seqNum,StationMacAddr,
+									  CW_MSG_ELEMENT_ADD_STATION_CW_TYPE)) {
+
+						if(CWACSendAcknowledgedPacket(WTPIndex, 
+									  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
+									  seqNum)) 
+							return CW_TRUE;
+						else
+							CWACStopRetransmission(WTPIndex);
+					} 
+				}
+			}
+			else
+			{
+				
+				CWLog("Pacchetto dati");
+				write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
+				CWDebugLog("Control Frame !!!\n");
+			}
  /*
 			if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT || isEAPOL_Frame(msgPtr->msg,msglen) ){
 				
@@ -304,13 +342,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					}
 				}
 			}else{
-			*/
-				write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
-				CWDebugLog("Control Frame !!!\n");
+			
+				
 			//}
 			
 			//flush_pcap(msgPtr->msg, msglen, "cap_wtp_to_ac.txt");
-			
+			*/
 		}else{
 			CWDebugLog("Manage special data packets with frequency");
 
@@ -1642,6 +1679,7 @@ CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, in
 	CWProtocolMessage *msgElems = NULL;
 	int msgElemCount=1;
 	int k = -1;
+	int radioID=1;
 	
 		
 	if(messagesPtr == NULL || fragmentsNumPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
@@ -1651,7 +1689,7 @@ CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, in
 	CW_CREATE_PROTOCOL_MSG_ARRAY_ERR(msgElems, msgElemCount, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	// Assemble Message Elements
 	if( Operation==CW_MSG_ELEMENT_ADD_STATION_CW_TYPE ){
-		if (!(CWAssembleMsgElemAddStation(0,&(msgElems[++k]),StationMacAddr)))   //radioID = 0 -valore predefinito-
+		if (!(CWAssembleMsgElemAddStation(radioID,&(msgElems[++k]),StationMacAddr)))   //radioID = 1 -valore predefinito-
 		{
 			CWErrorHandleLast();
 			int i;
@@ -1661,7 +1699,7 @@ CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, in
 		}
 		
 	}else if( Operation==CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE ){
-		if (!(CWAssembleMsgElemDeleteStation(0,&(msgElems[++k]),StationMacAddr)))   //radioID = 0 -valore predefinito-
+		if (!(CWAssembleMsgElemDeleteStation(radioID,&(msgElems[++k]),StationMacAddr)))   //radioID = 1 -valore predefinito-
 		{
 			CWErrorHandleLast();
 			int i;

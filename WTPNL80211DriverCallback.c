@@ -127,7 +127,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 	int rem_band, rem_freq, rem_rate, rem_mode, rem_cmd, rem_ftype, rem_if;
 	
 	int indexFreq=0;
-	int indexMbps=0;
+	int indexMbps=0, indexMbps2=0;
 	
 	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
 	
@@ -275,23 +275,26 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 					}
 				}
 				
+				
+				singlePhyInfo->lenSupportedRates = indexMbps;
+				
 				/* 80211.a/b/g/n */
-				int indexMbps;
+				
 				singlePhyInfo->phyStandardA = CW_FALSE;
 				singlePhyInfo->phyStandardB = CW_FALSE;
 				singlePhyInfo->phyStandardG = CW_FALSE;
 				singlePhyInfo->phyStandardN = CW_FALSE;
 				
-				for(indexMbps=0; indexMbps < WTP_NL80211_BITRATE_NUM; indexMbps++)
+				for(indexMbps2=0; indexMbps2 < WTP_NL80211_BITRATE_NUM && indexMbps2 < indexMbps; indexMbps2++)
 				{
 					//802.11b
 					if(
 						(singlePhyInfo->phyStandard2400MH==CW_TRUE && singlePhyInfo->phyStandardB == CW_FALSE) &&
 						(
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 1.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 2.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 5.5) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 11.0)
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 1.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 2.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 5.5) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 11.0)
 						)
 					)
 						singlePhyInfo->phyStandardB = CW_TRUE;
@@ -300,14 +303,14 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 					if(
 						(singlePhyInfo->phyStandard2400MH==CW_TRUE && singlePhyInfo->phyStandardG == CW_FALSE) &&
 						(
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 6.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 9.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 12.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 18.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 24.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 36.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 48.0) ||
-							(singlePhyInfo->phyMbpsSet[indexMbps] == 54.0)
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 6.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 9.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 12.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 18.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 24.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 36.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 48.0) ||
+							(singlePhyInfo->phyMbpsSet[indexMbps2] == 54.0)
 						)
 					)
 						singlePhyInfo->phyStandardG = CW_TRUE;

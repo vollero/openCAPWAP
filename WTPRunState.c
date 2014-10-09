@@ -88,7 +88,7 @@ CWBool CWAssembleStationConfigurationResponse(CWProtocolMessage **messagesPtr,
 					      CWProtocolResultCode resultCode);
 
 					      
-CWBool CWParseStationConfigurationRequest (char *msg, int len);
+CWBool CWParseStationConfigurationRequest (char *msg, int len, int * radioID, char ** address);
 
 void CWConfirmRunStateToACWithEchoRequest();
 void CWWTPKeepAliveDataTimerExpiredHandler(void *arg);
@@ -568,17 +568,15 @@ CWStateTransition CWWTPEnterRun() {
 	
 	wtpInRunState=0;
 	
-	CWLog("*** Control thread exiting...");
 	CWStopEchoRequestsTimer();
 	CWStopKeepAliveTimer();
 	CWStopDataChannelDeadTimer();
-	CWLog("*** Control thread timers stopped");
 
 	/*
 	 * Elena Agostini - 07/2014: waiting thread_manageDataPacket 
 	 */
 	CWThreadMutexLock(&gInterfaceMutex);
-	CWLog("*** gWTPThreadDataPacketState: %d", gWTPThreadDataPacketState);
+
 	if(gWTPThreadDataPacketState != 2)
 		gWTPThreadDataPacketState=2;
 	CWThreadMutexUnlock(&gInterfaceMutex);
@@ -600,9 +598,7 @@ CWStateTransition CWWTPEnterRun() {
 	gWTPExitRunEcho = CW_FALSE;
 	gWTPThreadDataPacketState=0;
 	CWThreadMutexUnlock(&gInterfaceMutex);
-	
-	CWLog("*** Flags set");
-	
+		
 	return CW_ENTER_RESET;
 }
 
@@ -724,6 +720,9 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 
 			case CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_REQUEST:
 			{
+				short int radioSTAID;
+				char * addressSta;
+				CW_CREATE_ARRAY_CALLOC_ERR(addressSta, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 				
 				CWProtocolResultCode resultCode = CW_PROTOCOL_SUCCESS;
 				//CWProtocolStationConfigurationRequestValues values;  --> da implementare
@@ -737,8 +736,16 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				}
 				CWLog("Station Configuration Request received");
 				
-				if(!CWParseStationConfigurationRequest((msgPtr->msg)+(msgPtr->offset), len)) 
+				if(!CWParseStationConfigurationRequest((msgPtr->msg)+(msgPtr->offset), len, &radioSTAID, &(addressSta))) 
 					return CW_FALSE;
+														     
+				/* Elena Agostini: 10/2014 */
+				if(radioSTAID <= 0)
+					return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+				
+				if(!CWWTPAddNewStation(radioSTAID, addressSta))
+					return CW_FALSE;
+				
 				if(!CWAssembleStationConfigurationResponse(&messages, &fragmentsNum, gWTPPathMTU, controlVal.seqNum, resultCode)) 
 					return CW_FALSE;
 
@@ -1919,7 +1926,7 @@ CWBool CWParseConfigurationUpdateRequest (char *msg,
 
 
 
-CWBool CWParseStationConfigurationRequest (char *msg, int len) 
+CWBool CWParseStationConfigurationRequest (char *msg, int len, int * radioID, char ** address) 
 {
 	//CWBool bindingMsgElemFound=CW_FALSE;
 	CWProtocolMessage completeMsg;
@@ -1953,7 +1960,7 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len)
 
 			case CW_MSG_ELEMENT_ADD_STATION_CW_TYPE:
 				
-				if (!(CWParseAddStation(&completeMsg,  elemLen)))
+				if (!(CWParseAddStation(&completeMsg,  elemLen, radioID, address)))
 					return CW_FALSE;
 				break;
 			case CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE:
@@ -1965,7 +1972,7 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len)
 				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element");
 		}
 	}
-
+	
 	if(completeMsg.offset != len) return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
 	/*
 	if(bindingMsgElemFound)
