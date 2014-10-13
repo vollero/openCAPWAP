@@ -76,7 +76,7 @@ CWBool CWWTPCheckForBindingFrame()
 					CWDebugLog("Failure sending Request");
 					break;
 				}
-				CWDebugLog("Sending binding Request to AC");
+				CWLog("Sending binding Request to AC......");
 			}
 			
 			for (k = 0; k < fragmentsNum; k++)

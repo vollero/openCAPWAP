@@ -88,7 +88,7 @@ CWBool CWAssembleStationConfigurationResponse(CWProtocolMessage **messagesPtr,
 					      CWProtocolResultCode resultCode);
 
 					      
-CWBool CWParseStationConfigurationRequest (char *msg, int len, int * radioID, char ** address);
+CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, int * STAIndex);
 
 void CWConfirmRunStateToACWithEchoRequest();
 void CWWTPKeepAliveDataTimerExpiredHandler(void *arg);
@@ -371,16 +371,83 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					n = sendto(gRawSock,msgPtr.msg ,msgPtr.offset,0,(struct sockaddr*)&rawSockaddr, sizeof(rawSockaddr));
 					
 				}else if(msgPtr.data_msgType == CW_IEEE_802_11_FRAME_TYPE) {
-									
-					struct ieee80211_hdr *hdr;
-					u16 fc;
-					hdr = (struct ieee80211_hdr *) msgPtr.msg;
-					fc = le_to_host16(hdr->frame_control);
-		
-					if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT || isEAPOL_Frame(msgPtr.msg,msgPtr.offset) ){
-						CWDebugLog("Got 802.11 Management Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
-						//CWWTPsend_data_to_hostapd(msgPtr.msg, msgPtr.offset);
+
+#ifdef SPLIT_MAC
+					int offsetFrameReceived;
+					short int frameControl;
+					char * frameResponse=NULL;
+					u64 cookie_out;
+					
+					if(!CW80211ParseFrameIEControl(msgPtr->msg, &(offsetFrameReceived), &(frameControl)))
+						return CW_FALSE;
+					
+					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_AUTH)
+					{
+						struct CWFrameAuthResponse authResponse;
+						if(!CW80211ParseAuthResponse(msgPtr.msg, &authResponse))
+							return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
 						
+						int radioIndex = 0, wlanIndex = 0, BSSIndex=0, trovato=0; 
+						for(radioIndex=0; radioIndex<WTP_RADIO_MAX; radioIndex++)
+						{
+							for(wlanIndex=0; wlanIndex<WTP_MAX_INTERFACES; wlanIndex++)
+							{
+								BSSIndex=getBSSIndex(radioIndex, wlanIndex);
+								if(
+									(WTPGlobalBSSList[BSSIndex]->interfaceInfo->BSSID != NULL) && 
+									(!strcmp(WTPGlobalBSSList[BSSIndex]->interfaceInfo->BSSID, authResponse.BSSID))
+								)
+								{
+									trovato=1;
+									break;
+								}
+							}
+							
+							if(trovato == 1)
+								break;
+						}
+						
+						if(trovato == 1)
+							if(!CW80211SendFrame(WTPGlobalBSSList[BSSIndex], 0, CW_FALSE, msgPtr.msg, MGMT_FRAME_FIXED_LEN_AUTH, &(cookie_out), 1,1))
+									CWLog("NL80211: Errore CW80211SendFrame");
+									
+					}
+					
+					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_REQ)
+					{
+						struct CWFrameAssociationResponse assResponse;
+						if(!CW80211ParseAssociationResponse(msgPtr.msg, &assResponse))
+							return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+						
+						int radioIndex = 0, wlanIndex = 0, BSSIndex=0, trovato=0; 
+						for(radioIndex=0; radioIndex<WTP_RADIO_MAX; radioIndex++)
+						{
+							for(wlanIndex=0; wlanIndex<WTP_MAX_INTERFACES; wlanIndex++)
+							{
+								BSSIndex=getBSSIndex(radioIndex, wlanIndex);
+								if(
+									(WTPGlobalBSSList[BSSIndex]->interfaceInfo->BSSID != NULL) && 
+									(!strcmp(WTPGlobalBSSList[BSSIndex]->interfaceInfo->BSSID, assResponse.BSSID))
+								)
+								{
+									trovato=1;
+									break;
+								}
+							}
+							
+							if(trovato == 1)
+								break;
+						}
+						//Ok o ricalcolo?
+						int lenFrame = MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN*3+CW_80211_MAX_SUPP_RATES+1;
+						if(trovato == 1)
+							if(!CW80211SendFrame(WTPGlobalBSSList[BSSIndex], 0, CW_FALSE, msgPtr.msg, lenFrame, &(cookie_out), 1,1))
+									CWLog("NL80211: Errore CW80211SendFrame");
+									
+					}
+#endif
+				}
+					//ELENA: questi sono frame dati
 					}else if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
 											
 						if(  WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
@@ -396,6 +463,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 						}
 						
 					}else{
+						//Management Frames: trova bss
+						//Invio
+/*						if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
+							CWLog("NL80211: Errore CW80211SendFrame");
+*/
 						CWLog("Control/Unknow Type type=%d",WLAN_FC_GET_TYPE(fc));
 					}
 				
@@ -718,9 +790,12 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				break;
 			}
 
+			/*  
+			 * Elena Agostini 10/2014: Configuration Request Parse
+			 */
 			case CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_REQUEST:
 			{
-				short int radioSTAID;
+				int BSSIndex, STAIndex;
 				char * addressSta;
 				CW_CREATE_ARRAY_CALLOC_ERR(addressSta, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 				
@@ -736,14 +811,10 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				}
 				CWLog("Station Configuration Request received");
 				
-				if(!CWParseStationConfigurationRequest((msgPtr->msg)+(msgPtr->offset), len, &radioSTAID, &(addressSta))) 
+				if(!CWParseStationConfigurationRequest((msgPtr->msg)+(msgPtr->offset), len, &BSSIndex, &STAIndex)) 
 					return CW_FALSE;
-														     
-				/* Elena Agostini: 10/2014 */
-				if(radioSTAID <= 0)
-					return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 				
-				if(!CWWTPAddNewStation(radioSTAID, addressSta))
+				if(!CWWTPAddNewStation(BSSIndex, STAIndex))
 					return CW_FALSE;
 				
 				if(!CWAssembleStationConfigurationResponse(&messages, &fragmentsNum, gWTPPathMTU, controlVal.seqNum, resultCode)) 
@@ -1926,8 +1997,14 @@ CWBool CWParseConfigurationUpdateRequest (char *msg,
 
 
 
-CWBool CWParseStationConfigurationRequest (char *msg, int len, int * radioID, char ** address) 
+CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, int * STAIndex) 
 {
+	int radioID, wlanID;
+	char * address;
+	short int assID, capability, supportedRatesLen;
+	char flags;
+	char * supportedRates;
+	
 	//CWBool bindingMsgElemFound=CW_FALSE;
 	CWProtocolMessage completeMsg;
 	
@@ -1959,10 +2036,14 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * radioID, ch
 		switch(elemType) { 
 
 			case CW_MSG_ELEMENT_ADD_STATION_CW_TYPE:
-				
-				if (!(CWParseAddStation(&completeMsg,  elemLen, radioID, address)))
+				if (!(CWParseAddStation(&completeMsg,  elemLen, &(radioID), &(address))))
 					return CW_FALSE;
 				break;
+			case CW_MSG_ELEMENT_IEEE80211_STATION:
+				if (!(CWParse80211Station(&completeMsg,  elemLen, &(radioID), &(assID), &(flags), &(address), &(capability), &(wlanID),  &(supportedRatesLen), &(supportedRates))))
+					return CW_FALSE;
+				break;
+				
 			case CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE:
 				
 				if (!(CWParseDeleteStation(&completeMsg,  elemLen)))
@@ -1976,13 +2057,44 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * radioID, ch
 	if(completeMsg.offset != len) return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
 	/*
 	if(bindingMsgElemFound)
-	{
 		if(!(CWBindingParseConfigurationUpdateRequest (msg, len, &(valuesPtr->bindingValues))))
-		{
 			return CW_FALSE;
-		}
-	}*/
-
+	*/
+	
+	//Ricavo indici di BSS e STA
+	int radioIndex = CWIEEEBindingGetIndexFromDevID(radioID);
+	if(radioIndex < 0)
+		return CW_FALSE;
+		
+	int wlanIndex = CWIEEEBindingGetIndexFromDevID(wlanID);
+	if(wlanIndex < 0)
+		return CW_FALSE;
+	
+	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
+	
+	for((*STAIndex)=0; (*STAIndex) < WTP_MAX_STA; (*STAIndex)++)
+	{				
+		if(
+			(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address != NULL) && 
+			(!strcmp(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address, address))
+		)
+			break;
+	}
+	
+#ifdef SPLIT_MAC
+	/*
+	 * In caso di split mac riassegno alla STA i valori che l'AC mi invia.
+	 * In caso di Local MAC per ora  non faccio nulla, i valori li ha gia decisi in precedenza il WTP
+	 */
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].assID=(*assID);
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].flags=(*flags);
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].capability=(*capability);
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRatesLen=(*supportedRatesLen);
+	 
+	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, (*supportedRatesLen)+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+	CW_COPY_MEMORY(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, (*supportedRates), (*supportedRatesLen));	 
+#endif
+	
 	CWLog("Station Configuration Request Parsed");
 	
 	return CW_TRUE;

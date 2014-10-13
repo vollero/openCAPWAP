@@ -6,372 +6,7 @@
  ***************************************/
 #include "CWWTP.h"
 
-/* +++++++++++++++++++++ ASSEMBLE +++++++++++++++++++++++ */
-//Genera probe response
-char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameProbeRequest *request, int *offset)
-{
-	int index=0;
-	
-	CWLog("Probe response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
-	(*offset)=0;
-	/* ***************** PROBE RESPONSE FRAME FIXED ******************** */
-	char * frameProbeResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, MGMT_FRAME_FIXED_LEN_PROBE_RESP+MGMT_FRAME_IE_FIXED_LEN*3+strlen(WTPBSSInfoPtr->interfaceInfo->SSID)+CW_80211_MAX_SUPP_RATES+1+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
-	
-	//frame control: 2 byte
-	if(!CW80211AssembleIEFrameControl(&(frameProbeResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_PROBE_RESP))
-		return NULL;
-	
-	//duration: 2 byte
-	if(!CW80211AssembleIEDuration(&(frameProbeResponse[(*offset)]), offset, 0))
-		return NULL;
-	
-	//da: 6 byte
-	if(request)
-	{
-		if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, request->SA))
-			return NULL;
-	}
-	else
-	{
-		if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, NULL))
-			return NULL;
-	}
 
-	//sa: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->MACaddr))
-			return NULL;
-
-	//bssid: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->BSSID))
-			return NULL;
-	
-	//2 (sequence ctl) + 8 (timestamp): vengono impostati in automatico
-	(*offset) += LEN_IE_SEQ_CTRL;
-	(*offset) += LEN_IE_TIMESTAMP;
-	
-	//beacon interval: 2 byte
-	if(!CW80211AssembleIEBeaconInterval(&(frameProbeResponse[(*offset)]), offset, 100))
-			return NULL;
-	
-	//capability: 2 byte
-	if(!CW80211AssembleIECapability(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
-			return NULL;
-
-	/* *************************************************** */
-		
-	//SSID
-	if(!CW80211AssembleIESSID(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->SSID))
-		return NULL;
-
-	//Supported Rates
-	int indexRates=0;
-	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
-	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
-		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
-	
-	if(!CW80211AssembleIESupportedRates(&(frameProbeResponse[(*offset)]), offset, suppRate, indexRates))
-		return NULL;
-
-	//DSSS
-	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
-	if(!CW80211AssembleIEDSSS(&(frameProbeResponse[(*offset)]), offset, channel))
-		return NULL;
-		
-	return frameProbeResponse;
-}
-
-//Genera auth response
-char * CW80211AssembleAuthResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameAuthRequest *request, int *offset)
-{
-	CWLog("Auth response per ifname: %s", interfaceInfo->ifName);
-	(*offset)=0;
-
-	/* ***************** FRAME FIXED ******************** */
-	char * frameAuthResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameAuthResponse, MGMT_FRAME_FIXED_LEN_AUTH, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
-	
-	//frame control: 2 byte
-	if(!CW80211AssembleIEFrameControl(&(frameAuthResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_AUTH))
-		return NULL;
-	
-	//duration: 2 byte
-	if(!CW80211AssembleIEDuration(&(frameAuthResponse[(*offset)]), offset, 0))
-		return NULL;
-	
-	//da: 6 byte
-	if(request)
-	{
-		if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, request->SA))
-			return NULL;
-	}
-	else
-	{
-		if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, NULL))
-			return NULL;
-	}
-	
-	//sa: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, interfaceInfo->MACaddr))
-			return NULL;
-	
-	//bssid: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameAuthResponse[(*offset)]), offset, interfaceInfo->BSSID))
-			return NULL;
-	
-	//2 (sequence ctl)
-	(*offset) += LEN_IE_SEQ_CTRL;
-	
-	//Auth Algorithm Number: 2 byte
-	if(!CW80211AssembleIEAuthAlgoNum(&(frameAuthResponse[(*offset)]), offset, IE_AUTH_OPEN_SYSTEM))
-			return NULL;
-
-	//Auth Algorithm Number: 2 byte (valore seq: 2)
-	if(!CW80211AssembleIEAuthTransNum(&(frameAuthResponse[(*offset)]), offset, 2))
-		return NULL;
-
-	//Status Code: 2 byte (valore: 0 status code success)
-	if(!CW80211AssembleIEStatusCode(&(frameAuthResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
-		return NULL;
-	
-	/* ************************************************* */
-		
-	return frameAuthResponse;
-}
-
-//Genera association response
-char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * thisSTA, struct CWFrameAssociationRequest *request, int *offset)
-{
-	CWLog("Association response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
-	
-	(*offset)=0;
-	
-	/* ***************** FRAME FIXED ******************** */
-	char * frameAssociationResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN*3+CW_80211_MAX_SUPP_RATES+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
-	
-	//frame control: 2 byte
-	if(!CW80211AssembleIEFrameControl(&(frameAssociationResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_ASSOC_RESP))
-		return NULL;
-	
-	//duration: 2 byte
-	if(!CW80211AssembleIEDuration(&(frameAssociationResponse[(*offset)]), offset, 0))
-		return NULL;
-	
-	//da: 6 byte
-	if(request)
-	{
-		if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, request->SA))
-			return NULL;
-	}
-	else
-	{
-		if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, NULL))
-			return NULL;
-	}
-	
-	//sa: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->MACaddr))
-			return NULL;
-	
-	//bssid: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->BSSID))
-			return NULL;
-	
-	//2 (sequence ctl)
-	(*offset) += LEN_IE_SEQ_CTRL;
-	
-	//capability: 2 byte
-	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
-			return NULL;
-	/* ************************************************* */
-
-	//Status Code: 2 byte (valore: 0 status code success)
-	if(!CW80211AssembleIEStatusCode(&(frameAssociationResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
-		return NULL;
-	
-	//Association ID: 2 byte
-	thisSTA->staAID = 1234;
-	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, thisSTA->staAID))
-		return NULL;
-	
-	//Supported Rates
-	int indexRates=0;
-	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
-	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
-		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
-		
-	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
-		return NULL;
-	
-	return frameAssociationResponse;
-}
-/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-
-/* -------------------- PARSE -------------------- */
-CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest) {
-	int offset=0;
-	
-	if(probeRequest == NULL)
-		return CW_FALSE;
-	
-	//Frame Control
-	if(!CW80211ParseFrameIEControl(frame, &(offset), &(probeRequest->frameControl)))
-		return CW_FALSE;
-	
-	//Duration
-	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(probeRequest->duration)))
-		return CW_FALSE;
-		
-	//DA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), probeRequest->DA))
-		return CW_FALSE;
-	
-	//SA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), probeRequest->SA))
-		return CW_FALSE;
-		
-	//BSSID
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), probeRequest->BSSID))
-		return CW_FALSE;
-	
-	//Seq Ctrl
-	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(probeRequest->seqCtrl)))
-		return CW_FALSE;
-	
-	//Add parsing variable elements
-	if(!CW80211ParseFrameIESSID((frame+offset), &(offset), &(probeRequest->SSID)))
-		return CW_FALSE;
-
-	return CW_TRUE;
-}
-
-CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest) {
-	int offset=0;
-	
-	if(authRequest == NULL)
-		return CW_FALSE;
-		
-	//Frame Control
-	if(!CW80211ParseFrameIEControl(frame, &(offset), &(authRequest->frameControl)))
-		return CW_FALSE;
-	
-	//Duration
-	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(authRequest->duration)))
-		return CW_FALSE;
-		
-	//DA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), authRequest->DA))
-		return CW_FALSE;
-	
-	//SA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), authRequest->SA))
-		return CW_FALSE;
-		
-	//BSSID
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), authRequest->BSSID))
-		return CW_FALSE;
-	
-	//Seq Ctrl
-	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(authRequest->seqCtrl)))
-		return CW_FALSE;
-	
-	//Auth Algo
-	if(!CW80211ParseFrameIEAuthAlgo((frame+offset), &(offset), &(authRequest->authAlg)))
-		return CW_FALSE;
-		
-	//Auth Trans
-	if(!CW80211ParseFrameIEAuthTransaction((frame+offset), &(offset), &(authRequest->authTransaction)))
-		return CW_FALSE;
-
-	//Status Code
-	if(!CW80211ParseFrameIEStatusCode((frame+offset), &(offset), &(authRequest->statusCode)))
-		return CW_FALSE;
-	
-	return CW_TRUE;
-}
-
-CWBool CW80211ParseAssociationRequest(char * frame, struct CWFrameAssociationRequest * assocRequest) {
-	int offset=0;
-	
-	if(assocRequest == NULL)
-		return CW_FALSE;
-		
-	//Frame Control
-	if(!CW80211ParseFrameIEControl(frame, &(offset), &(assocRequest->frameControl)))
-		return CW_FALSE;
-	
-	//Duration
-	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(assocRequest->duration)))
-		return CW_FALSE;
-		
-	//DA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), assocRequest->DA))
-		return CW_FALSE;
-	
-	//SA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), assocRequest->SA))
-		return CW_FALSE;
-		
-	//BSSID
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), assocRequest->BSSID))
-		return CW_FALSE;
-	
-	//Seq Ctrl
-	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(assocRequest->seqCtrl)))
-		return CW_FALSE;
-	
-	//Capability	
-	if(!CW80211ParseFrameIECapability((frame+offset), &(offset), &(assocRequest->capabilityBit)))
-		return CW_FALSE;
-	
-	//Listen Interval	
-	if(!CW80211ParseFrameIEListenInterval((frame+offset), &(offset), &(assocRequest->listenInterval)))
-		return CW_FALSE;
-	
-	//SSID		
-	if(!CW80211ParseFrameIESSID((frame+offset), &(offset), &(assocRequest->SSID)))
-		return CW_FALSE;
-
-	return CW_TRUE;
-}
-
-CWBool CW80211ParseDeauthDisassociationRequest(char * frame, struct CWFrameDeauthDisassociationRequest * disassocRequest) {
-	int offset=0;
-	
-	if(disassocRequest == NULL)
-		return CW_FALSE;
-		
-	//Frame Control
-	if(!CW80211ParseFrameIEControl(frame, &(offset), &(disassocRequest->frameControl)))
-		return CW_FALSE;
-	
-	//Duration
-	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(disassocRequest->duration)))
-		return CW_FALSE;
-		
-	//DA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), disassocRequest->DA))
-		return CW_FALSE;
-	
-	//SA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), disassocRequest->SA))
-		return CW_FALSE;
-		
-	//BSSID
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), disassocRequest->BSSID))
-		return CW_FALSE;
-	
-	//Seq Ctrl
-	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(disassocRequest->seqCtrl)))
-		return CW_FALSE;
-	
-	//Reason Code
-	if(!CW80211ParseFrameIEReasonCode((frame+offset), &(offset), &(disassocRequest->reasonCode)))
-		return CW_FALSE;
-
-	return CW_TRUE;
-}
 
 
 /* ------------------------------------------------ */
@@ -457,23 +92,6 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	/* +++ PROBE Request/Response +++ */
 	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_PROBE_REQ)
 	{
-		/*
-		ie = mgmt->u.probe_req.variable;
-		if (frameLen < IEEE80211_HDRLEN + sizeof(mgmt->u.probe_req))
-			return;
-		ie_len = frameLen - (IEEE80211_HDRLEN + sizeof(mgmt->u.probe_req));
-		
-		if (ieee802_11_parse_elems(ie, ie_len, &elems, 0) == ParseFailed) {
-			CWLog("Could not parse ProbeReq from " MACSTR,  MAC2STR(mgmt->sa));
-			return;
-		}
-		if ((!elems.ssid || !elems.supp_rates)) {
-			CWLog("STA " MACSTR " sent probe request without SSID or supported rates element", MAC2STR(mgmt->sa));
-			return;
-		}
-	
-		*/
-		
 		CWLog("[80211] Probe Request Received");
 		struct CWFrameProbeRequest probeRequest;
 		if(!CW80211ParseProbeRequest(frameReceived, &probeRequest))
@@ -493,7 +111,14 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			thisSTA->state = CW_80211_STA_PROBE;
 		else
 			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) probeRequest.SA[0], (int) probeRequest.SA[1], (int) probeRequest.SA[2], (int) probeRequest.SA[3], (int) probeRequest.SA[4], (int) probeRequest.SA[5]);
-			
+		
+		//Split MAC: invia probe request ad AC per conoscenza
+#ifdef SPLIT_MAC
+		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
+			return;
+#endif
+
+//In ogni caso, risponde il WTP direttamente senza attendere AC
 		frameResponse = CW80211AssembleProbeResponse(WTPBSSInfoPtr, &(probeRequest), &frameRespLen);
 	}
 	
@@ -516,14 +141,25 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 				thisSTA->state = CW_80211_STA_AUTH;
 			else
 			{
-					CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x hasn't send a Probe Request before sending Auth Request.", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
-					return;
+				CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x hasn't send a Probe Request before sending Auth Request.", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
+				return;
 			}
 		}
 		else
+		{
 			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
-			
-		frameResponse = CW80211AssembleAuthResponse(WTPBSSInfoPtr->interfaceInfo, &authRequest, &frameRespLen);
+			return CW_FALSE;
+		}
+		
+		//Split MAC: invia auth ad AC ed attende il frame di risposta
+#ifdef SPLIT_MAC
+		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
+			return;
+#endif
+		//Local MAC: invia direttamente auth a STA
+#ifndef SPLIT_MAC
+		frameResponse = CW80211AssembleAuthResponse(WTPBSSInfoPtr->interfaceInfo->MACaddr, &authRequest, &frameRespLen);
+#endif
 	}
 	
 	/* +++ Association Response +++ */
@@ -549,17 +185,30 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			}
 		}
 		else
+		{
 			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) assocRequest.SA[0], (int) assocRequest.SA[1], (int) assocRequest.SA[2], (int) assocRequest.SA[3], (int) assocRequest.SA[4], (int) assocRequest.SA[5]);
-		
+			return CW_FALSE;
+		}
 		thisSTA->capabilityBit = assocRequest.capabilityBit;
 		thisSTA->listenInterval = assocRequest.listenInterval;
+		thisSTA->lenSupportedRates = assocRequest.supportedRatesLen;
 		
+		CW_CREATE_ARRAY_CALLOC_ERR(thisSTA->supportedRates, thisSTA->lenSupportedRates+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+		CW_COPY_MEMORY(thisSTA->supportedRates, assocRequest.supportedRates, thisSTA->lenSupportedRates);
+
 		//Send Association Frame
 		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
 			return;
 		
-		//Local Mac
+		//Local MAC
+#ifndef SPLIT_MAC
+		//Ass ID is a random number
+		CW80211SetAssociationID(&(thisSTA->staAID));
 		frameResponse = CW80211AssembleAssociationResponse(WTPBSSInfoPtr, thisSTA, &assocRequest, &frameRespLen);
+		//Send Association Frame Response
+		if(!CWSendFrameMgmtFromWTPtoAC(frameResponse, frameRespLen))
+			return;
+#endif
 	}
 	
 	if(frameResponse)

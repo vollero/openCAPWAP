@@ -133,10 +133,10 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 		CW_FREE_OBJECT(msgElems);
 		/* error will be handled by the caller */
 		return CW_FALSE;
-	}  	
+	} 
 	
 	//Elena Agostini - 07/2014: nl80211 support. 
-	int indexWTPRadioInfo=0;
+	int indexWTPRadioInfo=0, indexRates=0;;
 	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
 	{
 		CWLog("radioID: %d", gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID);
@@ -156,7 +156,12 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.shortRetry,
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.longRetry,
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.txMSDU,
-											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.rxMSDU))
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.rxMSDU)) ||
+		 !(CWAssembleMsgElemSupportedRates(&(msgElems[++k]), 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.supportedRates,
+											CW_80211_MAX_SUPP_RATES
+											))
 											
 		)
 		{

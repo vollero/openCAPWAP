@@ -145,6 +145,8 @@ CWBool CWAssembleMsgElemACIPv4List(CWProtocolMessage *msgPtr);				// 2
 CWBool CWAssembleMsgElemACIPv6List(CWProtocolMessage *msgPtr);				// 3
 CWBool CWAssembleMsgElemACName(CWProtocolMessage *msgPtr);				// 4
 CWBool CWAssembleMsgElemAddStation(int radioID,CWProtocolMessage *msgPtr,unsigned char* StationMacAddr);		// 8
+//Elena Agostini
+CWBool CWAssembleMsgElem80211Station(int radioID, int wlanID, CWProtocolMessage *msgPtr, CWFrameAssociationResponse associationResponse);
 CWBool CWAssembleMsgElemDeleteStation(int radioID,CWProtocolMessage *msgPtr,unsigned char* StationMacAddr);		// 8
 /*
  * Elena Agostini - 03/2014: Add AC local IPv4 Address Msg. Elem.
@@ -186,13 +188,13 @@ CWBool CWParseWTPRebootStatistics(CWProtocolMessage *msgPtr, int len, WTPRebootS
 CWBool CWParseMsgElemDecryptErrorReport(CWProtocolMessage *msgPtr, int len, CWDecryptErrorReportValues *valPtr);
 CWBool CWParseMsgElemDuplicateIPv6Address(CWProtocolMessage *msgPtr, int len, WTPDuplicateIPv6 *valPtr);
 CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, int * radioID, char * phyStandardValue);	//1048
-CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr);	//1040
+CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, int * radioID, unsigned char **valPtr, int * valLen);	//1040
 CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, PhyFrequencyInfoConfigureMessage * valPtr); //1032
 //CWBool CWParseWTPRadioInfo(CWProtocolMessage *msgPtr, int len, CWRadiosInformation *valPtr, int radioIndex);	
 /* Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages */
 CWBool CWParseWTPECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr);
 /* Elena Agostini - 09/2014: IEEE Binding */
-CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char * valPtr);
+CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char ** valPtr);
 
 //---------------------------------------------------------/
 CWBool CWACGetACIPv4List(int **listPtr, int *countPtr);

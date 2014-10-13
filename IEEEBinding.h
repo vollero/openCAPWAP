@@ -102,6 +102,7 @@ extern struct nl80211SocketUnit globalNLSock;
 #define WLAN_GROUP_TSC_LEN 6
 #define CW_MSG_IEEE_ADD_WLAN_MIN_LEN 23
 #define CW_MSG_IEEE_UPDATE_WLAN_MIN_LEN 23
+#define CW_MSG_IEEE_STATION_LEN 13
 
 #define MAC80211_BEACON_BODY_MANDATORY_MIN_LEN 12
 #define MAC80211_MAX_PROBERESP_LEN 768
@@ -247,6 +248,7 @@ typedef struct WTPSinglePhyInfo {
 	CWBool phyStandard2400MH; //802.11b/g
 	CWBool phyStandard5000MH; //802.11a/n
 	float * phyMbpsSet;
+	char * supportedRates;
 	int lenSupportedRates;
 	
 	CWBool phyHT20;
@@ -288,6 +290,8 @@ typedef struct PhyFrequencyInfoConfigureMessage {
 	int firstChannel;
 	int totChannels;
 	int maxTxPower;
+	char * supportedRates;
+	int lenSupportedRates;
 } PhyFrequencyInfoConfigureMessage;
 
 typedef struct ACWTPSinglePhyInfo {	
@@ -326,11 +330,15 @@ typedef struct WTPSTAInfo {
 	short int staAID;
 	short int capabilityBit;
 	short int listenInterval;
+	short int flags;
 	
 	//Phy Attr
 	CWBool phyStandard2400MH; //802.11b/g
 	CWBool phyStandard5000MH; //802.11a/n
 	float * phyMbpsSet;
+	char * supportedRates;
+	int lenSupportedRates;
+	
 	CWBool phyHT20;
 	CWBool phyHT40;
 	//802.11a/b/g/n
@@ -1199,6 +1207,20 @@ typedef struct CWFrameAuthRequest {
 	short int statusCode;
 } CWFrameAuthRequest;
 
+typedef struct CWFrameAuthResponse {
+	short int frameControl;
+	short int duration;
+	unsigned char DA[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char BSSID[ETH_ALEN];
+	short int seqCtrl;
+	char * SSID;
+	
+	short int authAlg;
+	short int authTransaction;
+	short int statusCode;
+} CWFrameAuthResponse;
+
 typedef struct CWFrameAssociationRequest {
 	short int frameControl;
 	short int duration;
@@ -1210,9 +1232,27 @@ typedef struct CWFrameAssociationRequest {
 	short int capabilityBit;
 	short int listenInterval;
 	char * SSID;
-	float * supportedRates;
+	short int supportedRatesLen;
+	char * supportedRates;
 
 } CWFrameAssociationRequest;
+
+typedef struct CWFrameAssociationResponse {
+	short int frameControl;
+	short int duration;
+	unsigned char DA[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char BSSID[ETH_ALEN];
+	short int seqCtrl;
+	
+	short int capabilityBit;
+	short int statusCode;
+	short int assID;
+	
+	short int supportedRatesLen;
+	char * supportedRates;
+
+} CWFrameAssociationResponse;
 
 typedef struct CWFrameDeauthDisassociationRequest {
 	short int frameControl;
@@ -1233,6 +1273,7 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID);
 CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * interfaceInfo);
 CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID);
 CWBool CWWTPCreateNewBSS(int radioID, int wlanID);
+CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex);
 
 //Define create per allocazione array in CB_getPhyInfo
 //la dove dovrei fare due cicli per sapere la quantita di bitrate e di canali
@@ -1305,7 +1346,7 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
 /* CW80211ManagementFrame.c */
 char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameProbeRequest *request, int *offset);
-char * CW80211AssembleAuthResponse(WTPInterfaceInfo * interfaceInfo, struct CWFrameAuthRequest *request, int *offset);
+char * CW80211AssembleAuthResponse(char * addrAP, struct CWFrameAuthRequest *request, int *offset);
 char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
 int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
 WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
@@ -1351,5 +1392,6 @@ CWBool CW80211ParseFrameIEAuthAlgo(char * frameReceived, int * offsetFrameReceiv
 CWBool CW80211ParseFrameIEAuthTransaction(char * frameReceived, int * offsetFrameReceived, short int * value);
 CWBool CW80211ParseFrameIESSID(char * frameReceived, int * offsetFrameReceived, char ** value);
 CWBool CW80211ParseFrameIEListenInterval(char * frameReceived, int * offsetFrameReceived, short int * value);
+CWBool CW80211ParseFrameIESupportedRates(char * frameReceived, int * offsetFrameReceived, char ** value, int * lenIE);
 
 

@@ -379,6 +379,30 @@ CWBool CWAssembleMsgElemAddStation(int radioID,CWProtocolMessage *msgPtr,unsigne
 	
 }
 
+CWBool CWAssembleMsgElem80211Station(int radioID, int wlanID, CWProtocolMessage *msgPtr, CWFrameAssociationResponse associationResponse)
+{
+	// create message
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, CW_MSG_IEEE_STATION_LEN+associationResponse.supportedRatesLen, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
+	//RadioID
+	CWProtocolStore8(msgPtr, radioID);
+	//Ass ID
+	CWProtocolStore16(msgPtr, associationResponse.assID);
+	//Flags
+	CWProtocolStore8(msgPtr, 0);
+	//Station MAC Address
+	CWProtocolStoreRawBytes(msgPtr,(char*)associationResponse.DA, ETH_ALEN);
+	//Capability
+	CWProtocolStore16(msgPtr, associationResponse.capabilityBit);
+	//WlanID
+	CWProtocolStore8(msgPtr, wlanID);
+	//Supported Rates
+	CWProtocolStoreRawBytes(msgPtr, associationResponse.supportedRates, associationResponse.supportedRatesLen);
+	
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_STATION);
+	
+}
+
 CWBool CWAssembleMsgElemDeleteStation(int radioID,CWProtocolMessage *msgPtr,unsigned char* StationMacAddr){
 	const int delete_Station_Length=8;
 	int Length=6;  //mac address length in bytes (48 bit)
@@ -873,25 +897,19 @@ CWBool CWParseWTPRadioInformation(CWProtocolMessage *msgPtr, int len, int * radi
 	CWParseMessageElementEnd();							
 }
 
-CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, unsigned char *valPtr) {	
-
+CWBool CWParseWTPSupportedRates(CWProtocolMessage *msgPtr, int len, int * radioID, unsigned char **valPtr, int * valLen) {	
 	CWParseMessageElementStart();
-	int RadioID;
-	unsigned char sup_rates[8];
+	(*valLen)=0;
+	(*radioID) = CWProtocolRetrieve8(msgPtr);		
+	int index=0;
+	for(index=0; index < CW_80211_MAX_SUPP_RATES; index++)
+	{
+		(*valPtr)[index] = CWProtocolRetrieve8(msgPtr);
+		(*valLen)++;
+		if(((msgPtr->offset) - oldOffset) == len)
+			break;
+	}
 	
-	RadioID = CWProtocolRetrieve8(msgPtr);		
-	
-	sup_rates[0] = CWProtocolRetrieve8(msgPtr);
-	sup_rates[1] = CWProtocolRetrieve8(msgPtr);
-	sup_rates[2] = CWProtocolRetrieve8(msgPtr);
-	sup_rates[3] = CWProtocolRetrieve8(msgPtr);
-	sup_rates[4] = CWProtocolRetrieve8(msgPtr);
-	sup_rates[5] = CWProtocolRetrieve8(msgPtr);
-	sup_rates[6] = CWProtocolRetrieve8(msgPtr);
-	sup_rates[7] = CWProtocolRetrieve8(msgPtr);
-	
-	memcpy(valPtr, sup_rates, 8);
-
 	CWParseMessageElementEnd();							
 }
 
@@ -1016,7 +1034,7 @@ CWBool CWParseMsgElemDecryptErrorReport(CWProtocolMessage *msgPtr, int len, CWDe
 }
 
 /* Elena Agostini: 09/2914. IEEE Binding */
-CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char * valPtr)
+CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char ** valPtr)
 {	
 	CWParseMessageElementStart();
 	//Radio ID
@@ -1024,7 +1042,7 @@ CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int le
 	//WLAN ID
 	*wlanID = CWProtocolRetrieve8(msgPtr);
 	//BSSID
-	CW_COPY_MEMORY(valPtr, CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN), ETH_ALEN);	
+	CW_COPY_MEMORY((*valPtr), (unsigned char * ) CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN), ETH_ALEN);	
 
 	CWParseMessageElementEnd();
 }

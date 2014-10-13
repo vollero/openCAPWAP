@@ -372,31 +372,17 @@ CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int radio
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
 }
 
-CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr) {
+CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr, int radioID,char * suppRates, int lenSuppRates) {
 
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 9, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	
-	/*
-	 * Elena Agostini TODO: da rifare senza hostapd
-	 */
-	unsigned char tmp_sup_rate[8];
-	//CWWTP_get_WTP_Rates(tmp_sup_rate);
-	
-	int radioID = 0;
-	
+		
 	CWProtocolStore8(msgPtr, radioID); 
+	int index;
+	for(index=0; index<lenSuppRates; index++)
+		CWProtocolStore8(msgPtr, suppRates[index]);
 	
-	CWProtocolStore8(msgPtr, tmp_sup_rate[0]);
-	CWProtocolStore8(msgPtr, tmp_sup_rate[1]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[2]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[3]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[4]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[5]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[6]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[7]); 
-
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE);
 }
 
@@ -1073,6 +1059,31 @@ CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char
 	CWParseMessageElementEnd();  
 }
 /* ------------------------------------------------------------------------------------------ */
+
+/* +++++++++++++++++++++++++ Elena Agostini - 10/2014 IEEE BINDING +++++++++++++++++++++++++ */
+CWBool CWParse80211Station(CWProtocolMessage *msgPtr, int len, int * radioID, short int * assID, char * flags, char ** address, short int * capability, int * wlanID, int * supportedRatesLen, char ** supportedRates) 
+{
+	//CWParseMessageElementStart();	sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
+	/*--------------------------------------------------------------------------------------*/
+	int oldOffset;												
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
+	oldOffset = msgPtr->offset;
+	/*----------------------------------------------------------------------------------*/
+	
+	(*radioID) = CWProtocolRetrieve8(msgPtr);
+	(*assID) = CWProtocolRetrieve16(msgPtr);
+	(*flags) = CWProtocolRetrieve8(msgPtr);
+	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN);
+	(*capability) = CWProtocolRetrieve16(msgPtr);
+	(*wlanID) = CWProtocolRetrieve8(msgPtr);
+	
+	(*supportedRatesLen) = len-(1+2+1+ETH_ALEN+2+1);
+
+	CW_CREATE_ARRAY_CALLOC_ERR((*supportedRates), (*supportedRatesLen)+1, char,  return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_COPY_MEMORY((*supportedRates), (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, (*supportedRatesLen)), (*supportedRatesLen));
+	
+	CWParseMessageElementEnd();
+}
 
 /* +++++++++++++++++++++++++ Elena Agostini - 09/2014: NEW IEEE BINDING +++++++++++++++++++++++++ */
 CWBool CWParseACAddWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr) {

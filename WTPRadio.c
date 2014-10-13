@@ -46,6 +46,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		//Bitrate array
 		CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyMbpsSet, WTP_NL80211_BITRATE_NUM, float, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		
+
 		//Info about all phy info
 		if(nl80211CmdGetPhyInfo(indexPhy, &(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo)) == CW_FALSE)
 		{
@@ -85,7 +86,13 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_G;
 		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardN == CW_TRUE)
 			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyStandardValue += PHY_STANDARD_N;
-
+	
+		
+		CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.supportedRates, gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.lenSupportedRates, float, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		int indexRates;
+		for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.lenSupportedRates; indexRates++)
+			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.supportedRates[indexRates] = (char) mapSupportedRatesValues(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+			
 		if(!CWWTPInitBinding(indexPhy)) {return CW_FALSE;}
 
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.numInterfaces=0;
@@ -224,31 +231,13 @@ CWBool CWWTPDeleteWLANAPInterface(int radioIndex, int wlanIndex)
 	return CW_TRUE;
 }
 
-CWBool CWWTPAddNewStation(int radioID, char * macAddr)
+CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 {
-	if(macAddr == NULL)
+	if(BSSIndex < 0 || BSSIndex > (WTP_RADIO_MAX*WTP_MAX_INTERFACES) || STAIndex < 0 || STAIndex > WTP_MAX_STA)
 		return CW_FALSE;
 		
-	int radioIndex = CWIEEEBindingGetIndexFromDevID(radioID);
-	int startBSSIndex = getBSSIndex(radioIndex, 0);
-	int indexIface=0, indexSTA=0;
-	
-	for(indexIface=0; indexIface < WTP_MAX_INTERFACES; indexIface++)
-	{
-		for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
-		{				
-			if(
-				(WTPGlobalBSSList[startBSSIndex+indexIface]->staList[indexSTA].address != NULL) && 
-				(!strcmp(WTPGlobalBSSList[startBSSIndex+indexIface]->staList[indexSTA].address, macAddr))
-			)
-			{
-				if(nl80211CmdNewStation(WTPGlobalBSSList[startBSSIndex+indexIface], WTPGlobalBSSList[startBSSIndex+indexIface]->staList[indexSTA]))
-					return CW_TRUE;
-				
-				return CW_FALSE;
-			}
-		}
-	}
-	
-	return CW_FALSE;
+	if(!nl80211CmdNewStation(WTPGlobalBSSList[BSSIndex], WTPGlobalBSSList[BSSIndex]->staList[STAIndex]))
+		return CW_FALSE;
+		
+	return CW_TRUE;
 }

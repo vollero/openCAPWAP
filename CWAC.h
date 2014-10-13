@@ -305,11 +305,8 @@ CWBool CWAssembleConfigurationUpdateRequest(CWProtocolMessage **messagesPtr,
 						int seqNum,
 						int msgElement);
 
-CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr,
-					     int *fragmentsNumPtr,
-					     int PMTU, int seqNum,
-					     unsigned char* StationMacAddr,
-					     int Operation); 
+CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, int *fragmentsNumPtr, int PMTU, int seqNum, CWFrameAssociationResponse associationResponse, int WTPIndex, int Operation);
+
 
 CWBool CWAssembleClearConfigurationRequest(CWProtocolMessage **messagesPtr,
 					   int *fragmentsNumPtr, int PMTU,

@@ -110,7 +110,7 @@ CWBool CWAssembleMsgElemWTPFrameTunnelMode(CWProtocolMessage *msgPtr);			//38
 CWBool CWAssembleMsgElemWTPIPv4Address(CWProtocolMessage *msgPtr);			//39
 CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr);				//40
 CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int radioID, char radioType); //1048
-CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr);					//1040
+CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr, int radioID,char * suppRates, int lenSuppRates);				//1040
 CWBool CWAssembleMsgElemMACOperation(CWProtocolMessage *msgPtr, int radioID, int fragmentationTreshold, int rtsThreshold, char shortRetry, char longRetry, int txMSDU, int rxMSDU); //1030
 CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower);					//1032
 CWBool CWAssembleMsgElemWTPName(CWProtocolMessage *msgPtr);				//41
@@ -131,6 +131,7 @@ CWBool CWParseACDescriptor(CWProtocolMessage *msgPtr, int len, CWACInfoValues *v
 CWBool CWParseACIPv4List(CWProtocolMessage *msgPtr, int len, ACIPv4ListValues *valPtr);					// 2
 CWBool CWParseACIPv6List(CWProtocolMessage *msgPtr, int len, ACIPv6ListValues *valPtr);					// 3
 CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address);
+CWBool CWParse80211Station(CWProtocolMessage *msgPtr, int len, int * radioID, short int * assID, char * flags, char ** address, short int * capability, int * wlanID, int * supportedRatesLen, char ** supportedRates);
 CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len);								// 18
 CWBool CWParseCWControlIPv4Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv4NetworkInterface *valPtr);	//10 
 CWBool CWParseCWControlIPv6Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv6NetworkInterface *valPtr);	//11 

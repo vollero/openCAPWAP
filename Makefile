@@ -41,7 +41,7 @@ INC_PATH = /usr/include/libnl3
 
 CFLAGS =  -Wall -g -O0 -D_REENTRANT  
 CFLAGS += -DCW_NO_DTLS -DCW_NO_DTLSCWParseConfigurationUpdateRequest
-CFLAGS += -DCONFIG_ELOOP_SELECT
+CFLAGS += -DSPLIT_MAC
 
 #DTLS Data Channel
 # CFLAGS += -DCW_DTLS_DATA_CHANNEL
@@ -73,7 +73,7 @@ AC_OBJS = AC.o ACConfigFile.o ACMainLoop.o ACDiscoveryState.o ACJoinState.o \
 	CWLog.o ACMultiHomedSocket.o ACProtocol.o CWSafeList.o CWNetwork.o CWProtocol.o \
 	CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsAC.o \
 	ACBinding.o ACInterface.o ACSettingsFile.o timerlib.o tap.o \
-	ACIEEEConfigurationState.o \
+	ACIEEEConfigurationState.o CW80211InformationElements.o \
 	./HostapdHeaders/utils/eloop.o ./HostapdHeaders/utils/os_unix.o
 
 # list of generated object files for WTP.

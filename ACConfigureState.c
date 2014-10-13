@@ -41,7 +41,7 @@ CWBool CWAssembleConfigureResponse(CWProtocolMessage **messagesPtr,
 CWBool CWParseConfigureRequestMessage(char *msg,
 				      int len,
 				      int *seqNumPtr,
-				      CWProtocolConfigureRequestValues *valuesPtr, char*, char*, char*);
+				      CWProtocolConfigureRequestValues *valuesPtr, char*, char*);
 
 CWBool CWSaveConfigureRequestMessage(CWProtocolConfigureRequestValues *configureRequest,
 				     CWWTPProtocolManager *WTPProtocolManager);
@@ -66,7 +66,6 @@ CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
 										&seqNum, 
 										&configureRequest,
 										&tmp_RadioInformationABGN,
-										tmp_SuppRates,
 										tmp_MultiDomCapa))) {
 		/* note: we can kill our thread in case of out-of-memory 
 		 * error to free some space.
@@ -128,12 +127,13 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 				      int *seqNumPtr,
 				      CWProtocolConfigureRequestValues *valuesPtr,
 				      char *tmp_RadioInformationABGN,
-				      char *tmp_SuppRates,
 				      char *tmp_MultiDomCapa) {
 
 	CWControlHeaderValues controlVal;
 	int i,j;
 	int offsetTillMessages;
+	char * tmpSuppRates;
+	int radioID, rateLen, indexRadio;
 	
 	CWProtocolMessage completeMsg;
 	
@@ -249,8 +249,17 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 				break;
 			
 			case CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE:
-				if(!(CWParseWTPSupportedRates(&completeMsg, elemLen, tmp_SuppRates)))return CW_FALSE;
-				break;	
+				
+				CW_CREATE_ARRAY_CALLOC_ERR(tmpSuppRates, CW_80211_MAX_SUPP_RATES, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				if(!(CWParseWTPSupportedRates(&completeMsg, elemLen, &(radioID), &(tmpSuppRates), &(rateLen))))
+					break;	
+				
+				indexRadio = CWIEEEBindingGetIndexFromDevID(radioID);
+				valuesPtr->phyFrequencyInfo[indexRadio].lenSupportedRates = rateLen;
+				CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->phyFrequencyInfo[indexRadio].supportedRates, rateLen+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				CW_COPY_MEMORY(valuesPtr->phyFrequencyInfo[indexRadio].supportedRates, tmpSuppRates, rateLen);
+	
+				break;
 				
 			default:
 				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element");
@@ -404,6 +413,12 @@ CWBool CWSaveConfigureRequestMessage (CWProtocolConfigureRequestValues *configur
 				CW_CREATE_ARRAY_CALLOC_ERR(WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyFrequencyInfo.frequencyList, 1, PhyFrequencyInfoList, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].frequency = configureRequest->phyFrequencyInfo[i].firstChannel;
 				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower = configureRequest->phyFrequencyInfo[i].maxTxPower;
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.lenSupportedRates = configureRequest->phyFrequencyInfo[i].lenSupportedRates;
+				
+				CW_CREATE_ARRAY_CALLOC_ERR(WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates, configureRequest->phyFrequencyInfo[i].lenSupportedRates+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				CW_COPY_MEMORY(WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates, configureRequest->phyFrequencyInfo[i].supportedRates, configureRequest->phyFrequencyInfo[i].lenSupportedRates);
+				
+				CWLog("Dentro CWSaveConfigureRequestMessage: %d - %d", WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates[0], WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates[7]);
 				
 				break;
 			}
