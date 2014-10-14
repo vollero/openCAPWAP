@@ -1345,29 +1345,30 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
 
 /* CW80211ManagementFrame.c */
-char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameProbeRequest *request, int *offset);
-char * CW80211AssembleAuthResponse(char * addrAP, struct CWFrameAuthRequest *request, int *offset);
-char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
-char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
 int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
 WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 CWBool CWSendFrameMgmtFromWTPtoAC(char * frameReceived, int len);
 
-CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest);
-CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest);
-CWBool CW80211ParseAssociationRequest(char * frame, struct CWFrameAssociationRequest * assocRequest);
-
 CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg);
 typedef void (*cw_sock_handler)(void *cb, void *handle);
 void CW80211ManagementFrameEvent(struct nl_handle **handle, cw_sock_handler handler, void * cb);
-
 
 int ieee80211_frequency_to_channel(int freq);
 
 
 /* CW80211InformationElements.c */
+char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameProbeRequest *request, int *offset);
+char * CW80211AssembleAuthResponse(char * addrAP, struct CWFrameAuthRequest *request, int *offset);
+char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
+char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
+char * CW80211AssembleBeacon(WTPBSSInfo * WTPBSSInfoPtr, int *offset);
+
+CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest);
+CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest);
+CWBool CW80211ParseAssociationRequest(char * frame, struct CWFrameAssociationRequest * assocRequest);
+
 CWBool CW80211AssembleIEFrameControl(char * frame, int * offset, int frameType, int frameSubtype);
 CWBool CW80211AssembleIEDuration(char * frame, int * offset, int value);
 CWBool CW80211AssembleIEAddr(char * frame, int * offset, char * value);

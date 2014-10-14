@@ -519,6 +519,52 @@ ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
 /* ----------------------------------------------- */
 
 /* +++++++++++++++++++++ ASSEMBLE +++++++++++++++++++++++ */
+//Genera beacon frame
+char * CW80211AssembleBeacon(WTPBSSInfo * WTPBSSInfoPtr, int *offset) {
+
+	char * beaconFrame;
+	CW_CREATE_ARRAY_CALLOC_ERR(beaconFrame, (MGMT_FRAME_FIXED_LEN_BEACON+MGMT_FRAME_IE_FIXED_LEN+strlen(WTPBSSInfoPtr->interfaceInfo->SSID)+1), char, { CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;}); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	(*offset)=0;
+	
+	//frame control: 2 byte
+	if(!CW80211AssembleIEFrameControl(&(beaconFrame[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_BEACON))
+		return NULL;
+	
+	//duration: 2 byte
+	if(!CW80211AssembleIEDuration(&(beaconFrame[(*offset)]), offset, 0))
+		return NULL;
+	
+	//da: 6 byte. Broadcast
+	if(!CW80211AssembleIEAddr(&(beaconFrame[(*offset)]), offset, NULL))
+			return NULL;
+	
+	//sa: 6 byte
+	if(!CW80211AssembleIEAddr(&(beaconFrame[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->MACaddr))
+			return NULL;
+
+	//bssid: 6 byte
+	if(!CW80211AssembleIEAddr(&(beaconFrame[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->BSSID))
+			return NULL;
+	
+	//2 (sequence ctl) + 8 (timestamp): vengono impostati in automatico
+	(*offset) += LEN_IE_SEQ_CTRL;
+	(*offset) += LEN_IE_TIMESTAMP;
+	
+	//beacon interval: 2 byte
+	if(!CW80211AssembleIEBeaconInterval(&(beaconFrame[(*offset)]), offset, 100))
+			return NULL;
+	
+	//capability: 2 byte
+	if(!CW80211AssembleIECapability(&(beaconFrame[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
+			return NULL;
+			
+	//SSID
+	if(!CW80211AssembleIESSID(&(beaconFrame[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->SSID))
+		return NULL;
+	
+	return beaconFrame;
+}
+
 //Genera probe response
 char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFrameProbeRequest *request, int *offset)
 {

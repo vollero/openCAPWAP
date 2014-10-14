@@ -62,6 +62,10 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			return CW_FALSE;
 		}
 		
+		/*
+		 * Retrocompatibilita. Da eliminare questo radioID in tutto il codice.
+		 * il vero radioID sta nelle phyInfo
+		 */
 		gRadiosInfo.radiosInfo[indexPhy].radioID = CWIEEEBindingGetIndexFromDevID(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID);
 		/* gRadiosInfo.radiosInfo[i].numEntries = 0; */
 		gRadiosInfo.radiosInfo[indexPhy].decryptErrorMACAddressList = NULL;
@@ -117,9 +121,11 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 
 CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * interfaceInfo)
 {
-	//Create ifname: WTPWlan+radioID+wlanID
+	pid_t wtpPid = getpid();
+	
+	//Create ifname: WTPWlan+radioID+wlanID+WTPpid
 	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	snprintf(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, radioID, wlanID);
+	snprintf(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+sizeof(pid_t)+1), "%s%d%d%d", WTP_NAME_WLAN_PREFIX, radioID, wlanID, wtpPid);
 	
 	if(!nl80211CmdSetNewInterface(radioID, &(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID])))
 		return CW_FALSE;
@@ -172,7 +178,11 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 {    
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
-		
+	
+	//BSSID == AP Address
+	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_COPY_MEMORY(interfaceInfo->BSSID, interfaceInfo->MACaddr, ETH_ALEN);
+	
 	if(!ioctlActivateInterface(interfaceInfo->ifName))
 		return CW_FALSE;
 	

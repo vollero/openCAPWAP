@@ -232,7 +232,7 @@ CWBool nl80211CmdGetChannelInterface(char * interface, int * channel){
  */
 CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	struct nl_msg *msg;
-
+	int offset=0;
 	int ifIndex = interfaceInfo->realWlanID;//if_nametoindex(ifName);
 		
 	struct ieee80211_mgmt *head = NULL;
@@ -250,69 +250,54 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_BEACON, 0);
 
 /* ***************** BEACON FRAME: DO IT BETTER ******************** */
-	char * headHomeMade;
-	CW_CREATE_ARRAY_CALLOC_ERR(headHomeMade, (MGMT_FRAME_FIXED_LEN_BEACON+2+strlen(interfaceInfo->SSID)+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	int offset=0;
+	char * beaconFrame;
+	CW_CREATE_ARRAY_CALLOC_ERR(beaconFrame, (MGMT_FRAME_FIXED_LEN_BEACON+MGMT_FRAME_IE_FIXED_LEN+strlen(interfaceInfo->SSID)+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	offset=0;
 	
 	//frame control: 2 byte
-	short int val = IEEE80211_FC(WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_BEACON);
-	CWLog("VAL BEACON: %d WLAN_FC_TYPE_MGMT: %d, WLAN_FC_STYPE_BEACON: %d", val, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_BEACON);
-	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 2);
-	offset += 2;
-
+	if(!CW80211AssembleIEFrameControl(&(beaconFrame[offset]), &(offset), WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_BEACON))
+		return CW_FALSE;
+	
 	//duration: 2 byte
-	val = host_to_le16(0);
-	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 2);
-	offset += 2;
+	if(!CW80211AssembleIEDuration(&(beaconFrame[offset]), &(offset), 0))
+		return CW_FALSE;
 	
-	//da: 6 byte
-	//val2 = htons(0xff);
-	memset(&(headHomeMade[offset]), 0xff, ETH_ALEN);
-	offset += ETH_ALEN;
+	//da: 6 byte. Broadcast
+	if(!CW80211AssembleIEAddr(&(beaconFrame[offset]), &(offset), NULL))
+			return CW_FALSE;
 	
-	//sa: 6 byte. TODO      
-	CW_COPY_MEMORY(&(headHomeMade[offset]), interfaceInfo->MACaddr, ETH_ALEN);
-	offset += ETH_ALEN;
-	
+	//sa: 6 byte
+	if(!CW80211AssembleIEAddr(&(beaconFrame[offset]), &(offset), interfaceInfo->MACaddr))
+			return CW_FALSE;
+
 	//bssid: 6 byte
-	//mac address phy + wlanId = bssid
-	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	CW_COPY_MEMORY(interfaceInfo->BSSID, interfaceInfo->MACaddr, ETH_ALEN);
-	CW_COPY_MEMORY(&(headHomeMade[offset]), interfaceInfo->BSSID, ETH_ALEN);
-	offset += ETH_ALEN;
+	if(!CW80211AssembleIEAddr(&(beaconFrame[offset]), &(offset), interfaceInfo->BSSID))
+			return CW_FALSE;
 	
 	//2 (sequence ctl) + 8 (timestamp): vengono impostati in automatico
-	offset += 10;
+	offset += LEN_IE_SEQ_CTRL;
+	offset += LEN_IE_TIMESTAMP;
 	
 	//beacon interval: 2 byte
-	val = htons(host_to_le16(100));
-	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 2);
-	offset += 2;
+	if(!CW80211AssembleIEBeaconInterval(&(beaconFrame[offset]), &(offset), 100))
+			return CW_FALSE;
 	
 	//capability: 2 byte
-	val = interfaceInfo->capabilityBit;
-	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 2);
-	offset += 2;
-	
-	//SSID: 6 byte
-	val=0;
-	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 1);
-	offset += 1;
-	val=strlen(interfaceInfo->SSID);
-	CW_COPY_MEMORY(&(headHomeMade[offset]), &(val), 1);
-	offset += 1;
-	CW_COPY_MEMORY(&(headHomeMade[offset]), interfaceInfo->SSID, strlen(interfaceInfo->SSID));
-	offset += strlen(interfaceInfo->SSID);
-
+	if(!CW80211AssembleIECapability(&(beaconFrame[offset]), &(offset), interfaceInfo->capabilityBit))
+			return CW_FALSE;
+			
+	//SSID
+	if(!CW80211AssembleIESSID(&(beaconFrame[offset]), &(offset), interfaceInfo->SSID))
+		return CW_FALSE;
 /* *************************************************** */
 	
-	NLA_PUT(msg, NL80211_ATTR_BEACON_HEAD, offset+1, headHomeMade);
+	NLA_PUT(msg, NL80211_ATTR_BEACON_HEAD, offset, beaconFrame);
 	//NLA_PUT(msg, NL80211_ATTR_BEACON_TAIL, NULL, params->tail);	
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, ifIndex);
 	NLA_PUT_U32(msg, NL80211_ATTR_BEACON_INTERVAL, 1);
 	NLA_PUT_U32(msg, NL80211_ATTR_DTIM_PERIOD, 1);
 	
-	NLA_PUT(msg, NL80211_ATTR_SSID, strlen(interfaceInfo->SSID)+1, interfaceInfo->SSID);
+	NLA_PUT(msg, NL80211_ATTR_SSID, strlen(interfaceInfo->SSID), interfaceInfo->SSID);
 	if(interfaceInfo->authType == NL80211_AUTHTYPE_OPEN_SYSTEM)
 		NLA_PUT_U32(msg, NL80211_ATTR_AUTH_TYPE, NL80211_AUTHTYPE_OPEN_SYSTEM);
 	//TODO: else
