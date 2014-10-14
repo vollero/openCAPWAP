@@ -193,10 +193,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	struct sockaddr_ll 	rawSockaddr;	
 	CWSocket 		sockDTLS = (CWSocket)arg;
 	CWNetworkLev4Address	addr;
-	CWList 			fragments = NULL;
-	CWProtocolMessage 	msgPtr;
-	CWBool 			dataFlag = CW_TRUE;
-	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
 	char* 			pData;
 	
 	CWLog("++++++++++++++++++++++++++ AVVIO THREAD CWWTPReceiveDataPacket");
@@ -244,15 +240,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
  CW_THREAD_RETURN_TYPE CWWTPManageDataPacket(void *arg) {
 	
 	int 			n,readBytes;
-	char 			buf[CW_BUFFER_SIZE];
 	struct sockaddr_ll 	rawSockaddr;	
-	CWNetworkLev4Address	addr;
-	CWList 			fragments = NULL;
 	CWProtocolMessage 	msgPtr;
-	CWBool 			dataFlag = CW_TRUE;
 	CWBool			gWTPDataChannelLocalFlag = CW_FALSE;
 	CWBool			gWTPExitRunEchoLocal = CW_FALSE;
-	int k, msg_len;
+	int msg_len;
 	int gWTPThreadDataPacketStateLocal=0;
 	CWBool bReceivePacket;
 
@@ -371,21 +363,27 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					n = sendto(gRawSock,msgPtr.msg ,msgPtr.offset,0,(struct sockaddr*)&rawSockaddr, sizeof(rawSockaddr));
 					
 				}else if(msgPtr.data_msgType == CW_IEEE_802_11_FRAME_TYPE) {
-
+				
+				CWLog("Frame CW_IEEE_802_11_FRAME_TYPE received from AC");
 #ifdef SPLIT_MAC
 					int offsetFrameReceived;
 					short int frameControl;
 					char * frameResponse=NULL;
 					u64 cookie_out;
 					
-					if(!CW80211ParseFrameIEControl(msgPtr->msg, &(offsetFrameReceived), &(frameControl)))
-						return CW_FALSE;
+					if(!CW80211ParseFrameIEControl(msgPtr.msg, &(offsetFrameReceived), &(frameControl)))
+						return NULL;
 					
 					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_AUTH)
 					{
+						CWLog("Ricevuto Subtype AUTH");
+						
 						struct CWFrameAuthResponse authResponse;
 						if(!CW80211ParseAuthResponse(msgPtr.msg, &authResponse))
-							return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+						{
+							CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+							return NULL;
+						}
 						
 						int radioIndex = 0, wlanIndex = 0, BSSIndex=0, trovato=0; 
 						for(radioIndex=0; radioIndex<WTP_RADIO_MAX; radioIndex++)
@@ -413,12 +411,16 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 									
 					}
 					
-					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_REQ)
+					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_RESP)
 					{
+						CWLog("Ricevuto da AC Association Response");
+						
 						struct CWFrameAssociationResponse assResponse;
 						if(!CW80211ParseAssociationResponse(msgPtr.msg, &assResponse))
-							return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
-						
+						{
+							CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+							return NULL;
+						}
 						int radioIndex = 0, wlanIndex = 0, BSSIndex=0, trovato=0; 
 						for(radioIndex=0; radioIndex<WTP_RADIO_MAX; radioIndex++)
 						{
@@ -439,39 +441,36 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 								break;
 						}
 						//Ok o ricalcolo?
-						int lenFrame = MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN*3+CW_80211_MAX_SUPP_RATES+1;
+						int lenFrame = MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN+CW_80211_MAX_SUPP_RATES+1;
 						if(trovato == 1)
 							if(!CW80211SendFrame(WTPGlobalBSSList[BSSIndex], 0, CW_FALSE, msgPtr.msg, lenFrame, &(cookie_out), 1,1))
 									CWLog("NL80211: Errore CW80211SendFrame");
-									
 					}
 #endif
-				}
 					//ELENA: questi sono frame dati
-					}else if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
+					if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
 											
-						if(  WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
+						if(  WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_NULLFUNC ){
 							
-							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
+							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(frameControl),msgPtr.offset);
 						//	CWWTPsend_data_to_hostapd(msgPtr.msg, msgPtr.offset);
 							
 						}else{
 							
-							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
+							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(frameControl),msgPtr.offset);
 							CWWTPSendFrame(msgPtr.msg, msgPtr.offset);
 							
 						}
 						
-					}else{
+					}
+					else {
 						//Management Frames: trova bss
 						//Invio
 /*						if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
 							CWLog("NL80211: Errore CW80211SendFrame");
 */
-						CWLog("Control/Unknow Type type=%d",WLAN_FC_GET_TYPE(fc));
+						CWLog("Control/Unknow Type type=%d",WLAN_FC_GET_TYPE(frameControl));
 					}
-				
-					
 				}else{
 					CWLog("Unknow data_msgType");
 				}
@@ -535,7 +534,6 @@ CWStateTransition CWWTPEnterRun() {
 
 	CW_REPEAT_FOREVER
 	{
-		struct timespec timenow;
 		CWBool bReceivePacket = CW_FALSE;
 		CWBool bReveiveBinding = CW_FALSE;
 		CWBool gWTPDataChannelLocalFlag = CW_FALSE;
@@ -1999,9 +1997,9 @@ CWBool CWParseConfigurationUpdateRequest (char *msg,
 
 CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, int * STAIndex) 
 {
-	int radioID, wlanID;
+	int radioID, wlanID, supportedRatesLen;
 	char * address;
-	short int assID, capability, supportedRatesLen;
+	short int assID, capability;
 	char flags;
 	char * supportedRates;
 	
@@ -2086,13 +2084,13 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, i
 	 * In caso di split mac riassegno alla STA i valori che l'AC mi invia.
 	 * In caso di Local MAC per ora  non faccio nulla, i valori li ha gia decisi in precedenza il WTP
 	 */
-	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].assID=(*assID);
-	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].flags=(*flags);
-	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].capability=(*capability);
-	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRatesLen=(*supportedRatesLen);
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].staAID=assID;
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].flags=flags;
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].capabilityBit=capability;
+	WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].lenSupportedRates=supportedRatesLen;
 	 
-	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, (*supportedRatesLen)+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
-	CW_COPY_MEMORY(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, (*supportedRates), (*supportedRatesLen));	 
+	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, supportedRatesLen+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+	CW_COPY_MEMORY(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, supportedRates, supportedRatesLen);	 
 #endif
 	
 	CWLog("Station Configuration Request Parsed");

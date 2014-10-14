@@ -958,12 +958,15 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			 {
 				int seqNum = CWGetSeqNum();
 				
-				CWLog("Assembling WLAN Configuration Request (op. %d)", gWTPs[i].cmdWLAN->typeCmd);
+				int radioIndex = CWIEEEBindingGetIndexFromDevID(gWTPs[i].cmdWLAN->radioID);					
+				int wlanIndex = CWIEEEBindingGetIndexFromDevID(gWTPs[i].cmdWLAN->wlanID);
+				
+				CWLog("Assembling WLAN Configuration Request (op. %d). tmpRadioID: %d tmpWlanID: %d", gWTPs[i].cmdWLAN->typeCmd,  radioIndex, wlanIndex);
 				
 				if(gWTPs[i].cmdWLAN->typeCmd == CW_OP_ADD_WLAN)
 				{
 					//Controlli su numero radio e numero interfaccia
-					if(!ACUpdateInfoWlanInterface(&(gWTPs[i].WTPProtocolManager).radiosInfo.radiosInfo[gWTPs[i].cmdWLAN->radioID].gWTPPhyInfo.interfaces[gWTPs[i].cmdWLAN->wlanID], gWTPs[i].cmdWLAN->wlanID, gWTPs[i].cmdWLAN->ssid))
+					if(!ACUpdateInfoWlanInterface(&(gWTPs[i].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex]), gWTPs[i].cmdWLAN->wlanID, gWTPs[i].cmdWLAN->ssid))
 						break;//return CW_FALSE;
 				}
 				

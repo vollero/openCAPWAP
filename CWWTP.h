@@ -290,6 +290,7 @@ void CWWTPNeighborDeadTimerExpired();
 void CWWTPHeartBeatTimerExpiredHandler(void *arg); 
 void CWWTPRetransmitTimerExpiredHandler(CWTimerArg arg);
 
+				   
 extern CWBool WTPExitOnUpdateCommit;
 
 #endif

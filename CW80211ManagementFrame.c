@@ -153,11 +153,11 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		
 		//Split MAC: invia auth ad AC ed attende il frame di risposta
 #ifdef SPLIT_MAC
+		frameResponse=NULL;
 		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
 			return;
-#endif
+#else
 		//Local MAC: invia direttamente auth a STA
-#ifndef SPLIT_MAC
 		frameResponse = CW80211AssembleAuthResponse(WTPBSSInfoPtr->interfaceInfo->MACaddr, &authRequest, &frameRespLen);
 #endif
 	}
@@ -208,6 +208,8 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		//Send Association Frame Response
 		if(!CWSendFrameMgmtFromWTPtoAC(frameResponse, frameRespLen))
 			return;
+#else
+		frameResponse = NULL;
 #endif
 	}
 	

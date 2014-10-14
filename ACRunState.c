@@ -282,16 +282,18 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			int offsetFrameReceived;
 			short int frameControl;
 			char * frameResponse=NULL;
-			int frameRespLen=0;
+			int frameRespLen=0, i=0;
 			CWProtocolMessage *completeMsgPtr = NULL;
 			CWProtocolMessage * msgFrame;
 			int fragmentsNum=0, dataSocket=0, k=0;
+			CWNetworkLev4Address address;
 					
 			if(!CW80211ParseFrameIEControl(msgPtr->msg, &(offsetFrameReceived), &(frameControl)))
 				return CW_FALSE;
 			
 			if(WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_MGMT)
 			{
+				
 				CWLog("CW80211: Management Frame Received");
 
 #ifdef SPLIT_MAC
@@ -316,8 +318,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 					frameResponse = CW80211AssembleAuthResponse(authRequest.DA, &authRequest, &frameRespLen);
 					
-					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, return 0;);
-					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, return 0;);
+					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE; });
+					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE; });
 					
 					memcpy(msgFrame->msg, frameResponse, frameRespLen);
 
@@ -408,6 +410,9 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							break;
 					}
 					
+					CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+					CW_COPY_MEMORY(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, assRequest.DA, ETH_ALEN);
+					
 					short int staAID;
 					CW80211SetAssociationID(&staAID);
 					
@@ -417,10 +422,10 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 																		staAID,
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.supportedRates,
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.lenSupportedRates,
-																		&(assRequest), &(frameRespLen))
+																		&(assRequest), &(frameRespLen));
 					
-					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, return 0;);
-					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, return 0;);
+					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
+					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
 					
 					memcpy(msgFrame->msg, frameResponse, frameRespLen);
 
@@ -2127,7 +2132,7 @@ CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
 				}
 				
 				//... e decifrato il pacchetto dati lo mette sulla packetList ufficiale
-				CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return; });
+				CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return NULL; });
 				memcpy(pData, gWTPs[i].buf, readBytes);
 
 				CWLockSafeList(gWTPs[i].packetReceiveList);

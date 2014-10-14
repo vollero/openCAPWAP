@@ -355,10 +355,27 @@ CWBool ACEnterJoin(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterDataCheck(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag);
-//Elena Agostini: 09/2014. IEEE Binding (sub-state)
-CWBool ACEnterIEEEConfiguration(int WTPIndex, CWProtocolMessage *msgPtr);
+//Elena Agostini: 09/2014. IEEE Binding
+/* ACIEEEConfigurationState.c */
+CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr, int len, int WTPIndex);
+CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
+				   int *fragmentsNumPtr,
+				   int PMTU,
+				   int seqNum,
+				   int operation,
+				   int radioID,
+				   int wlanNum,
+				   int WTPIndex);
+CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID);
 
 
+CWBool CWSecurityInitSessionServerDataChannel(CWWTPManager* pWtp, 
+					CWNetworkLev4Address * address,
+				   CWSocket sock,
+				   CWSecurityContext ctx,
+				   CWSecuritySession *sessionPtr,
+				   int *PMTUPtr);
+				   
 CW_THREAD_RETURN_TYPE CWInterface(void* arg);
 /* void CWTimerExpiredHandler(int arg); */
 

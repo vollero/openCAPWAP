@@ -13,20 +13,6 @@
 #endif
 
 
-CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
-				      int len,
-				      int WTPIndex);
-				      
-CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
-				   int *fragmentsNumPtr,
-				   int PMTU,
-				   int seqNum,
-				   int operation,
-				   int radioID,
-				   int wlanNum,
-				   int WTPIndex);
-				   
-CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID);
 
 /*
 CWBool ACEnterIEEEConfiguration(int WTPIndex, CWProtocolMessage *msgPtr) {
@@ -82,12 +68,10 @@ CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 				      int WTPIndex) {
 
 	CWControlHeaderValues controlVal;
-	int i,j, index;
 	int offsetTillMessages;
 	CWProtocolMessage completeMsg;
 	
 	CWProtocolResultCode resultCode;
-	CWProtocolVendorSpecificValues *vendPtr;
 	int radioIDtmp, wlanIDtmp;
 	char * bssIDTmp;
 				
@@ -182,7 +166,7 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 				   int seqNum,
 				   int operation,
 				   int radioID,
-				   int wlanNum,
+				   int wlanID,
 				   int WTPIndex) {
 
 	CWProtocolMessage *msgElems = NULL;
@@ -194,14 +178,17 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 	if(messagesPtr == NULL || fragmentsNumPtr == NULL)
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
-	CWDebugLog("Assembling Configuration Response with operation %d, WTPIndex: %d, radioID: %d, wlanNum: %d", operation, WTPIndex, radioID, wlanNum);
+	int radioIndex = CWIEEEBindingGetIndexFromDevID(radioID);					
+	int wlanIndex = CWIEEEBindingGetIndexFromDevID(wlanID);
+				
+	CWDebugLog("Assembling Configuration Response with operation %d, WTPIndex: %d, radioID: %d, wlanID: %d", operation, WTPIndex, radioID, wlanID);
 	CW_CREATE_PROTOCOL_MSG_ARRAY_ERR(msgElems, MsgElemCount, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	//Add WLAN
 	if(operation == CW_OP_ADD_WLAN)
 	{		
 		if(
-			(!(CWAssembleMsgElemACAddWlan(radioID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanNum], &(msgElems[++k]))))
+			(!(CWAssembleMsgElemACAddWlan(radioID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex], &(msgElems[++k]))))
 		){
 			int i;
 			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
@@ -214,7 +201,7 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 	else if(operation == CW_OP_DEL_WLAN)
 	{
 		if(
-			(!(CWAssembleMsgElemACDelWlan(radioID, wlanNum, &(msgElems[++k]))))
+			(!(CWAssembleMsgElemACDelWlan(radioID, wlanID, &(msgElems[++k]))))
 		){
 			int i;
 			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
@@ -227,7 +214,7 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 	else if(operation == CW_OP_UPDATE_WLAN)
 	{
 		if(
-			(!(CWAssembleMsgElemACUpdateWlan(radioID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanNum], &(msgElems[++k]))))
+			(!(CWAssembleMsgElemACUpdateWlan(radioID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex], &(msgElems[++k]))))
 		){
 			int i;
 			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
