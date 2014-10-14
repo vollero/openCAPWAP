@@ -441,7 +441,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 								break;
 						}
 						//Ok o ricalcolo?
-						int lenFrame = MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN+CW_80211_MAX_SUPP_RATES+1;
+						int lenFrame = MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN+CW_80211_MAX_SUPP_RATES;
 						if(trovato == 1)
 							if(!CW80211SendFrame(WTPGlobalBSSList[BSSIndex], 0, CW_FALSE, msgPtr.msg, lenFrame, &(cookie_out), 1,1))
 									CWLog("NL80211: Errore CW80211SendFrame");

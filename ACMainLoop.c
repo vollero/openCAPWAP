@@ -961,7 +961,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 				int radioIndex = CWIEEEBindingGetIndexFromDevID(gWTPs[i].cmdWLAN->radioID);					
 				int wlanIndex = CWIEEEBindingGetIndexFromDevID(gWTPs[i].cmdWLAN->wlanID);
 				
-				CWLog("Assembling WLAN Configuration Request (op. %d). tmpRadioID: %d tmpWlanID: %d", gWTPs[i].cmdWLAN->typeCmd,  radioIndex, wlanIndex);
+				CWLog("Assembling WLAN Configuration Request (op. %d)", gWTPs[i].cmdWLAN->typeCmd);
 				
 				if(gWTPs[i].cmdWLAN->typeCmd == CW_OP_ADD_WLAN)
 				{
