@@ -828,6 +828,31 @@ char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short
 	
 	return frameAssociationResponse;
 }
+
+char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset) {
+	if(DA == NULL)
+		return NULL;
+		
+	CWLog("ACK response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
+	(*offset)=0;
+	/* ***************** PROBE RESPONSE FRAME FIXED ******************** */
+	char * frameACK;
+	CW_CREATE_ARRAY_CALLOC_ERR(frameACK, DATA_FRAME_FIXED_LEN_ACK+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	
+	//frame control: 2 byte
+	if(!CW80211AssembleIEFrameControl(&(frameACK[(*offset)]), offset, WLAN_FC_TYPE_DATA, WLAN_FC_STYPE_ACK))
+		return NULL;
+	
+	//duration: 2 byte
+	if(!CW80211AssembleIEDuration(&(frameACK[(*offset)]), offset, 0))
+		return NULL;
+	
+	//da: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, DA))
+		return NULL;
+	
+	return frameACK;
+}
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
 /* -------------------- PARSE -------------------- */

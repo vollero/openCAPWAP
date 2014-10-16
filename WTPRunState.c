@@ -448,7 +448,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					}
 #endif
 					//ELENA: questi sono frame dati
-					if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
+		/*			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
 											
 						if(  WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_NULLFUNC ){
 							
@@ -463,14 +463,16 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 						}
 						
 					}
+					
 					else {
 						//Management Frames: trova bss
 						//Invio
-/*						if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
+						if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
 							CWLog("NL80211: Errore CW80211SendFrame");
-*/
+
 						CWLog("Control/Unknow Type type=%d",WLAN_FC_GET_TYPE(frameControl));
 					}
+					*/
 				}else{
 					CWLog("Unknow data_msgType");
 				}
@@ -809,11 +811,13 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				}
 				CWLog("Station Configuration Request received");
 				
-				if(!CWParseStationConfigurationRequest((msgPtr->msg)+(msgPtr->offset), len, &BSSIndex, &STAIndex)) 
-					return CW_FALSE;
-				
-				if(!CWWTPAddNewStation(BSSIndex, STAIndex))
-					return CW_FALSE;
+				if(CWParseStationConfigurationRequest((msgPtr->msg)+(msgPtr->offset), len, &BSSIndex, &STAIndex))
+				{
+					if(!CWWTPAddNewStation(BSSIndex, STAIndex))
+						resultCode=CW_PROTOCOL_FAILURE;
+				}
+				else
+					resultCode=CW_PROTOCOL_FAILURE;
 				
 				if(!CWAssembleStationConfigurationResponse(&messages, &fragmentsNum, gWTPPathMTU, controlVal.seqNum, resultCode)) 
 					return CW_FALSE;
@@ -2068,6 +2072,8 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, i
 	if(wlanIndex < 0)
 		return CW_FALSE;
 	
+	int trovato=0;
+	
 	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
 	
 	for((*STAIndex)=0; (*STAIndex) < WTP_MAX_STA; (*STAIndex)++)
@@ -2076,9 +2082,14 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, i
 			(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address != NULL) && 
 			(!strcmp(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address, address))
 		)
+		{
+			trovato=1;
 			break;
+		}
 	}
-	
+	if(trovato == 0)
+		return CW_FALSE;
+
 #ifdef SPLIT_MAC
 	/*
 	 * In caso di split mac riassegno alla STA i valori che l'AC mi invia.

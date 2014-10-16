@@ -63,7 +63,7 @@ void CW80211EventReceive(void *cbPtr, void *handlePtr)
 	}
 }
 
-void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb)
+void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer)
 {
 	char * frameResponse = NULL;
 	WTPSTAInfo * thisSTA;
@@ -75,15 +75,15 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
 	
 	//union wpa_event_data data;
-	if(tb[NL80211_ATTR_FRAME])
-		frameLen = nla_len(tb[NL80211_ATTR_FRAME]);
-	else
+	if(!tb[NL80211_ATTR_FRAME])
 	{
 		CWLog("[NL80211] Unexpected frame");
+		CW80211HandleClass3Frame(WTPBSSInfoPtr, cmd, tb, frameBuffer);
 		return;
 	}
-	unsigned char frameReceived[frameLen+1];
 	
+	frameLen = nla_len(tb[NL80211_ATTR_FRAME]);
+	unsigned char frameReceived[frameLen+1];
 	CW_COPY_MEMORY(frameReceived, nla_data(tb[NL80211_ATTR_FRAME]), frameLen);
 	
 	if(!CW80211ParseFrameIEControl(frameReceived, &(offsetFrameReceived), &fc))
@@ -137,7 +137,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		thisSTA = findSTABySA(WTPBSSInfoPtr, authRequest.SA);
 		if(thisSTA)
 		{
-			if(thisSTA->state == CW_80211_STA_PROBE)
+			if(thisSTA->state == CW_80211_STA_PROBE || thisSTA->state == CW_80211_STA_ASSOCIATION)
 				thisSTA->state = CW_80211_STA_AUTH;
 			else
 			{
@@ -230,8 +230,35 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
-		if(!delSTABySA(WTPBSSInfoPtr, disassocRequest.SA))
-			CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
+		thisSTA = findSTABySA(WTPBSSInfoPtr, disassocRequest.SA);
+		
+		//Deauth elimina dal BSS la STA
+		if(WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DEAUTH)
+		{
+			if(thisSTA->radioAdd==CW_TRUE)
+			{
+				if(!nl80211CmdDelStation(WTPBSSInfoPtr, disassocRequest.SA))
+				{
+					CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
+					return;
+				}
+				
+				if(thisSTA)
+					thisSTA->radioAdd=CW_FALSE;
+			}
+			if(!delSTABySA(WTPBSSInfoPtr, disassocRequest.SA))
+				CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
+			
+		}
+		//Disassociation regredisce di stato
+		else
+		{
+			if(thisSTA)
+			{
+				if(thisSTA->state == CW_80211_STA_ASSOCIATION)
+					thisSTA->state = CW_80211_STA_AUTH;
+			}
+		}
 	}
 }
 
@@ -263,6 +290,40 @@ WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
 	}
 	
 	return NULL;
+}
+
+
+void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer)
+{
+	char * frameResponse = NULL;
+	WTPSTAInfo * thisSTA;
+	u64 cookie_out;
+	int frameRespLen=0, offsetFrameReceived=0;
+	short int fc, stateSTA = CW_80211_STA_OFF;
+	int frameLen;
+	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
+	
+	if(frameBuffer == NULL  || !tb[NL80211_ATTR_MAC])
+		return;
+	
+	if(!CW80211ParseFrameIEControl(frameBuffer, &(offsetFrameReceived), &fc))
+		return;
+	
+	/* +++ DATA +++ */
+	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA)
+	{
+		if(WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC)
+		{
+			CWLog("[80211] Pure frame null func");
+			frameResponse = CW80211AssembleACK(WTPBSSInfoPtr, tb[NL80211_ATTR_MAC], &frameRespLen);
+		}
+		else if(WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DATA)
+		{
+			CWLog("[80211] Pure frame data");
+		}
+	}
+
+	return;
 }
 
 WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {

@@ -1162,6 +1162,7 @@ CWBool CWParseStationConfigurationResponseMessage(CWProtocolMessage* msgPtr, int
 		switch(elemType) {
 			case CW_MSG_ELEMENT_RESULT_CODE_CW_TYPE:
 				*resultCode=CWProtocolRetrieve32(msgPtr);
+				CWLog("Result Code: %d", (*resultCode));
 				break;	
 			default:
 				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element in Station Configuration Response");

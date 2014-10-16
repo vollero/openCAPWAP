@@ -144,6 +144,9 @@ extern struct nl80211SocketUnit globalNLSock;
 
 #define CW_80211_MAX_SUPP_RATES 8
 
+/* ++++++++ IE Frame Data ++++++++++ */
+#define DATA_FRAME_FIXED_LEN_ACK 10
+
 enum {
 	CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME,
 	CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE
@@ -331,6 +334,8 @@ typedef struct WTPSTAInfo {
 	short int capabilityBit;
 	short int listenInterval;
 	short int flags;
+	
+	CWBool radioAdd;
 	
 	//Phy Attr
 	CWBool phyStandard2400MH; //802.11b/g
@@ -1325,7 +1330,10 @@ CWBool nl80211CmdSetInterfaceSTAType(char * interface);
 CWBool nl80211CmdSetChannelInterface(char * interface, int channel);
 CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo);
 CWBool nl80211CmdStopAP(char * ifName);
+CWBool nl80211CmdDelStation(WTPBSSInfo * infoBSS, char * macAddress);
 CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo);
+CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo);
+
 CWBool ioctlActivateInterface(char * interface);
 const char * nl80211_command_to_string(enum nl80211_commands cmd);
 
@@ -1340,7 +1348,7 @@ void nl80211_register_eloop_read(struct nl_handle **handle,
 					eloop_sock_handler handler,
 					void *eloop_data);
 void CW80211EventReceive(void *eloop_ctx, void *handle);
-void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb);
+void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer);
 int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
 
@@ -1350,6 +1358,7 @@ WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 CWBool CWSendFrameMgmtFromWTPtoAC(char * frameReceived, int len);
+void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer);
 
 CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg);
 typedef void (*cw_sock_handler)(void *cb, void *handle);
@@ -1364,6 +1373,7 @@ char * CW80211AssembleAuthResponse(char * addrAP, struct CWFrameAuthRequest *req
 char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
 char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
 char * CW80211AssembleBeacon(WTPBSSInfo * WTPBSSInfoPtr, int *offset);
+char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset);
 
 CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest);
 CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest);

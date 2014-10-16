@@ -121,11 +121,11 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 
 CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * interfaceInfo)
 {
-	pid_t wtpPid = getpid();
+	//pid_t wtpPid = getpid();
 	
 	//Create ifname: WTPWlan+radioID+wlanID+WTPpid
 	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	snprintf(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+sizeof(pid_t)+1), "%s%d%d%d", WTP_NAME_WLAN_PREFIX, radioID, wlanID, wtpPid);
+	snprintf(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, radioID, wlanID);
 	
 	if(!nl80211CmdSetNewInterface(radioID, &(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID])))
 		return CW_FALSE;
@@ -170,6 +170,7 @@ CWBool CWWTPCreateNewBSS(int radioIndex, int wlanIndex)
 	{
 		WTPGlobalBSSList[BSSId]->staList[indexSTA].state = CW_80211_STA_OFF;
 		WTPGlobalBSSList[BSSId]->staList[indexSTA].address = NULL;
+		WTPGlobalBSSList[BSSId]->staList[indexSTA].radioAdd = CW_FALSE;
 	}
 	return CW_TRUE;
 }
@@ -243,11 +244,26 @@ CWBool CWWTPDeleteWLANAPInterface(int radioIndex, int wlanIndex)
 
 CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 {
-	if(BSSIndex < 0 || BSSIndex > (WTP_RADIO_MAX*WTP_MAX_INTERFACES) || STAIndex < 0 || STAIndex > WTP_MAX_STA)
+	if(BSSIndex < 0 || BSSIndex >= (WTP_RADIO_MAX*WTP_MAX_INTERFACES) || STAIndex < 0 || STAIndex >= WTP_MAX_STA)
 		return CW_FALSE;
-		
-	if(!nl80211CmdNewStation(WTPGlobalBSSList[BSSIndex], WTPGlobalBSSList[BSSIndex]->staList[STAIndex]))
+	
+	if(WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address == NULL)
+	{
+		CWLog("[80211] This STA is no more in BSS. Probably it has send a Deauth/Disassoc frame");
 		return CW_FALSE;
+	}
+	
+	if(WTPGlobalBSSList[BSSIndex]->staList[STAIndex].radioAdd == CW_FALSE)
+	{
+		if(!nl80211CmdNewStation(WTPGlobalBSSList[BSSIndex], WTPGlobalBSSList[BSSIndex]->staList[STAIndex]))
+			return CW_FALSE;
+		WTPGlobalBSSList[BSSIndex]->staList[STAIndex].radioAdd = CW_TRUE;
+	}
+	else
+	{
+		if(!nl80211CmdSetStation(WTPGlobalBSSList[BSSIndex], WTPGlobalBSSList[BSSIndex]->staList[STAIndex]))
+			return CW_FALSE;
+	}
 		
 	return CW_TRUE;
 }

@@ -150,7 +150,7 @@ int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg)
 {
 	WTPBSSInfo * WTPBSSInfoPtr = arg;
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
-	
+	char * frameBuffer = nlmsg_data(nlmsg_hdr(msg));
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
 	int ifidx = -1;
 	
@@ -161,7 +161,7 @@ int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg)
 		ifidx = nla_get_u32(tb[NL80211_ATTR_IFINDEX]);
 
 		if (ifidx == -1 || ifidx == WTPBSSInfoPtr->interfaceInfo->realWlanID) {
-				CW80211EventProcess(WTPBSSInfoPtr, gnlh->cmd, tb);
+				CW80211EventProcess(WTPBSSInfoPtr, gnlh->cmd, tb, frameBuffer);
 				return NL_SKIP;
 		}
 		CWLog("nl80211: Ignored event (cmd=%d) for foreign interface (ifindex %d)", gnlh->cmd, ifidx);
