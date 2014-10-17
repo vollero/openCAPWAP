@@ -415,7 +415,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 					short int staAID;
 					CW80211SetAssociationID(&staAID);
-					
 					frameResponse = CW80211AssembleAssociationResponseAC(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, 
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID,
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit,
@@ -1947,7 +1946,10 @@ CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, in
 			return CW_FALSE; // error will be handled by the caller
 		}
 		
-		if (!(CWAssembleMsgElem80211Station(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].wlanID, &(msgElems[++k]), associationResponse)))   //radioID = 1 -valore predefinito-
+		if (!(CWAssembleMsgElem80211Station(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, 
+											gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].wlanID, 
+											&(msgElems[++k]), 
+											associationResponse)))
 		{
 			CWErrorHandleLast();
 			int i;

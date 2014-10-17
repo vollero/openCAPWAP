@@ -78,6 +78,10 @@
 #define IF_OPER_UP 6
 #endif
 
+#ifndef BIT0
+#define BIT0(x) (0 << (x))
+#endif
+
 //Netlink socket
 typedef struct nl80211SocketUnit {
 	struct nl_sock *nl_sock;
@@ -1353,7 +1357,7 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
 
 /* CW80211ManagementFrame.c */
-int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
+CWBool CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
 WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
 CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);

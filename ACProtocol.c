@@ -387,7 +387,11 @@ CWBool CWAssembleMsgElem80211Station(int radioID, int wlanID, CWProtocolMessage 
 	//RadioID
 	CWProtocolStore8(msgPtr, radioID);
 	//Ass ID
-	CWProtocolStore16(msgPtr, associationResponse.assID);
+	short int valueAssID = associationResponse.assID;
+	valueAssID |= BIT0(14);
+	valueAssID |= BIT0(15);
+	
+	CWProtocolStore16(msgPtr, valueAssID);
 	//Flags
 	CWProtocolStore8(msgPtr, 0);
 	//Station MAC Address

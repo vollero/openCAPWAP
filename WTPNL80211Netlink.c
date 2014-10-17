@@ -229,7 +229,6 @@ int nl80211_send_recv_cb_input(struct nl80211SocketUnit *nlSockUnit,
 
 	while (err > 0) {
 		int res = nl_recvmsgs(nlSockUnit->nl_sock, cb);
-		CWLog("nl_recvmsgs res: %d err: %d", res, err);
 		if (res < 0) {
 			CWLog("nl80211: %s->nl_recvmsgs failed: %d", __func__, res);
 		}

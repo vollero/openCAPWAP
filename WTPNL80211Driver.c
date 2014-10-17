@@ -245,13 +245,11 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	if (!msg)
 		return CW_FALSE;
 	
-	CWLog("page size: %d", getpagesize());
-	
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_BEACON, 0);
 
 /* ***************** BEACON FRAME: DO IT BETTER ******************** */
 	char * beaconFrame;
-	CW_CREATE_ARRAY_CALLOC_ERR(beaconFrame, (MGMT_FRAME_FIXED_LEN_BEACON+MGMT_FRAME_IE_FIXED_LEN+strlen(interfaceInfo->SSID)+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(beaconFrame, (MGMT_FRAME_FIXED_LEN_BEACON+MGMT_FRAME_IE_FIXED_LEN+strlen(interfaceInfo->SSID)+IE_TYPE_DSSS+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	offset=0;
 	
 	//frame control: 2 byte
@@ -289,6 +287,11 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	//SSID
 	if(!CW80211AssembleIESSID(&(beaconFrame[offset]), &(offset), interfaceInfo->SSID))
 		return CW_FALSE;
+		
+	//DSSS
+	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
+	if(!CW80211AssembleIEDSSS(&(beaconFrame[offset]), &(offset), channel))
+		return CW_FALSE;
 /* *************************************************** */
 	
 	NLA_PUT(msg, NL80211_ATTR_BEACON_HEAD, offset, beaconFrame);
@@ -322,7 +325,8 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
 	
-	CWLog("NL80211_CMD_NEW_STATION");
+	CWLog("NL80211_CMD_NEW_STATION. WLanID: %d, MacAddr[0](%02x) - MacAddr[5](%02x)", infoBSS->interfaceInfo->realWlanID, (int)staInfo.address[0], (int)staInfo.address[5]);
+	
 	
 	msg = nlmsg_alloc();
 	if (!msg)
@@ -341,12 +345,20 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 		lenRates = CW_80211_MAX_SUPP_RATES;
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, infoBSS->phyInfo->phyMbpsSet);
 	
+	CWLog("lenRates: %d", lenRates);
+	int i;
+	for(i=0; i<lenRates; i++)
+		CWLog("Rate[%d]: %f", i, infoBSS->phyInfo->phyMbpsSet[i]);
+	
 	/* Association ID */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
+	CWLog("staInfo.staAID: %x", staInfo.staAID);
 	/* Listen Interval */
-	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);		    
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);	
+	CWLog("staInfo.listenInterval: %x", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
+	CWLog("staInfo.capabilityBit: %d", staInfo.capabilityBit);
 
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	CWLog("ret: %d", ret);
@@ -727,7 +739,7 @@ void nl80211_register_eloop_read(struct nl_handle **handle,
 */
 
 
-int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack)
+CWBool CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack)
 {
 	struct nl_msg *msg;
 	u64 cookie;
@@ -745,13 +757,14 @@ int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int
 	//Frame da inviare
 	NLA_PUT(msg, NL80211_ATTR_FRAME, buf_len, buf);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
+	NLA_PUT_FLAG(msg, NL80211_ATTR_DONT_WAIT_FOR_ACK);
 	
 	/*
 	NLA_PUT_FLAG(msg, NL80211_ATTR_TX_NO_CCK_RATE);
 	//int channel = 2417;
 	//NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, channel);
 	
-	NLA_PUT_FLAG(msg, NL80211_ATTR_DONT_WAIT_FOR_ACK);
+	
 	*/
 	/*
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
@@ -790,7 +803,7 @@ int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int
 	cookie = 0;
 //	ret = send_and_recv(&(globalNLSock), interfaceInfo->nl_mgmt, msg, CB_cookieHandler, &cookie);
 	
-	ret = nl80211_send_recv_cb_input(&(WTPBSSInfoPtr->BSSNLSock), msg, CB_cookieHandler, &cookie);
+	ret = nl80211_send_recv_cb_input(&(WTPBSSInfoPtr->BSSNLSock), msg, NULL, NULL); //CB_cookieHandler, &cookie);
 //	ret = send_and_recv(drv, msg, CB_cookieHandler, &cookie);
 	
 	msg = NULL;
@@ -801,9 +814,12 @@ int CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int
 	}
 	CWLog("nl80211: Frame TX command accepted%s; cookie 0x%llx", no_ack ? " (no ACK)" : "", (long long unsigned int) cookie);
 
-	if (cookie_out)
+	/*if (cookie_out)
 		*cookie_out = no_ack ? (u64) -1 : cookie;
-
+	*/
+	
+	return CW_TRUE;
+	
 nla_put_failure:
 	nlmsg_free(msg);
 	return ret;
