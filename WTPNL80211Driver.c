@@ -327,7 +327,6 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	
 	CWLog("NL80211_CMD_NEW_STATION. WLanID: %d, MacAddr[0](%02x) - MacAddr[5](%02x)", infoBSS->interfaceInfo->realWlanID, (int)staInfo.address[0], (int)staInfo.address[5]);
 	
-	
 	msg = nlmsg_alloc();
 	if (!msg)
 		return CW_FALSE;
@@ -344,21 +343,13 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	else
 		lenRates = CW_80211_MAX_SUPP_RATES;
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, infoBSS->phyInfo->phyMbpsSet);
-	
-	CWLog("lenRates: %d", lenRates);
-	int i;
-	for(i=0; i<lenRates; i++)
-		CWLog("Rate[%d]: %f", i, infoBSS->phyInfo->phyMbpsSet[i]);
-	
+		
 	/* Association ID */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
-	CWLog("staInfo.staAID: %x", staInfo.staAID);
 	/* Listen Interval */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);	
-	CWLog("staInfo.listenInterval: %x", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
-	CWLog("staInfo.capabilityBit: %d", staInfo.capabilityBit);
 
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	CWLog("ret: %d", ret);

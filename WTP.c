@@ -694,14 +694,14 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	}
 #endif
-*/
+
 
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
 		CWLog("Error starting Thread that receive binding frame");
 		exit(1);
 	}
-
+*/
 
 	CWThread thread_receiveStats;
 	if(!CWErr(CWCreateThread(&thread_receiveStats, CWWTPReceiveStats, NULL))) {
