@@ -95,7 +95,7 @@ CWBool CWAssembleIEEEConfigurationResponse(CWProtocolMessage **messagesPtr,
 
 	CWProtocolMessage 	*msgElems= NULL;
 	CWProtocolMessage 	*msgElemsBinding= NULL;
-	const int 		msgElemCount = 9;
+	const int 		msgElemCount = 2;
 	const int 		msgElemBindingCount=0;
 	int k = -1;
 	
@@ -106,7 +106,7 @@ CWBool CWAssembleIEEEConfigurationResponse(CWProtocolMessage **messagesPtr,
 					 msgElemCount,
 					 return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
 		
-	CWDebugLog("Assembling IEEE onfiguration Response...");
+	CWDebugLog("Assembling IEEE configuration Response...");
 	if(bssid == NULL)
 	{
 		if((!(CWAssembleMsgElemResultCode(&(msgElems[++k]), resultCode))))

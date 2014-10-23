@@ -869,8 +869,8 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 					if(interfaceACInfo.operation == CW_OP_ADD_WLAN)
 					{
 						if(
-							(wlanIDsend < WTP_MAX_INTERFACES) &&
-							(radioIDsend < WTP_RADIO_MAX)
+							(wlanIDindex < WTP_MAX_INTERFACES) &&
+							(radioIDindex < WTP_RADIO_MAX)
 						)
 						{
 							CW_CREATE_ARRAY_CALLOC_ERR(bssidAssigned, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
@@ -2074,11 +2074,16 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, i
 	
 	int trovato=0;
 	
+	CWLog("radioIndex: %d, radioID: %d", radioIndex, radioID);
+	CWLog("wlanIndex: %d, wlanID: %d", wlanIndex, wlanID);
+
 	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
 	
 	for((*STAIndex)=0; (*STAIndex) < WTP_MAX_STA; (*STAIndex)++)
-	{				
+	{
+		CWLog("BSSIndex: %d, STAIndex: %d", (*BSSIndex), (*STAIndex));
 		if(
+			(WTPGlobalBSSList[(*BSSIndex)] != NULL) &&
 			(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address != NULL) && 
 			(!strcmp(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address, address))
 		)

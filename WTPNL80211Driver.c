@@ -336,7 +336,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
-	/* SUPPORTED RATES */
+	/* SUPPORTED RATES */9
 	int lenRates=0;
 	if(infoBSS->phyInfo->lenSupportedRates < CW_80211_MAX_SUPP_RATES)
 		lenRates = infoBSS->phyInfo->lenSupportedRates;
@@ -350,7 +350,16 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);	
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
-
+	
+	struct nl80211_sta_flag_update flags;
+	os_memset(&flags, 0, sizeof(flags));
+	
+//	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+//	flags.mask |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
+//	flags.set = flags.mask;
+//	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
+//	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
+	
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	CWLog("ret: %d", ret);
 	if( ret != 0)
@@ -373,7 +382,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	if (!msg)
 		return CW_FALSE;
 	
-	CWLog("NL80211_CMD_SET_STATION");
+	CWLog("NL80211_CMD_SET_STATION. WLanID: %d, MacAddr[0](%02x) - MacAddr[4](%02x)", infoBSS->interfaceInfo->realWlanID, (int)staInfo.address[0], (int)staInfo.address[4]);
 	genlmsg_put(msg, 0, 0, infoBSS->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_STATION, 0);
 	/* WLAN ID */
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);

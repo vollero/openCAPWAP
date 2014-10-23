@@ -1275,6 +1275,14 @@ typedef struct CWFrameDeauthDisassociationRequest {
 	
 } CWFrameDeauthDisassociationRequest;
 
+typedef struct CWFrameDataHdr {
+	short int frameControl;
+	short int duration;
+	unsigned char DA[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char BSSID[ETH_ALEN];
+	short int seqCtrl; 
+} CWFrameDataHdr;
 
 //WTPRadio.c
 CWBool CWWTPGetRadioGlobalInfo(void);

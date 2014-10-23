@@ -170,6 +170,9 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 		/* bind address */
 		sock_set_port_cw(ifi->ifi_addr, htons(port));
 		
+		struct sockaddr_in * tmpAddr =  (struct sockaddr_in *) ifi->ifi_addr;
+		CWLog("ip: %s port: %d", inet_ntoa(tmpAddr->sin_addr), htons(tmpAddr->sin_port));
+		
 		if(bind(sock, (struct sockaddr*) ifi->ifi_addr, CWNetworkGetAddressSize((CWNetworkLev4Address*)ifi->ifi_addr)) < 0) {
 
 			close(sock);
@@ -779,7 +782,7 @@ int CWNetworkCountInterfaceAddresses(CWMultiHomedSocket *sockPtr) {
 	if(sockPtr == NULL) return 0;
 	
 	for(i = 0; i < sockPtr->count; i++) {
-	
+		
 		if(sockPtr->interfaces[i].kind == CW_PRIMARY) count++;
 	}
 
