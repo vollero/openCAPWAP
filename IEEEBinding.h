@@ -229,7 +229,7 @@ typedef struct WTPInterfaceInfo {
 	char * BSSID;
 	
 	//Netlink: Receive frames on each interface
-	struct nl_handle *nl_preq, *nl_mgmt;
+	struct nl_handle *nl_mgmt;
 	struct nl_cb *nl_cb;
 
 } WTPInterfaceInfo;
@@ -1360,6 +1360,7 @@ void nl80211_register_eloop_read(struct nl_handle **handle,
 					eloop_sock_handler handler,
 					void *eloop_data);
 void CW80211EventReceive(void *eloop_ctx, void *handle);
+void CW80211EventDataReceive(int dataRawSock, struct WTPBSSInfo * BSSInfo);
 void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer);
 int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
@@ -1374,7 +1375,7 @@ void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr
 
 CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg);
 typedef void (*cw_sock_handler)(void *cb, void *handle);
-void CW80211ManagementFrameEvent(struct nl_handle **handle, cw_sock_handler handler, void * cb);
+void CW80211ManagementFrameEvent(struct nl_handle **handle, cw_sock_handler handler, void * cb, WTPBSSInfo * WTPBSSInfoPtr);
 
 int ieee80211_frequency_to_channel(int freq);
 

@@ -324,6 +324,8 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 
 CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
+	unsigned char rateChar[CW_80211_MAX_SUPP_RATES];
+	int indexRates=0;
 	
 	CWLog("NL80211_CMD_NEW_STATION. WLanID: %d, MacAddr[0](%02x) - MacAddr[5](%02x)", infoBSS->interfaceInfo->realWlanID, (int)staInfo.address[0], (int)staInfo.address[5]);
 	
@@ -336,29 +338,38 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
-	/* SUPPORTED RATES */9
+	/* SUPPORTED RATES */
 	int lenRates=0;
 	if(infoBSS->phyInfo->lenSupportedRates < CW_80211_MAX_SUPP_RATES)
 		lenRates = infoBSS->phyInfo->lenSupportedRates;
 	else
 		lenRates = CW_80211_MAX_SUPP_RATES;
-	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, infoBSS->phyInfo->phyMbpsSet);
+	
+	for(indexRates=0; indexRates < lenRates; indexRates++)
+	{
+		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1);
+		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
+	}
+	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
 		
 	/* Association ID */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
+	CWLog("StaAID: %d", staInfo.staAID);
 	/* Listen Interval */
-	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);	
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
+	CWLog("listenInterval: %d", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
+	CWLog("listenInterval: %02x", staInfo.capabilityBit);
 	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
 	
-//	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
 //	flags.mask |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
-//	flags.set = flags.mask;
-//	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
-//	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
+	flags.set = flags.mask;
+	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
+	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
 	
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	CWLog("ret: %d", ret);
@@ -377,6 +388,10 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 
 CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
+	unsigned char rateChar[CW_80211_MAX_SUPP_RATES];
+	int indexRates=0;
+	
+	return CW_TRUE;
 	
 	msg = nlmsg_alloc();
 	if (!msg)
@@ -388,16 +403,39 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
-	/* SUPPORTED RATES */
+		/* SUPPORTED RATES */
 	int lenRates=0;
 	if(infoBSS->phyInfo->lenSupportedRates < CW_80211_MAX_SUPP_RATES)
 		lenRates = infoBSS->phyInfo->lenSupportedRates;
 	else
 		lenRates = CW_80211_MAX_SUPP_RATES;
-	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, infoBSS->phyInfo->phyMbpsSet);
 	
+	for(indexRates=0; indexRates < lenRates; indexRates++)
+	{
+		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1);
+		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
+	}
+	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
+		
+	/* Association ID */
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
+	CWLog("StaAID: %d", staInfo.staAID);
+	/* Listen Interval */
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
+	CWLog("listenInterval: %d", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
+	CWLog("listenInterval: %02x", staInfo.capabilityBit);
+	
+	struct nl80211_sta_flag_update flags;
+	os_memset(&flags, 0, sizeof(flags));
+	
+	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+//	flags.mask |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
+	flags.set = flags.mask;
+	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
+	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
+	
 
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	CWLog("ret: %d", ret);
@@ -603,7 +641,7 @@ int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID, WTPBSSI
 
 	if (nl80211_register_spurious_class3(interfaceInfo))
 		goto out_err;
-
+		
 /*
 	if (nl80211_get_wiphy_data_ap(interfaceInfo, radioID) == NULL)
 		goto out_err;

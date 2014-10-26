@@ -52,7 +52,9 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include "wireless_copy.h"
-
+       #include <netpacket/packet.h>
+      #include <net/ethernet.h> 
+       
 /* *********** NL80211 support ************** */
 #include <stdio.h>
 #include <string.h>

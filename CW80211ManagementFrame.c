@@ -6,42 +6,147 @@
  ***************************************/
 #include "CWWTP.h"
 
-
-
-
 /* ------------------------------------------------ */
-
-
 CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg){
 	struct WTPBSSInfo * BSSInfo = (struct WTPBSSInfo *) arg;
 	
 	CWLog("Dentro Thread ssid: %s", BSSInfo->interfaceInfo->SSID);
 
 	//Start reading from AP readers
-	CW80211ManagementFrameEvent(&(BSSInfo->interfaceInfo->nl_mgmt), CW80211EventReceive, BSSInfo->interfaceInfo->nl_cb);
+	CW80211ManagementFrameEvent(&(BSSInfo->interfaceInfo->nl_mgmt), CW80211EventReceive, BSSInfo->interfaceInfo->nl_cb, BSSInfo);
 }
 
-void CW80211ManagementFrameEvent(struct nl_handle **handle, cw_sock_handler handler, void * cb)
+void CW80211ManagementFrameEvent(struct nl_handle **handleMgmt, cw_sock_handler handler, void * cb, struct WTPBSSInfo * BSSInfo)
 {
 	//Set file descriptor of socket to non-blocking state
-	nl_socket_set_nonblocking(*handle);
-	int nlSocketFD = nl_socket_get_fd(*handle);
+	nl_socket_set_nonblocking(*handleMgmt);
+	int nlSocketFDmgmt = nl_socket_get_fd(*handleMgmt);
+/*
+	nl_socket_set_nonblocking(*handleEvent);
+	int nlSocketFDevent = nl_socket_get_fd(*handleEvent);
+
+	int dataRawSock;	
+
+	struct sockaddr_ll addr;
+	
+	if ((dataRawSock=socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0) 	{
+		CWDebugLog("THR FRAME: Error creating socket");
+		CWExitThread();
+	}
+    memset(&addr, 0, sizeof(addr));
+	
+	addr.sll_family = AF_PACKET;
+	addr.sll_protocol = htons(ETH_P_ALL);
+	addr.sll_pkttype = PACKET_HOST;
+	addr.sll_ifindex = BSSInfo->interfaceInfo->realWlanID;
+	CWLog("BSSInfo->interfaceInfo->realWlanID: %d", BSSInfo->interfaceInfo->realWlanID);
+	
+	if ((bind(dataRawSock, (struct sockaddr*)&addr, sizeof(addr)))<0) {
+ 		CWDebugLog("THR FRAME: Error binding socket");
+ 		CWExitThread();
+ 	}
+	*/
+	/*
+	struct sockaddr_nl local;
+
+	dataRawSock = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (dataRawSock < 0) {
+		CWLog("netlink: Failed to open netlink socket: %s", strerror(errno));
+		return;
+	}
+
+	os_memset(&local, 0, sizeof(local));
+	local.nl_family = AF_NETLINK;
+	local.nl_groups = RTMGRP_LINK;
+	if (bind(dataRawSock, (struct sockaddr *) &local, sizeof(local)) < 0)
+	{
+		CWLog("netlink: Failed to bind netlink socket: %s", strerror(errno));
+		return;
+	}
+
+	CWLog("DOPO DI BIND. dataRawSock: %d", dataRawSock);
+
+	int maxFD=0;
+	if(nlSocketFD > dataRawSock)
+		maxFD = nlSocketFD;
+	else
+		maxFD = dataRawSock;
+*/
+/*
+	struct ifreq ifr;
+	struct sockaddr_ll addr;
+
+	dataRawSock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+	if (dataRawSock < 0) {
+		perror("socket[PF_PACKET,SOCK_RAW]");
+		return;
+	}
+
+        memset(&ifr, 0, sizeof(ifr));
+        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", BSSInfo->interfaceInfo->ifName);
+        if (ioctl(dataRawSock, SIOCGIFINDEX, &ifr) != 0) {
+		perror("ioctl(SIOCGIFINDEX)");
+		return;
+        }
+
+//MTU: hostap_set_iface_flags(drv, 1))
+	
+	memset(&addr, 0, sizeof(addr));
+	addr.sll_family = AF_PACKET;
+	addr.sll_ifindex = ifr.ifr_ifindex;
+	CWLog("Opening raw packet socket for ifindex %d", addr.sll_ifindex);
+
+	if (bind(dataRawSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+		perror("bind");
+		return;
+	}
+	
+CWLog("nlSocketFDmgmt: %d, nlSocketFDevent: %d, dataRawSock: %d", nlSocketFDmgmt, nlSocketFDevent, dataRawSock);
+	int maxFD=0;
+	if(nlSocketFDmgmt > nlSocketFDevent)
+		maxFD = nlSocketFDmgmt;
+	else
+		maxFD = nlSocketFDevent;
+ 	
+ 	if(dataRawSock > maxFD)
+		maxFD = dataRawSock;
+		
+CWLog("maxFD: %d", maxFD);
+	*/
 	while(1)
 	{
 		int result;
 		fd_set readset;
 		do {
 		   FD_ZERO(&readset);
-		   FD_SET(nlSocketFD, &readset);
-		   result = select(nlSocketFD + 1, &readset, NULL, NULL, NULL);
+		   FD_SET(nlSocketFDmgmt, &readset);
+		//   FD_SET(nlSocketFDevent, &readset);
+		 //  FD_SET(dataRawSock, &readset);
+		   result = select(nlSocketFDmgmt + 1, &readset, NULL, NULL, NULL);
 		} while (result == -1 && errno == EINTR);
 		
 		if (result > 0) {
-		   if (FD_ISSET(nlSocketFD, &readset)) {
+		   if (FD_ISSET(nlSocketFDmgmt, &readset)) {
 			   
+			   CWLog("Ricevuto mgmt");
 				//The nlSocketFD has data available to be read
-			 handler(cb, (*handle));
+			 handler(cb, (*handleMgmt));
 		   }
+		 /*  else if(FD_ISSET(nlSocketFDevent, &readset))
+		   {
+			   CWLog("RICEVUTO EVENTO");
+			   handler(cb, (*handleEvent));
+		   }
+		   else if(FD_ISSET(dataRawSock, &readset))
+		   {
+			   CWLog("RICEVUTO dataRawSock");
+			  CW80211EventDataReceive(dataRawSock, BSSInfo);
+		   }
+			else
+			{
+				CWLog("SUCCESSO QUALCOSA");
+			}
+		*/   
 		}
 		else if (result < 0) {
 		   CWLog("Error on select(): %s", strerror(errno));
@@ -62,6 +167,101 @@ void CW80211EventReceive(void *cbPtr, void *handlePtr)
 		CWLog("nl80211: %s->nl_recvmsgs failed: %d, %s",  __func__, res, strerror(res));
 	}
 }
+
+/*
+void CW80211EventDataReceive(int dataRawSock, struct WTPBSSInfo * BSSInfo)
+{
+	CWLog("Dentro CW80211EventDataReceive");
+	
+	int n,encaps_len;
+	unsigned char buffer[CW_BUFFER_SIZE];
+	unsigned char buf80211[CW_BUFFER_SIZE];
+	CWProtocolMessage* frame=NULL;
+	CWBindingDataListElement* listElement=NULL;
+	struct ifreq ethreq;
+	
+	char * frameResponse = NULL;
+	WTPSTAInfo * thisSTA;
+	u64 cookie_out;
+	int frameRespLen=0, offsetFrameReceived=0;
+	short int fc, stateSTA = CW_80211_STA_OFF;
+	int frameLen;
+	struct CWFrameDataHdr dataFrame;
+	
+	
+	n = recvfrom(dataRawSock,buffer,sizeof(buffer),0,NULL,NULL);
+	if(n<0)
+	{
+		CWLog("n: %d", n);
+		return;
+	}
+	
+	CWLog("Letti %d byte", n);
+	encaps_len = from_8023_to_80211(buffer, n, buf80211, BSSInfo->interfaceInfo->MACaddr);
+	
+	
+	
+	if (!extract802_11_Frame(&frame, buf80211, encaps_len)){
+		CWLog("THR FRAME: Error extracting a frame");
+		CWExitThread();
+	}
+	
+	
+	CWLog("nl80211: Parse frame");
+	
+	
+	CWLog("CW80211: Parse del frame control");
+	if(!CW80211ParseFrameIEControl(frame->msg, &(offsetFrameReceived), &(dataFrame.frameControl)))
+		return;
+	
+	/*
+	CWLog("CW80211: Frame Control %02x", dataFrame.frameControl);
+	//Duration
+	if(!CW80211ParseFrameIEControl((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), &(dataFrame.duration)))
+		return CW_FALSE;
+	CWLog("CW80211: Duration %02x", dataFrame.duration);
+
+	//DA
+	if(!CW80211ParseFrameIEAddr((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), dataFrame.DA))
+		return CW_FALSE;
+	CWLog("CW80211: DA %02x:%02x:%02x:%02x:%02x:%02x", (int)dataFrame.DA[0], (int)dataFrame.DA[1], (int)dataFrame.DA[2], (int)dataFrame.DA[3], (int)dataFrame.DA[4], (int)dataFrame.DA[5]);
+	
+	//SA
+	if(!CW80211ParseFrameIEAddr((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), dataFrame.SA))
+		return CW_FALSE;
+	CWLog("CW80211: SA %02x:%02x:%02x:%02x:%02x:%02x", (int)dataFrame.SA[0], (int)dataFrame.SA[1], (int)dataFrame.SA[2], (int)dataFrame.SA[3], (int)dataFrame.SA[4], (int)dataFrame.SA[5]);
+		
+	//BSSID
+	if(!CW80211ParseFrameIEAddr((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), dataFrame.BSSID))
+		return CW_FALSE;
+	CWLog("CW80211: BSSID %02x:%02x:%02x:%02x:%02x:%02x", (int)dataFrame.BSSID[0], (int)dataFrame.BSSID[1], (int)dataFrame.BSSID[2], (int)dataFrame.BSSID[3], (int)dataFrame.BSSID[4], (int)dataFrame.BSSID[5]);
+	
+	
+	CWLog("CW80211: type: %02x, subtype: %02x", (int)WLAN_FC_GET_TYPE(dataFrame.frameControl), (int)WLAN_FC_GET_STYPE(dataFrame.frameControl));
+	// +++ DATA +++
+	if (WLAN_FC_GET_TYPE(dataFrame.frameControl) == WLAN_FC_TYPE_DATA)
+	{
+		if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_NULLFUNC)
+		{
+			CWLog("[80211] Pure frame null func");
+			//frameResponse = CW80211AssembleACK(WTPBSSInfoPtr, tb[NL80211_ATTR_MAC], &frameRespLen);
+		}
+		else if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_DATA)
+		{
+			CWLog("[80211] Pure frame data");
+		}
+		else if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_CFACK)
+		{
+			CWLog("[80211] WLAN_FC_STYPE_CFACK");
+		}
+	}
+	else
+		CWLog("NO DATA FRAME");
+	
+	
+	CWLog("Recv 802.11 data(len:%d) from %s",encaps_len, BSSInfo->interfaceInfo->ifName);
+}
+*/
 
 void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer)
 {
@@ -107,7 +307,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		}
 		
 		thisSTA = addSTABySA(WTPBSSInfoPtr, probeRequest.SA);
-		if(thisSTA)
+		if(thisSTA && thisSTA->state != CW_80211_STA_ASSOCIATION)
 			thisSTA->state = CW_80211_STA_PROBE;
 		else
 			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) probeRequest.SA[0], (int) probeRequest.SA[1], (int) probeRequest.SA[2], (int) probeRequest.SA[3], (int) probeRequest.SA[4], (int) probeRequest.SA[5]);
@@ -137,7 +337,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		thisSTA = findSTABySA(WTPBSSInfoPtr, authRequest.SA);
 		if(thisSTA)
 		{
-			if(thisSTA->state == CW_80211_STA_PROBE || thisSTA->state == CW_80211_STA_ASSOCIATION)
+			if(thisSTA->state == CW_80211_STA_PROBE || thisSTA->state == CW_80211_STA_AUTH)
 				thisSTA->state = CW_80211_STA_AUTH;
 			else
 			{

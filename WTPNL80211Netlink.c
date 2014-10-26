@@ -154,7 +154,7 @@ int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg)
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
 	int ifidx = -1;
 	
-	
+	CWLog("ARRIVATO EVENTOOOOOOOOOOOOOOO");
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
 
 	if (tb[NL80211_ATTR_IFINDEX]) {
