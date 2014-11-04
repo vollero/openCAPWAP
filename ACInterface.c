@@ -478,7 +478,7 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 						int msgLen=0;
 						char * payload;
 						char * ssid;
-						int radioID, wlanID, countChar=0;
+						int radioID, wlanID, tunnel, countChar=0;
 						
 						WUMWLANCmdParameters * cmdWLAN;
 						

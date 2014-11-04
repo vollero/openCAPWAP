@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 	struct version_info update_v; 
     char *command = NULL, *cup_path = NULL;
     char *wtpIds = NULL, *wtpNames = NULL;
-    char * ssid = NULL, * radioID = NULL, * wlanID = NULL;
+    char * ssid = NULL, * radioID = NULL, * wlanID = NULL, * tunnel = NULL;
     char *acserver_address = ACSERVER_ADDRESS;
 	int acserver_port = ACSERVER_PORT;;
 	int index;
@@ -88,6 +88,9 @@ int main(int argc, char *argv[])
         	break;
         case 'l':
         	wlanID = optarg;			
+        	break;
+		case 't':
+        	tunnel = optarg;
         	break;
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
         case 'h':
@@ -139,7 +142,7 @@ int main(int argc, char *argv[])
 			do_cancel_cmd(acserver, wtpIds, wtpNames);
 			break;
 		case WLAN_ADD_CMD:
-			do_wlan_add_cmd(acserver, wtpIds, wtpNames, ssid, radioID, wlanID);
+			do_wlan_add_cmd(acserver, wtpIds, wtpNames, ssid, radioID, wlanID, tunnel);
 			break;
 		case WLAN_DEL_CMD:
 			do_wlan_del_cmd(acserver, wtpIds, wtpNames, radioID, wlanID);
@@ -365,7 +368,7 @@ void do_cancel_cmd(int acserver, char *wtpIds, char *wtpNames)
 /*
  * Elena Agostini - 09/2014: WLAN add interface
  */
-void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, char * radioID, char * wlanID)
+void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, char * radioID, char * wlanID, char * tunnel)
 {
 	int *wtps, n, i;
 	struct version_info v_info;
@@ -383,7 +386,7 @@ void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, ch
 
 	for (i = 0; i < n; i++) {
 		printf("invio a wtp %d\n", i);
-		WUMWTPwlanAdd(acserver, wtps[i], ssid, radioID, wlanID, &v_info);
+		WUMWTPwlanAdd(acserver, wtps[i], ssid, radioID, wlanID, tunnel, &v_info);
 	}
 }
 

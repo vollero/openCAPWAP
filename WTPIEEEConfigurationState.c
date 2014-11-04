@@ -264,13 +264,20 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].qos = interfaceACInfo->qos;
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].authType = interfaceACInfo->authType;
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACmode = interfaceACInfo->MACmode;
-			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].tunnelMode = interfaceACInfo->tunnelMode;
+			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode = interfaceACInfo->tunnelMode;
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].suppressSSID = interfaceACInfo->suppressSSID;
 			CW_CREATE_STRING_FROM_STRING_ERR(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].SSID, interfaceACInfo->SSID, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 			
 			if(!CWWTPSetAPInterface(indexRadio, indexWlan, &(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan])))
 				goto failure;
-
+			
+			//Add interface to bridge
+			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode == CW_LOCAL_BRIDGING)
+//			if(CWWTPGetFrameTunnelMode() == CW_LOCAL_BRIDGING)
+			{
+				if(!CWAddNewBridgeInterface(globalNLSock.ioctl_sock, gBridgeInterfaceName, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName))
+					goto failure;
+			}	
 			goto success;
 		}
 		else

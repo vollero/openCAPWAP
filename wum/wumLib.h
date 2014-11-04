@@ -61,7 +61,7 @@ int WUMSendCancelRequest(int acserver, int wtpId);
 /*
  * Elena Agostini - 09/2014: IEEE 802.11 Binding
  */
-void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, char * radioID, char * wlanID);
+void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, char * radioID, char * wlanID, char * tunnel);
 void do_wlan_del_cmd(int acserver, char *wtpIds, char *wtpNames, char * radioID, char * wlanID);
 
 

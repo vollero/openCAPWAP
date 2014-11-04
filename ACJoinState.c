@@ -433,7 +433,7 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 	}
 	else 
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	
+		
 	CW_FREE_OBJECT((WTPProtocolManager->WTPBoardData).vendorInfos);
 	WTPProtocolManager->WTPBoardData = joinRequest->WTPBoardData;
 
@@ -516,6 +516,12 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].typeInterface = CW_STA_MODE;
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].wlanID = CWIEEEBindingGetDevFromIndexID(indexWlan);
 		}
+		
+		if ((joinRequest->frameTunnelMode)!= NULL)
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode=joinRequest->frameTunnelMode;
+		else 
+			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode=0;
+			
 	}
 	CWDebugLog("Join Request Saved");
 	return CW_TRUE;

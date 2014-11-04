@@ -34,6 +34,12 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		return CWErrorRaise(CW_ERROR_GENERAL, NULL);
 	}
 	
+	globalNLSock.ioctl_sock = socket(PF_INET, SOCK_DGRAM, 0);
+	if (globalNLSock.ioctl_sock < 0) {
+		CWLog("nl80211: socket(PF_INET,SOCK_DGRAM) failed: %s", strerror(errno));
+		return CWErrorRaise(CW_ERROR_GENERAL, NULL);
+	}
+	
 	for(indexPhy=0; indexPhy < gRadiosInfo.radioCount; indexPhy++)
 	{
 		CWLog("[NL80211] Retrieving info for phy interface %d name: %s ...", indexPhy, gPhyInterfaceName[indexPhy]);
@@ -114,6 +120,23 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 				return CW_FALSE;
 			}			
 		}
+	}
+	
+	CWLog("[80211 ERROR] bridge iface %s eth ifface: %s", gBridgeInterfaceName, gEthInterfaceName);
+
+	int frameTunnelWTP = CWWTPGetFrameTunnelMode();
+	//Local MAC impongo il bridgind locale: il WTP inoltra direttamente i pacchetti delle STA tramite un bridge
+	if(frameTunnelWTP == CW_LOCAL_BRIDGING)
+	{
+		CWDelBridge(globalNLSock.ioctl_sock, gBridgeInterfaceName);
+		
+		if(!CWSetNewBridge(globalNLSock.ioctl_sock, gBridgeInterfaceName))
+		{
+			CWLog("[80211 ERROR] Cannot create bridge interface %s", gBridgeInterfaceName);
+			return CW_FALSE;
+		}
+		
+		ioctlActivateInterface(gBridgeInterfaceName);
 	}
 	
 	return CW_TRUE;

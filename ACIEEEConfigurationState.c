@@ -180,7 +180,8 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 	
 	int radioIndex = CWIEEEBindingGetIndexFromDevID(radioID);					
 	int wlanIndex = CWIEEEBindingGetIndexFromDevID(wlanID);
-				
+	
+	
 	CWDebugLog("Assembling Configuration Response with operation %d, WTPIndex: %d, radioID: %d, wlanID: %d", operation, WTPIndex, radioID, wlanID);
 	CW_CREATE_PROTOCOL_MSG_ARRAY_ERR(msgElems, MsgElemCount, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
@@ -245,7 +246,7 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 	return CW_TRUE;
 }
 
-CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID) {
+CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID, int tunnelMode) {
 
 	int index;
 	//WlanID by AC
@@ -310,7 +311,7 @@ CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, c
 	//Mac Mode: 0 LocalMAC, 1 Split MAC
 	interfaceInfo->MACmode=0;
 	//Tunnel Mode: this info is in discovery request from WTP
-	interfaceInfo->tunnelMode=0;
+	interfaceInfo->tunnelMode=tunnelMode;
 	//Suppress SSID: 0 yes, 1 no
 	interfaceInfo->suppressSSID=1;
 	//SSID

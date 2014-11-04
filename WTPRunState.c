@@ -406,9 +406,14 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 						}
 						
 						if(trovato == 1)
+						{
 							if(!CW80211SendFrame(WTPGlobalBSSList[BSSIndex], 0, CW_FALSE, msgPtr.msg, MGMT_FRAME_FIXED_LEN_AUTH, &(cookie_out), 1,1))
 									CWLog("NL80211: Errore CW80211SendFrame");
-									
+							
+							WTPSTAInfo * thisSTA = findSTABySA(WTPGlobalBSSList[BSSIndex], authResponse.DA);
+							if(!CWStartAssociationRequestTimer(thisSTA, WTPGlobalBSSList[BSSIndex]))
+									CWLog("[CW80211] Problem starting timer association request");
+						}			
 					}
 					
 					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_RESP)

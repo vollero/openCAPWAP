@@ -6,6 +6,11 @@
  ***************************************/
 #include "CWWTP.h"
 
+struct CWTimerAssociationInfo {
+	WTPBSSInfo * BSSInfo;
+	WTPSTAInfo * staInfo;
+};
+
 /* ------------------------------------------------ */
 CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg){
 	struct WTPBSSInfo * BSSInfo = (struct WTPBSSInfo *) arg;
@@ -127,9 +132,6 @@ CWLog("maxFD: %d", maxFD);
 		
 		if (result > 0) {
 		   if (FD_ISSET(nlSocketFDmgmt, &readset)) {
-			   
-			   CWLog("Ricevuto mgmt");
-				//The nlSocketFD has data available to be read
 			 handler(cb, (*handleMgmt));
 		   }
 		 /*  else if(FD_ISSET(nlSocketFDevent, &readset))
@@ -289,7 +291,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	if(!CW80211ParseFrameIEControl(frameReceived, &(offsetFrameReceived), &fc))
 		return;
 	
-	/* +++ PROBE Request/Response +++ */
+	/* +++ PROBE Request/Response: non aggiungo handler della STA fino ad un auth +++ */
 	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_PROBE_REQ)
 	{
 		CWLog("[80211] Probe Request Received");
@@ -306,19 +308,13 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
-		thisSTA = addSTABySA(WTPBSSInfoPtr, probeRequest.SA);
-		if(thisSTA && thisSTA->state != CW_80211_STA_ASSOCIATION)
-			thisSTA->state = CW_80211_STA_PROBE;
-		else
-			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) probeRequest.SA[0], (int) probeRequest.SA[1], (int) probeRequest.SA[2], (int) probeRequest.SA[3], (int) probeRequest.SA[4], (int) probeRequest.SA[5]);
-		
 		//Split MAC: invia probe request ad AC per conoscenza
 #ifdef SPLIT_MAC
 		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
 			return;
 #endif
 
-//In ogni caso, risponde il WTP direttamente senza attendere AC
+		//In ogni caso, risponde il WTP direttamente senza attendere AC
 		frameResponse = CW80211AssembleProbeResponse(WTPBSSInfoPtr, &(probeRequest), &frameRespLen);
 	}
 	
@@ -334,21 +330,13 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
-		thisSTA = findSTABySA(WTPBSSInfoPtr, authRequest.SA);
+		thisSTA = addSTABySA(WTPBSSInfoPtr, authRequest.SA);
 		if(thisSTA)
-		{
-			if(thisSTA->state == CW_80211_STA_PROBE || thisSTA->state == CW_80211_STA_AUTH)
-				thisSTA->state = CW_80211_STA_AUTH;
-			else
-			{
-				CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x hasn't send a Probe Request before sending Auth Request.", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
-				return;
-			}
-		}
+			thisSTA->state = CW_80211_STA_AUTH;
 		else
 		{
 			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
-			return CW_FALSE;
+			return;
 		}
 		
 		//Split MAC: invia auth ad AC ed attende il frame di risposta
@@ -359,6 +347,8 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 #else
 		//Local MAC: invia direttamente auth a STA
 		frameResponse = CW80211AssembleAuthResponse(WTPBSSInfoPtr->interfaceInfo->MACaddr, &authRequest, &frameRespLen);
+		if(!CWStartAssociationRequestTimer(thisSTA, WTPBSSInfoPtr))
+			CWLog("[CW80211] Problem starting timer association request");
 #endif
 	}
 	
@@ -511,7 +501,9 @@ void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr
 			CWLog("!tb[NL80211_ATTR_MAC]");
 		return;
 	}
-	
+	//Deauth?
+	return;
+	/*
 	struct CWFrameDataHdr dataFrame;
 	
 	CWLog("CW80211: Parse del frame control");
@@ -542,7 +534,6 @@ void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr
 	
 	CWLog("CW80211: type: %02x, subtype: %02x", (int)WLAN_FC_GET_TYPE(dataFrame.frameControl), (int)WLAN_FC_GET_STYPE(dataFrame.frameControl));
 	
-	/* +++ DATA +++ */
 	if (WLAN_FC_GET_TYPE(dataFrame.frameControl) == WLAN_FC_TYPE_DATA)
 	{
 		if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_NULLFUNC)
@@ -561,6 +552,7 @@ void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr
 	}
 
 	return;
+	*/
 }
 
 WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
@@ -621,4 +613,46 @@ CWBool CWSendFrameMgmtFromWTPtoAC(char * frameReceived, int frameLen)
 	CWUnlockSafeList(gFrameList);
 	
 	return CW_TRUE;
+}
+
+CWBool CWStartAssociationRequestTimer(WTPSTAInfo * staInfo, WTPBSSInfo * WTPBSSInfoPtr) {
+	
+	struct CWTimerAssociationInfo * infoTimer;
+	CW_CREATE_OBJECT_ERR(infoTimer, struct CWTimerAssociationInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	infoTimer->staInfo = staInfo;
+	infoTimer->BSSInfo = WTPBSSInfoPtr;
+	
+	staInfo->staAssociationRequestTimerID = timer_add(CW_WTP_STA_ASSOCIATION_REQUEST_TIMER,
+					0,
+					&CWWTPAssociationRequestTimerExpiredHandler,
+					infoTimer);
+	
+	if (staInfo->staAssociationRequestTimerID == -1)
+		return CW_FALSE;
+		
+	CWDebugLog("STA %d Association Request Timer Started");
+	
+	return CW_TRUE;
+}
+
+void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
+
+	struct CWTimerAssociationInfo * info = (struct CWTimerAssociationInfo *) arg;
+	
+	CWLog("[CW80211] Association Timer Raised");
+	if(info->staInfo->state == CW_80211_STA_ASSOCIATION)
+		return;
+	
+	if(!nl80211CmdDelStation(info->BSSInfo, info->staInfo->address))
+	{
+		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) info->staInfo->address[0], (int) info->staInfo->address[1], (int) info->staInfo->address[2], (int) info->staInfo->address[3], (int) info->staInfo->address[4], (int) info->staInfo->address[5]);
+		return;
+	}
+	
+	info->staInfo->radioAdd=CW_FALSE;
+	
+	if(!delSTABySA(info->BSSInfo, info->staInfo->address))
+		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) info->staInfo->address[0], (int) info->staInfo->address[1], (int) info->staInfo->address[2], (int) info->staInfo->address[3], (int) info->staInfo->address[4], (int) info->staInfo->address[5]);
+	
+	CWLog("[CW80211] Association Timer Raised. STA deleted");
 }

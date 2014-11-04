@@ -204,7 +204,7 @@ int WUMGetWTPVersion(int acserver, int wtpId, struct version_info *v_info)
 /*
  * Elena Agostini - 09/2014: WLAN add interface
  */
-int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * wlanID, struct version_info *v_info)
+int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * wlanID, char * tunnel, struct version_info *v_info)
 {
 	wum_req_t msg;
 	wum_resp_t resp;
@@ -217,7 +217,7 @@ int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * w
 	msg.msg_elem = MSG_ELEMENT_TYPE_ADD_WLAN;
 	msg.wtpId = wtpId;
 	msg.wum_type = WTP_WLAN_ADD_REQUEST;
-	msg.payload_len = strlen(ssid)+strlen(radioID)+strlen(wlanID)+3;
+	msg.payload_len = strlen(ssid)+strlen(radioID)+strlen(wlanID)+strlen(tunnel)+4;
 	printf("Payload Len: %d\n", msg.payload_len);
 	
 	msg.payload = (char *) calloc(msg.payload_len, sizeof(char));
@@ -226,7 +226,7 @@ int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * w
 		perror("calloc");
 		return ERROR;
 	}
-	snprintf(msg.payload, msg.payload_len, "%s:%s:%s", radioID, wlanID, ssid);
+	snprintf(msg.payload, msg.payload_len, "%s:%s:%s:%s", radioID, wlanID, ssid, tunnel);
 	
 	printf("Payload: %s\n", msg.payload);
 	

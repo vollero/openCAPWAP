@@ -37,6 +37,7 @@
 FILE* gSettingsFile=NULL;
 char* gInterfaceName=NULL;
 char* gEthInterfaceName=NULL;
+char* gBridgeInterfaceName=NULL;
 char* gRadioInterfaceName_0=NULL;
 char* gBaseMACInterfaceName=NULL;
 char  gBoardReversionNo;
@@ -208,7 +209,24 @@ CWBool CWParseSettingsFile()
 			CW_FREE_OBJECT(line);
 			continue;	
 		}		
+		
+		//Elena Agostini 11/2014: Local Bridgind support with mac80211
+		if (!strncmp(startTag+1, "BRIDGE_IF_NAME", endTag-startTag-1))
+		{
+			char* startValue=NULL;
+			char* endValue=NULL;
+			int offset = 0;
 
+			CWExtractValue(endTag, &startValue, &endValue, &offset);
+
+			CW_CREATE_STRING_ERR(gBridgeInterfaceName, offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
+			strncpy(gBridgeInterfaceName, startValue, offset);
+			gBridgeInterfaceName[offset] ='\0';
+			CWLog(": %s", gBridgeInterfaceName);
+			CW_FREE_OBJECT(line);
+			continue;	
+		}	
+		
 		if (!strncmp(startTag+1, "RADIO_0_IF_NAME", endTag-startTag-1))
 		{
 			char* startValue=NULL;
@@ -485,6 +503,12 @@ CWBool CWParseSettingsFile()
 		fprintf(stderr, "WTP ERROR: no RADIO_PHY_NAME_X detected");
 		return CW_FALSE;
 	}
-	
+
+	if(CWWTPGetFrameTunnelMode() == CW_LOCAL_BRIDGING && gBridgeInterfaceName == NULL)
+	{
+		fprintf(stderr, "WTP ERROR: no BRIDGE INTERFACE NAME detected");
+		return CW_FALSE;
+	}
+		
 	return CW_TRUE;
 }

@@ -8,8 +8,11 @@
 <RADIO_PHY_NAME_0>phy0
 #<RADIO_PHY_NAME_1>phy1
 
+#Elena Agostini 11/2014: Local Bridgind Support with mac80211
+<WTP_ETH_IF_NAME> eth0
+<BRIDGE_IF_NAME> bridge0
+
 <IF_NAME>    mon.wlan0
-<WTP_ETH_IF_NAME>    vmnet1
 <RADIO_0_IF_NAME>    wlan0
 <BASE_MAC_IF_NAME>   vmnet1
 <BOARD_REVISION_NO>   eth0

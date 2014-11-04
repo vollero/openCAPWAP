@@ -154,7 +154,6 @@ int CW80211CheckTypeEvent(struct nl_msg *msg, void *arg)
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
 	int ifidx = -1;
 	
-	CWLog("ARRIVATO EVENTOOOOOOOOOOOOOOO");
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
 
 	if (tb[NL80211_ATTR_IFINDEX]) {
@@ -359,4 +358,83 @@ CWBool netlink_send_oper_ifla(int sock, int ifindex, int linkmode, int operstate
 	CWLog("netlink: Operstate: ifindex=%d linkmode=%d, operstate=%d", ifindex, linkmode, operstate);
 		   
 	return ret < 0 ? CW_FALSE : CW_TRUE;
+}
+
+#ifndef SIOCBRADDBR
+#define SIOCBRADDBR 0x89a0
+#endif
+#ifndef SIOCBRDELBR
+#define SIOCBRDELBR 0x89a1
+#endif
+#ifndef SIOCBRADDIF
+#define SIOCBRADDIF 0x89a2
+#endif
+#ifndef SIOCBRDELIF
+#define SIOCBRDELIF 0x89a3
+#endif
+
+CWBool CWSetNewBridge(int sock, char * bridgeName) {
+	//Set up bridge
+	if (ioctl(sock, SIOCBRADDBR, bridgeName) < 0) {
+		CWLog("Could not add bridge %s: %s", bridgeName, strerror(errno));
+		//return CW_FALSE;
+	}
+	return CW_TRUE;
+}
+
+CWBool CWAddNewBridgeInterface(int sock, char * bridgeName, int wlanID) {
+	struct ifreq ifr;
+	
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, bridgeName, IFNAMSIZ);
+	ifr.ifr_ifindex = wlanID;
+	if (ioctl(sock, SIOCBRADDIF, &ifr) < 0) {
+		CWLog("Could not add interface %d into bridge %s: %s", wlanID, bridgeName, strerror(errno));
+		return CW_FALSE;
+	}
+	
+	return CW_TRUE;
+}
+
+CWBool CWDelBridge(int sock, char * bridgeName) {
+	
+	if (ioctl(sock, SIOCBRDELBR, bridgeName) < 0) {
+		CWLog("Could not remove bridge %s: %s", bridgeName, strerror(errno));
+		return CW_FALSE;
+	}
+
+	return CW_TRUE;
+}
+
+CWBool CWDelBridgeInterface(int sock, char * bridgeName, int wlanID) {
+	struct ifreq ifr;
+
+	os_memset(&ifr, 0, sizeof(ifr));
+	os_strlcpy(ifr.ifr_name, bridgeName, IFNAMSIZ);
+	ifr.ifr_ifindex = wlanID;
+	if (ioctl(sock, SIOCBRDELIF, &ifr) < 0) {
+		CWLog("Could not remove interface %d from bridge %s: %s", wlanID, bridgeName, strerror(errno));
+		return CW_FALSE;
+	}
+
+	return CW_TRUE;
+}
+
+
+int CWGetBridge(char *brname, const char *ifname)
+{
+	char path[128], brlink[128], *pos;
+	ssize_t res;
+
+	os_snprintf(path, sizeof(path), "/sys/class/net/%s/brport/bridge", ifname);
+	res = readlink(path, brlink, sizeof(brlink));
+	if (res < 0 || (size_t) res >= sizeof(brlink))
+		return CW_FALSE;
+	brlink[res] = '\0';
+	pos = os_strrchr(brlink, '/');
+	if (pos == NULL)
+		return CW_FALSE;
+	pos++;
+	os_strlcpy(brname, pos, IFNAMSIZ);
+	return CW_TRUE;
 }

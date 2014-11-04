@@ -60,6 +60,7 @@ typedef struct {
 /*  *******************___WTP VARIABLES___*******************  */
 extern char* gInterfaceName;
 extern char* gEthInterfaceName;
+extern char* gBridgeInterfaceName;
 extern char* gRadioInterfaceName_0;
 extern char* gBaseMACInterfaceName;
 extern char gBoardReversionNo;

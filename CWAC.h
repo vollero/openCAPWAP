@@ -366,7 +366,7 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 				   int radioID,
 				   int wlanNum,
 				   int WTPIndex);
-CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID);
+CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID, int tunnelMode);
 
 
 CWBool CWSecurityInitSessionServerDataChannel(CWWTPManager* pWtp, 
