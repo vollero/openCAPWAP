@@ -245,12 +245,11 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 				goto failure;
 			
 			//Add interface to bridge
-			CWLog("gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode: %d", gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode);
 			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode == CW_LOCAL_BRIDGING)
 //			if(CWWTPGetFrameTunnelMode() == CW_LOCAL_BRIDGING)
 			{
-				CWLog("CWAddNewBridgeInterface");
-				if(!CWAddNewBridgeInterface(globalNLSock.ioctl_sock, gBridgeInterfaceName, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName))
+				CWLog("Local Bridging tunnel mode. Adding %s to %s", gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName, gBridgeInterfaceName);
+				if(!CWAddNewBridgeInterface(globalNLSock.ioctl_sock, gBridgeInterfaceName, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].realWlanID))
 					goto failure;
 			}	
 			goto success;
