@@ -49,6 +49,69 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 	enum nl80211_iftype typeIf = NL80211_IFTYPE_STATION;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
 	
+	/*
+	 * Tell cfg80211 that the interface belongs to the socket that created
+	 * it, and the interface should be deleted when the socket is closed.
+	 */
+	NLA_PUT_FLAG(msg, NL80211_ATTR_IFACE_SOCKET_OWNER);
+	
+	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_setNewInterface, interfaceInfo);
+	CWLog("ret: %d", ret);
+
+	if( ret != 0)
+		return CW_FALSE;
+		
+	msg = NULL;
+
+	//retrive MAC address
+	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->MACaddr, MAC_ADDR_LEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	getInterfaceMacAddr(interfaceInfo->ifName, interfaceInfo->MACaddr);
+
+      CWLog("Ethernet %02x:%02x:%02x:%02x:%02x:%02x\n", 
+      (int) interfaceInfo->MACaddr[0],
+      (int) interfaceInfo->MACaddr[1],
+      (int) interfaceInfo->MACaddr[2],
+      (int) interfaceInfo->MACaddr[3],
+      (int) interfaceInfo->MACaddr[4],
+      (int) interfaceInfo->MACaddr[5]);
+ 
+
+	CWLog("Interface %s created", interfaceInfo->ifName);
+	return CW_TRUE;
+	
+ nla_put_failure:
+	nlmsg_free(msg);
+	return CW_FALSE;
+}
+
+
+CWBool nl80211CmdSetNewMonitorInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo){
+		struct nl_msg *msg;
+	
+	msg = nlmsg_alloc();
+	if (!msg)
+		return CW_FALSE;
+	
+	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
+	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, interfaceInfo->ifName);
+	
+	enum nl80211_iftype typeIf = NL80211_IFTYPE_MONITOR;
+	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
+	
+	struct nlattr *flags;
+	flags = nla_nest_start(msg, NL80211_ATTR_MNTR_FLAGS);
+	if (!flags)
+		goto nla_put_failure;
+	NLA_PUT_FLAG(msg, NL80211_MNTR_FLAG_COOK_FRAMES);
+	nla_nest_end(msg, flags);
+	
+	/*
+	 * Tell cfg80211 that the interface belongs to the socket that created
+	 * it, and the interface should be deleted when the socket is closed.
+	 */
+	NLA_PUT_FLAG(msg, NL80211_ATTR_IFACE_SOCKET_OWNER);
+	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_setNewInterface, interfaceInfo);
 	CWLog("ret: %d", ret);
 
@@ -347,7 +410,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{
-		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1);
+		rateChar[indexRates] = ((infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1) / 5);
 		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	}
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
@@ -366,7 +429,6 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	os_memset(&flags, 0, sizeof(flags));
 	
 	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
-//	flags.mask |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
 	flags.set = flags.mask;
 	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);

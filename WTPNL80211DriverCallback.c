@@ -242,6 +242,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 						if (!tb_rate[NL80211_BITRATE_ATTR_RATE])
 							continue;
 						CWLog("\t\t\t* %2.1f Mbps", 0.1 * nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
+						CWLog("BITRATE: %d", nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
 						if(indexMbps < WTP_NL80211_BITRATE_NUM)
 						{		
 							singlePhyInfo->phyMbpsSet[indexMbps] = (float) (0.1 * nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));

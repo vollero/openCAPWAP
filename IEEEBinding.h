@@ -284,6 +284,7 @@ typedef struct WTPSinglePhyInfo {
 	int numInterfaces;
 	WTPInterfaceInfo interfaces[WTP_MAX_INTERFACES];
 	
+	WTPInterfaceInfo monitorInterface;
 	//Netlink: Receive frames on each interface
 	struct nl_handle *nl_beacons;
 	struct nl_cb *nl_cb;
@@ -495,10 +496,7 @@ CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID);
 CWBool CWWTPCreateNewBSS(int radioID, int wlanID);
 CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex);
 
-//Define create per allocazione array in CB_getPhyInfo
-//la dove dovrei fare due cicli per sapere la quantita di bitrate e di canali
-//che dovranno essere salvati
-#define WTP_NL80211_BITRATE_NUM 50
+#define WTP_NL80211_BITRATE_NUM NL80211_MAX_SUPP_RATES
 #define WTP_NL80211_CHANNELS_NUM 50
 #define WTP_NL80211_DEFAULT_MSDU 512
 

@@ -103,6 +103,8 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.lenSupportedRates; indexRates++)
 			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.supportedRates[indexRates] = (char) mapSupportedRatesValues(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
 			
+		
+		
 		if(!CWWTPInitBinding(indexPhy)) {return CW_FALSE;}
 
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.numInterfaces=0;
@@ -137,6 +139,21 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		}
 		
 		ioctlActivateInterface(gBridgeInterfaceName);
+	}
+	//elena test now
+	else if(frameTunnelWTP == CW_NATIVE_BRIDGING) {
+		CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName, 9, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		snprintf(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName, 9, "monitor0");	
+		
+		CWLog("CW_NATIVE_BRIDGING");
+		if(!nl80211CmdSetNewMonitorInterface(0, &(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface)))
+			return CW_FALSE;
+		CWLog("nl80211CmdSetNewMonitorInterface done");
+		
+		if(!ioctlActivateInterface(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName))
+			return CW_FALSE;
+		
+		CWLog("ioctlActivateInterface done");
 	}
 	
 	return CW_TRUE;

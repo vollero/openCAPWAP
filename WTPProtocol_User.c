@@ -128,7 +128,7 @@ __inline__ void CWWTPDestroyVendorInfos(CWWTPVendorInfos *valPtr) {
 __inline__ int CWWTPGetFrameTunnelMode() {
 	//it may be also 802.3_FrameTunnelMode - NativeFrameTunnelMode - All
 	
-#ifdef SOFTMAC
+#ifdef SPLIT_MAC
 	return CW_NATIVE_BRIDGING;
 #else
 	return CW_LOCAL_BRIDGING;

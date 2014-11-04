@@ -388,9 +388,9 @@ CWBool CWAssembleMsgElem80211Station(int radioID, int wlanID, CWProtocolMessage 
 	CWProtocolStore8(msgPtr, radioID);
 	//Ass ID
 	short int valueAssID = associationResponse.assID;
-	valueAssID |= BIT0(14);
-	valueAssID |= BIT0(15);
-	
+	//valueAssID |= BIT0(14);
+	//valueAssID |= BIT0(15);
+	valueAssID -= 49152;
 	CWProtocolStore16(msgPtr, valueAssID);
 	//Flags
 	CWProtocolStore8(msgPtr, 0);

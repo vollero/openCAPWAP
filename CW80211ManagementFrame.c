@@ -421,34 +421,38 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		}
 		
 		thisSTA = findSTABySA(WTPBSSInfoPtr, disassocRequest.SA);
-		
-		//Deauth elimina dal BSS la STA
-		if(WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DEAUTH)
+		if(thisSTA)
 		{
-			if(thisSTA->radioAdd==CW_TRUE)
+			//Deauth elimina dal BSS la STA
+			if(WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DEAUTH)
 			{
-				if(!nl80211CmdDelStation(WTPBSSInfoPtr, disassocRequest.SA))
+				if(thisSTA->radioAdd==CW_TRUE)
 				{
-					CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
-					return;
+					if(!nl80211CmdDelStation(WTPBSSInfoPtr, disassocRequest.SA))
+					{
+						CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
+						return;
+					}
+					
+					if(thisSTA)
+						thisSTA->radioAdd=CW_FALSE;
 				}
+				if(!delSTABySA(WTPBSSInfoPtr, disassocRequest.SA))
+					CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
 				
-				if(thisSTA)
-					thisSTA->radioAdd=CW_FALSE;
 			}
-			if(!delSTABySA(WTPBSSInfoPtr, disassocRequest.SA))
-				CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
-			
-		}
-		//Disassociation regredisce di stato
-		else
-		{
-			if(thisSTA)
+			//Disassociation regredisce di stato
+			else
 			{
-				if(thisSTA->state == CW_80211_STA_ASSOCIATION)
-					thisSTA->state = CW_80211_STA_AUTH;
+				if(thisSTA)
+				{
+					if(thisSTA->state == CW_80211_STA_ASSOCIATION)
+						thisSTA->state = CW_80211_STA_AUTH;
+				}
 			}
 		}
+		else
+			CWLog("STA hasn't an handler");
 	}
 }
 
