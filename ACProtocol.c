@@ -312,7 +312,7 @@ CWBool CWAssembleMsgElemACAddWlan(int radioID, WTPInterfaceInfo interfaceInfo, C
 	//MAC Mode
 	CWProtocolStore8(msgPtr, interfaceInfo.MACmode);
 	//Tunnel Mode
-	CWProtocolStore8(msgPtr, interfaceInfo.tunnelMode);
+	CWProtocolStore8(msgPtr, interfaceInfo.frameTunnelMode);
 	//suppressSSID
 	CWProtocolStore8(msgPtr, interfaceInfo.suppressSSID);
 	//SSSID

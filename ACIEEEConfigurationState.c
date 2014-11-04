@@ -12,57 +12,6 @@
 #include "../dmalloc-5.5.0/dmalloc.h"
 #endif
 
-
-
-/*
-CWBool ACEnterIEEEConfiguration(int WTPIndex, CWProtocolMessage *msgPtr) {
-	
-	//Elena: Now, just for example, I update only wlan 0 interface on radio 0
-	int radioID=0, seqNum=0, wlanID=0;
-	CWBool ret=CW_FALSE;
-	
-	//Se non c'e nessun messaggio si deve inviare la richiesta...
-	if(msgPtr == NULL)
-	{
-		CWLog("IEEE Assembling Configuration Request");
-
-		if(!ACUpdateInfoWlanInterface(&(gWTPs[WTPIndex].WTPProtocolManager).radiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID]))
-			return CW_FALSE;
-		
-		//Create Configuration Request
-		if(!(CWAssembleIEEEConfigurationRequest(&(gWTPs[WTPIndex].messages), 
-						 &(gWTPs[WTPIndex].messagesCount), 
-						 gWTPs[WTPIndex].pathMTU, 
-						 seqNum,
-						 CW_OP_ADD_WLAN,
-						 0,
-						 wlanID,
-						 WTPIndex
-						 )))  { 
-			return CW_FALSE;
-		}
-		
-		if(!CWACSendFragments(WTPIndex)) {
-			return CW_FALSE;
-		}
-		
-		CWLog("IEEE Configuration Request Sent");
-		
-		gWTPs[WTPIndex].currentState = CW_ENTER_IEEEE_CONFIGURATION;
-		return CW_TRUE;
-	}
-	//... altrimenti si valuta la risposta e si prosegue al datacheck
-	
-	CWLog("IEEE Parsing Configuration Response");
-	
-	if(!CWParseIEEEConfigurationResponseMessage(msgPtr->msg, msgPtr->offset, &seqNum, WTPIndex))
-		return CW_FALSE;
-	
-	gWTPs[WTPIndex].currentState = CW_ENTER_DATA_CHECK;
-	return CW_TRUE;
-}
-*/
-
 CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 				      int len,
 				      int WTPIndex) {
@@ -311,7 +260,7 @@ CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, c
 	//Mac Mode: 0 LocalMAC, 1 Split MAC
 	interfaceInfo->MACmode=0;
 	//Tunnel Mode: this info is in discovery request from WTP
-	interfaceInfo->tunnelMode=tunnelMode;
+	interfaceInfo->frameTunnelMode=tunnelMode;
 	//Suppress SSID: 0 yes, 1 no
 	interfaceInfo->suppressSSID=1;
 	//SSID

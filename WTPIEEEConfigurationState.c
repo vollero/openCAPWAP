@@ -55,33 +55,6 @@ CWBool CWWTPIEEEConfigurationReceiveSendPacket(int seqNum, CWList msgElemlist);
 
 
 /* 
- * Manage IEEE COnfiguration State. Temporary state
- */
- /*
-CWStateTransition CWWTPEnterIEEEConfiguration() {
-
-	int seqNum=0;
-
-	CWLog("\n");
-	CWLog("######### IEEE Configuration Sub-State #########");
-	
-	if(!CWErr(CWWTPIEEEConfigurationReceiveSendPacket(seqNum, NULL))) {
-
-		CWNetworkCloseSocket(gWTPSocket);
-#ifndef CW_NO_DTLS
-		CWSecurityDestroySession(gWTPSession);
-		CWSecurityDestroyContext(gWTPSecurityContext);
-		gWTPSecurityContext = NULL;
-		gWTPSession = NULL;
-#endif
-		return CW_QUIT;
-	}
-	
-	return CW_ENTER_DATA_CHECK;
-}
-*/
-
-/* 
  * Send Configure Request on the active session.
  */
 CWBool CWAssembleIEEEConfigurationResponse(CWProtocolMessage **messagesPtr,
@@ -272,9 +245,11 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 				goto failure;
 			
 			//Add interface to bridge
+			CWLog("gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode: %d", gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode);
 			if(gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode == CW_LOCAL_BRIDGING)
 //			if(CWWTPGetFrameTunnelMode() == CW_LOCAL_BRIDGING)
 			{
+				CWLog("CWAddNewBridgeInterface");
 				if(!CWAddNewBridgeInterface(globalNLSock.ioctl_sock, gBridgeInterfaceName, gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].ifName))
 					goto failure;
 			}	

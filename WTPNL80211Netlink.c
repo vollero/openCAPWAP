@@ -388,6 +388,7 @@ CWBool CWAddNewBridgeInterface(int sock, char * bridgeName, int wlanID) {
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, bridgeName, IFNAMSIZ);
 	ifr.ifr_ifindex = wlanID;
+	CWLog("Aggiungo a %s ifface %d", bridgeName, wlanID);
 	if (ioctl(sock, SIOCBRADDIF, &ifr) < 0) {
 		CWLog("Could not add interface %d into bridge %s: %s", wlanID, bridgeName, strerror(errno));
 		return CW_FALSE;
