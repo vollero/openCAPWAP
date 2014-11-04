@@ -365,6 +365,7 @@ CWBool CWParseJoinRequestMessage(char *msg,
 				if(!(CWParseWTPFrameTunnelMode(&completeMsg, elemLen, &(valuesPtr->frameTunnelMode))))
 					/* will be handled by the caller */
 					return CW_FALSE;
+				CWLog("++++++++++++++++ RICEVUTO FRAME TUNNEL: %d", valuesPtr->frameTunnelMode);
 				break;
 				
 			case CW_MSG_ELEMENT_WTP_MAC_TYPE_CW_TYPE:
@@ -515,13 +516,14 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
 		{
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].typeInterface = CW_STA_MODE;
 			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].wlanID = CWIEEEBindingGetDevFromIndexID(indexWlan);
+			if ((joinRequest->frameTunnelMode)!= NULL)
+				WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode=joinRequest->frameTunnelMode;
+			else 
+				WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode=0;
 		}
 		
-		if ((joinRequest->frameTunnelMode)!= NULL)
-			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode=joinRequest->frameTunnelMode;
-		else 
-			WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.interfaces[indexWlan].frameTunnelMode=0;
-			
+		
+
 	}
 	CWDebugLog("Join Request Saved");
 	return CW_TRUE;

@@ -966,7 +966,11 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 				if(gWTPs[i].cmdWLAN->typeCmd == CW_OP_ADD_WLAN)
 				{
 					//Controlli su numero radio e numero interfaccia
-					if(!ACUpdateInfoWlanInterface(&(gWTPs[i].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex]), gWTPs[i].cmdWLAN->wlanID, gWTPs[i].cmdWLAN->ssid, gWTPs[i].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].frameTunnelMode))
+					if(!ACUpdateInfoWlanInterface(
+					&(gWTPs[i].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex]), 
+					gWTPs[i].cmdWLAN->wlanID, 
+					gWTPs[i].cmdWLAN->ssid, 
+					gWTPs[i].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].frameTunnelMode))
 						break;//return CW_FALSE;
 				}
 				
