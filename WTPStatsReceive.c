@@ -52,25 +52,30 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveStats(void *arg)
 
 	CWThreadSetSignals(SIG_BLOCK, 1, SIGALRM);
 	
-	  /*      Create a UNIX datagram socket for this thread        */
-        if ((sock = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) 
-	{
-                CWDebugLog("THR STATS: Error creating socket");
+	sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+	if (sock < 0) {
+		CWDebugLog("THR STATS: Error creating socket");
 		CWExitThread();
+	}
+	/*
+	    if ((sock = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) 
+		{
+            CWDebugLog("THR STATS: Error creating socket");
+			CWExitThread();
         }
-        
+      */  
 	/*      Set up address structure for server socket      */
         bzero(&servaddr, sizeof(servaddr));
-	bzero(&from, sizeof(from));
-        servaddr.sun_family = AF_UNIX;
+		bzero(&from, sizeof(from));
+        servaddr.sun_family = AF_PACKET; //AF_UNIX;
         strcpy(servaddr.sun_path, SOCKET_PATH);
 
         unlink(SOCKET_PATH);
 
-	len = sizeof(servaddr.sun_family) + strlen(servaddr.sun_path);
+		len = sizeof(servaddr.sun_family) + strlen(servaddr.sun_path);
 
         if (bind(sock, (const struct sockaddr *) &servaddr,len) < 0) 
-	{
+		{
                 CWDebugLog("THR STATS: Error binding socket");
 		CWExitThread();
         }

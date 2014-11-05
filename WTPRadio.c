@@ -212,6 +212,7 @@ CWBool CWWTPCreateNewBSS(int radioIndex, int wlanIndex)
 		WTPGlobalBSSList[BSSId]->staList[indexSTA].address = NULL;
 		WTPGlobalBSSList[BSSId]->staList[indexSTA].radioAdd = CW_FALSE;
 	}
+	
 	return CW_TRUE;
 }
 

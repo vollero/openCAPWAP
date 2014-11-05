@@ -99,13 +99,13 @@ CWBool nl80211CmdSetNewMonitorInterface(int indexPhy, WTPInterfaceInfo * interfa
 	enum nl80211_iftype typeIf = NL80211_IFTYPE_MONITOR;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
 	
-	struct nlattr *flags;
+	/*struct nlattr *flags;
 	flags = nla_nest_start(msg, NL80211_ATTR_MNTR_FLAGS);
 	if (!flags)
 		goto nla_put_failure;
 	NLA_PUT_FLAG(msg, NL80211_MNTR_FLAG_COOK_FRAMES);
 	nla_nest_end(msg, flags);
-	
+	*/
 	/*
 	 * Tell cfg80211 that the interface belongs to the socket that created
 	 * it, and the interface should be deleted when the socket is closed.
@@ -410,7 +410,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{
-		rateChar[indexRates] = ((infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1) / 5);
+		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1); // diviso 5?
 		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	}
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
@@ -423,7 +423,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	CWLog("listenInterval: %d", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
-	CWLog("listenInterval: %02x", staInfo.capabilityBit);
+	CWLog("capabilityBit: %02x", staInfo.capabilityBit);
 	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));

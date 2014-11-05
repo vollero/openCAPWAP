@@ -43,7 +43,10 @@
 #include "ieee80211.h"
 */
 
-#include "eloop.h"
+#include "HostapdHeaders/utils/radiotap_iter.h"
+#include "HostapdHeaders/utils/platform.h"
+
+
 /* ********* DEFINE ********* */
 #define ETH_ALEN 6
 /*
@@ -562,9 +565,6 @@ int nl80211_register_frame(WTPInterfaceInfo * interfaceInfo,
 				  u16 type, const u8 *match, size_t match_len);
 int nl80211_register_spurious_class3(WTPInterfaceInfo * interfaceInfo);
 void nl80211_mgmt_handle_register_eloop(WTPInterfaceInfo * interfaceInfo);
-void nl80211_register_eloop_read(struct nl_handle **handle,
-					eloop_sock_handler handler,
-					void *eloop_data);
 void CW80211EventReceive(void *eloop_ctx, void *handle);
 void CW80211EventDataReceive(int dataRawSock, struct WTPBSSInfo * BSSInfo);
 void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer);

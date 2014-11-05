@@ -685,7 +685,13 @@ int main (int argc, const char * argv[]) {
 		CWLog("Error Init Configuration");
 		exit(1);
 	}
-
+	
+	CWThread thread_receiveFrame;
+	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
+		CWLog("Error starting Thread that receive binding frame");
+		exit(1);
+	}
+	
 /*
 #ifdef SOFTMAC
 	CWThread thread_ipc_with_wtp_hostapd;
@@ -702,24 +708,25 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	}
 */
-
+/*
 	CWThread thread_receiveStats;
 	if(!CWErr(CWCreateThread(&thread_receiveStats, CWWTPReceiveStats, NULL))) {
 		CWLog("Error starting Thread that receive stats on monitoring interface");
 		exit(1);
 	}
-
+*/
 	/****************************************
 	 * 2009 Update:							*
 	 *				Spawn Frequency Stats	*
 	 *				Receiver Thread			*
 	 ****************************************/
-
+/*
 	CWThread thread_receiveFreqStats;
 	if(!CWErr(CWCreateThread(&thread_receiveFreqStats, CWWTPReceiveFreqStats, NULL))) {
 		CWLog("Error starting Thread that receive frequency stats on monitoring interface");
 		exit(1);
 	}
+	*/
 
 	/* if AC address is given jump Discovery and use this address for Joining */
 	if(gWTPForceACAddress != NULL)	nextState = CW_ENTER_JOIN;
