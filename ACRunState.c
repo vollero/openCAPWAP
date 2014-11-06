@@ -157,7 +157,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 	if(dataFlag){
 		/* We have received a Data Message... now just log this event and do actions by the dataType */
 		
-		CWDebugLog("--> Received a DATA Message");
+		CWDebugLog("--> Received a DATA Message: Type: %d", msgPtr->data_msgType);
 
 		if(msgPtr->data_msgType == CW_DATA_MSG_FRAME_TYPE)	{
 
@@ -292,7 +292,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				return CW_FALSE;
 
 #ifdef SPLIT_MAC
-			if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
+			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
 				
 				/*if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
 					
