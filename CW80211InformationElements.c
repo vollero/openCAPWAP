@@ -1118,3 +1118,36 @@ CWBool CW80211ParseDeauthDisassociationRequest(char * frame, struct CWFrameDeaut
 
 	return CW_TRUE;
 }
+
+CWBool CW80211ParseDataFrame(char * frame, struct CWFrameDataHdr * dataFrame) {
+	int offset=0;
+	
+	if(dataFrame == NULL)
+		return CW_FALSE;
+		
+	//Frame Control
+	if(!CW80211ParseFrameIEControl(frame, &(offset), &(dataFrame->frameControl)))
+		return CW_FALSE;
+	
+	//Duration
+	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(dataFrame->duration)))
+		return CW_FALSE;
+	
+	//BSSID
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), dataFrame->BSSID))
+		return CW_FALSE;
+	
+	//SA
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), dataFrame->SA))
+		return CW_FALSE;
+	
+	//DA
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), dataFrame->DA))
+		return CW_FALSE;
+	
+	//Seq Ctrl
+	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(dataFrame->seqCtrl)))
+		return CW_FALSE;
+
+	return CW_TRUE;
+}

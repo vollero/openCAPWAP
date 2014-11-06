@@ -280,6 +280,10 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 			//TODO: Serve?
 			gRadiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.numInterfaces--;	
 			
+			//Delete BSS
+			if(!CWWTPDeleteBSS(indexRadio, indexWlan))
+				goto failure;
+
 			goto success;
 		}
 		else

@@ -15,10 +15,10 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	int indexWlan;
 	
 	gRadiosInfo.radioCount = gPhyInterfaceCount;
-	CW_CREATE_ARRAY_ERR(gRadiosInfo.radiosInfo, gRadiosInfo.radioCount, CWWTPRadioInfoValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo, gRadiosInfo.radioCount, CWWTPRadioInfoValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	//Inizializza la variabile globale che conterrà tutte le bss presenti da questo WTP
-	CW_CREATE_ARRAY_ERR(WTPGlobalBSSList, (WTP_MAX_INTERFACES*gRadiosInfo.radioCount), WTPBSSInfo *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList, (WTP_MAX_INTERFACES*gRadiosInfo.radioCount), WTPBSSInfo *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	err = nl80211_init_socket(&(globalNLSock));
 	if(err != 0)
@@ -103,8 +103,6 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.lenSupportedRates; indexRates++)
 			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.supportedRates[indexRates] = (char) mapSupportedRatesValues(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
 			
-		
-		
 		if(!CWWTPInitBinding(indexPhy)) {return CW_FALSE;}
 
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.numInterfaces=0;
@@ -118,7 +116,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			
 			if(!CWWTPCreateNewBSS(indexPhy, indexWlan))
 			{
-				CWLog("NL80211: Error creating new interface. RadioID: %d, WLAN ID: %d", indexPhy, indexWlan);
+				CWLog("NL80211: Error creating new bss. RadioID: %d, WLAN ID: %d", indexPhy, indexWlan);
 				return CW_FALSE;
 			}			
 		}
@@ -148,12 +146,9 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		CWLog("CW_NATIVE_BRIDGING");
 		if(!nl80211CmdSetNewMonitorInterface(0, &(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface)))
 			return CW_FALSE;
-		CWLog("nl80211CmdSetNewMonitorInterface done");
 		
 		if(!ioctlActivateInterface(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName))
 			return CW_FALSE;
-		
-		CWLog("ioctlActivateInterface done");
 	}
 	
 	return CW_TRUE;
@@ -185,6 +180,9 @@ CWBool CWWTPCreateNewBSS(int radioIndex, int wlanIndex)
 {
 	int indexSTA, BSSId = getBSSIndex(radioIndex, wlanIndex);
 	
+	if(WTPGlobalBSSList[BSSId] != NULL)
+		return CW_FALSE;
+		
 	CW_CREATE_OBJECT_ERR(WTPGlobalBSSList[BSSId], WTPBSSInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
 	if(nl80211_init_socket(&(WTPGlobalBSSList[BSSId]->BSSNLSock)))
@@ -205,13 +203,39 @@ CWBool CWWTPCreateNewBSS(int radioIndex, int wlanIndex)
 	WTPGlobalBSSList[BSSId]->active = CW_FALSE;
 	
 	WTPGlobalBSSList[BSSId]->numSTAActive = 0;
-	CW_CREATE_ARRAY_ERR(WTPGlobalBSSList[BSSId]->staList, WTP_MAX_STA, WTPSTAInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[BSSId]->staList, WTP_MAX_STA, WTPSTAInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
 	{
 		WTPGlobalBSSList[BSSId]->staList[indexSTA].state = CW_80211_STA_OFF;
 		WTPGlobalBSSList[BSSId]->staList[indexSTA].address = NULL;
 		WTPGlobalBSSList[BSSId]->staList[indexSTA].radioAdd = CW_FALSE;
 	}
+	
+	CWCreateThreadMutex(&(WTPGlobalBSSList[BSSId]->bssMutex));
+	WTPGlobalBSSList[BSSId]->destroyBSS = CW_FALSE;
+	
+	return CW_TRUE;
+}
+
+CWBool CWWTPDeleteBSS(int radioIndex, int wlanIndex)
+{
+	int indexSTA, BSSId = getBSSIndex(radioIndex, wlanIndex);
+	
+	CWLog("radioIndex: %d, wlanIndex; %d BSSId: %d", radioIndex, wlanIndex, BSSId);
+	if(WTPGlobalBSSList[BSSId] == NULL)
+		return CW_TRUE;
+	
+	//Destroy thread BSS
+	CWThreadMutexLock(&(WTPGlobalBSSList[BSSId]->bssMutex));
+	WTPGlobalBSSList[BSSId]->destroyBSS = CW_TRUE;
+	CWThreadMutexUnlock(&(WTPGlobalBSSList[BSSId]->bssMutex));
+	
+	nl80211_cleanup_socket(&(WTPGlobalBSSList[BSSId]->BSSNLSock));
+
+	CW_FREE_OBJECT((WTPGlobalBSSList[BSSId]->staList));
+	
+	CW_FREE_OBJECT(WTPGlobalBSSList[BSSId]);
+	WTPGlobalBSSList[BSSId]=NULL;
 	
 	return CW_TRUE;
 }
@@ -267,19 +291,20 @@ CWBool CWWTPDeleteWLANAPInterface(int radioIndex, int wlanIndex)
 		return CW_FALSE;
 	*/
 	
-	int tmpIndexif = if_nametoindex(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
+	//int tmpIndexif = if_nametoindex(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
 	/*IF_OPER_DOWN*/
 	/*if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, 2 ))
 		return CW_FALSE;
 	*/
 	
-	CWLog("Dentro CWWTPDeleteWLANAPInterface. interfaace: %s", gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
+	CWLog("Dentro CWWTPDeleteWLANAPInterface. interface: %s", gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
+
+	if(!nl80211CmdStopAP(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName))
+		return CW_FALSE;
+		
 	if(!nl80211CmdSetInterfaceSTAType(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName))
 		return CW_FALSE;
-	/*
-	if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, IF_OPER_UP))
-		return CW_FALSE;
-	*/
+	
 	return CW_TRUE;
 }
 

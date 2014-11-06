@@ -290,7 +290,31 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 			if(!CW80211ParseFrameIEControl(msgPtr->msg, &(offsetFrameReceived), &(frameControl)))
 				return CW_FALSE;
-			
+
+#ifdef SPLIT_MAC
+			if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
+				
+				/*if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
+					
+					CWACsend_data_to_hostapd(WTPIndex,msgPtr->msg, msglen);
+					
+				}else{
+					*/
+				CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
+				int write_bytes = write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
+				if(write_bytes != (msglen - 24)){
+					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
+															msgPtr->msg[1],
+															msgPtr->msg[2],
+															msgPtr->msg[3],
+															msgPtr->msg[4],
+															msgPtr->msg[5]);
+						
+					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24,write_bytes);
+				}
+			}
+#endif
+
 			if(WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_MGMT)
 			{
 				

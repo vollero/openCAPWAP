@@ -43,8 +43,8 @@
 #include "ieee80211.h"
 */
 
-#include "HostapdHeaders/utils/radiotap_iter.h"
-#include "HostapdHeaders/utils/platform.h"
+//#include "HostapdHeaders/utils/radiotap_iter.h"
+//#include "HostapdHeaders/utils/platform.h"
 
 
 /* ********* DEFINE ********* */
@@ -385,6 +385,9 @@ typedef struct WTPBSSInfo {
 	int numSTAActive;
 	WTPSTAInfo * staList;
 	
+	CWThreadMutex bssMutex;
+	CWBool destroyBSS;
+	
 } WTPBSSInfo;
 extern struct WTPBSSInfo ** WTPGlobalBSSList;
 
@@ -485,9 +488,9 @@ typedef struct CWFrameDeauthDisassociationRequest {
 typedef struct CWFrameDataHdr {
 	short int frameControl;
 	short int duration;
-	unsigned char DA[ETH_ALEN];
-	unsigned char SA[ETH_ALEN];
 	unsigned char BSSID[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char DA[ETH_ALEN];
 	short int seqCtrl; 
 } CWFrameDataHdr;
 
@@ -497,6 +500,7 @@ CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID);
 CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * interfaceInfo);
 CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID);
 CWBool CWWTPCreateNewBSS(int radioID, int wlanID);
+CWBool CWWTPDeleteBSS(int radioIndex, int wlanIndex);
 CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex);
 
 #define WTP_NL80211_BITRATE_NUM NL80211_MAX_SUPP_RATES
@@ -505,6 +509,7 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex);
 
 //WTP80211Netlink.c
 int nl80211_init_socket(struct nl80211SocketUnit *nlSockUnit);
+void nl80211_cleanup_socket(struct nl80211SocketUnit *nlSockUnit);
 int netlink_create_socket(struct nl80211SocketUnit *nlSockUnit);
 CWBool netlink_send_oper_ifla(int sock, int ifindex, int linkmode, int operstate);
 struct nl_handle * nl_create_handle(struct nl_cb *cb, const char *dbg);
@@ -628,4 +633,12 @@ CWBool CW80211ParseFrameIEListenInterval(char * frameReceived, int * offsetFrame
 CWBool CW80211ParseFrameIESupportedRates(char * frameReceived, int * offsetFrameReceived, char ** value, int * lenIE);
 CWBool CW80211SetAssociationID(short int * assID);
 CWBool CW80211ParseAssociationResponse(char * frame, struct CWFrameAssociationResponse * assocResponse);
+CWBool CW80211ParseDataFrame(char * frame, struct CWFrameDataHdr * dataFrame);
 
+
+struct ieee80211_radiotap_header {
+        u_int8_t        it_version;     /* set to 0 */
+        u_int8_t        it_pad;
+        u_int16_t       it_len;         /* entire length */
+        u_int32_t       it_present;     /* fields present */
+} __attribute__((__packed__));
