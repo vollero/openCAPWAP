@@ -784,7 +784,7 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 
 char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset)
 {
-	if(request == NULL)
+	if(request == NULL || BSSID == NULL || MACAddr == NULL || suppRate == NULL)
 		return NULL;
 		
 	CWLog("Association response AC side");

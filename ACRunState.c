@@ -311,7 +311,11 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 						return CW_FALSE;
 					}
 					CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
+					CWLog("dataFrame.DA: %02x", (int)dataFrame.DA[0]);
+					CWLog("dataFrame.SA: %02x", (int)dataFrame.SA[0]);
+					CWLog("msglen-HLEN_80211: %d", msglen-HLEN_80211);
 					
+					CWLog("802.3 frame length: %d", (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211)));
 					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.DA))
 						return CW_FALSE;
 					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.SA))
@@ -319,11 +323,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), (msglen-HLEN_80211)))
 						return CW_FALSE;
 					
-					CW_COPY_MEMORY(frame8023[offsetFrame8023], (msgPtr->msg+HLEN_80211), (msglen-HLEN_80211));
+					
+					CW_COPY_MEMORY((frame8023+offsetFrame8023), (msgPtr->msg+HLEN_80211), (msglen-HLEN_80211));
 
 					
 					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, msglen-HLEN_80211);
-					CWLog("Inviati %d bytes");
+					CWLog("Inviati %d bytes", write_bytes);
 					if(write_bytes != (msglen - 24)){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 															msgPtr->msg[1],
@@ -441,14 +446,18 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					/* In caso di SPLIT MAC, se AC riceve AssReq deve prima generare AssResp ed inviarlo al WTP.. */
 					struct CWFrameAssociationRequest assRequest;
 					if(!CW80211ParseAssociationRequest(msgPtr->msg, &assRequest))
-						return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+						return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+					
+					if(assRequest.BSSID == NULL || assRequest.DA == NULL || assRequest.SA == NULL)
+						return CW_FALSE;
 					
 					int indexRadio=0, indexWlan=0, stop=0;
-					for(indexRadio=0; indexRadio<WTP_RADIO_MAX; indexRadio++)
+					for(indexRadio=0; indexRadio<gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
 					{
 						for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
 						{
 							if(
+								gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
 								gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL && 
 								!strcmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, assRequest.BSSID)
 							)
@@ -461,6 +470,9 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							break;
 					}
 					
+					if(stop == 0)
+						return CW_TRUE;
+						
 					CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 					CW_COPY_MEMORY(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, assRequest.DA, ETH_ALEN);
 					
@@ -474,6 +486,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.lenSupportedRates,
 																		&(assRequest), &(frameRespLen));
 					
+					if(frameResponse == NULL)
+						return CW_TRUE;
 					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
 					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
 					

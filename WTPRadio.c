@@ -241,7 +241,10 @@ CWBool CWWTPDeleteBSS(int radioIndex, int wlanIndex)
 }
 
 CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * interfaceInfo)
-{    
+{   
+	if(interfaceInfo->typeInterface == CW_AP_MODE)
+		return CW_TRUE;
+	
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
 	
