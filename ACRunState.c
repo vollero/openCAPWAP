@@ -304,7 +304,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				}else{
 					*/
 					
-					CW_CREATE_ARRAY_CALLOC_ERR(frame8023, (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211)), unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+					int llcHeaderLen = 8;
+					CW_CREATE_ARRAY_CALLOC_ERR(frame8023, (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211 -llcHeaderLen)), unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 					if(!CW80211ParseDataFrame(msgPtr->msg, &(dataFrame)))
 					{
 						CWLog("CW80211: Error parsing data frame");
@@ -313,23 +314,25 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
 					CWLog("dataFrame.DA: %02x", (int)dataFrame.DA[0]);
 					CWLog("dataFrame.SA: %02x", (int)dataFrame.SA[0]);
-					CWLog("msglen-HLEN_80211: %d", msglen-HLEN_80211);
+					CWLog("msglen-HLEN_80211-llcHeaderLen: %d", msglen-HLEN_80211-llcHeaderLen);
 					
-					CWLog("802.3 frame length: %d", (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211)));
+					CWLog("802.3 frame length: %d", (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211 - llcHeaderLen)));
 					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.DA))
 						return CW_FALSE;
 					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.SA))
 						return CW_FALSE;
-					if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), (msglen-HLEN_80211)))
+					short int etherType=8;
+				//	etherType = IEEE80211_FC();
+					if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), etherType))
 						return CW_FALSE;
 					
 					
-					CW_COPY_MEMORY((frame8023+offsetFrame8023), (msgPtr->msg+HLEN_80211), (msglen-HLEN_80211));
+					CW_COPY_MEMORY((frame8023+offsetFrame8023), (msgPtr->msg+HLEN_80211+llcHeaderLen), (msglen-HLEN_80211-llcHeaderLen));
 
 					
-					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, msglen-HLEN_80211);
+					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, msglen-HLEN_80211-llcHeaderLen);
 					CWLog("Inviati %d bytes", write_bytes);
-					if(write_bytes != (msglen - 24)){
+					if(write_bytes != (msglen - HLEN_80211-llcHeaderLen)){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 															msgPtr->msg[1],
 															msgPtr->msg[2],
@@ -337,7 +340,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 															msgPtr->msg[4],
 															msgPtr->msg[5]);
 						
-					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24,write_bytes);
+					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24-llcHeaderLen,write_bytes);
 					
 				}
 				
