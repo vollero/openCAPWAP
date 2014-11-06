@@ -155,6 +155,7 @@ extern struct nl80211SocketUnit globalNLSock;
 /* ++++++++ IE Frame Data ++++++++++ */
 #define DATA_FRAME_FIXED_LEN_ACK 10
 
+#define ETHERNET_HEADER_FRAME_LEN 14
 enum {
 	CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME,
 	CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE
@@ -619,6 +620,7 @@ CWBool CW80211AssembleIESSID(char * frame, int * offset, char * value);
 float mapSupportedRatesValues(float rate, short int mode);
 CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value, int numRates);
 CWBool CW80211AssembleIEDSSS(char * frame, int * offset, char value);
+CWBool CW80211AssembleHdrLength(char * frame, int * offset, short int value);
 
 CWBool CW80211ParseFrameIEControl(char * frameReceived, int * offsetFrameReceived, short int * value);
 CWBool CW80211ParseFrameIEDuration(char * frameReceived, int * offsetFrameReceived, short int * value);

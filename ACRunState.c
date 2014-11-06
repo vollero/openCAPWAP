@@ -152,6 +152,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 	char socketserv_path_name[50];
 	int msglen = msgPtr->offset;
 	int dataSocket;
+	unsigned char * frame8023=NULL;
 	
 	msgPtr->offset = 0;
 	if(dataFlag){
@@ -287,7 +288,9 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			CWProtocolMessage * msgFrame;
 			int fragmentsNum=0, dataSocket=0, k=0;
 			CWNetworkLev4Address address;
-					
+			int offsetFrame8023=0;
+			struct CWFrameDataHdr dataFrame;
+
 			if(!CW80211ParseFrameIEControl(msgPtr->msg, &(offsetFrameReceived), &(frameControl)))
 				return CW_FALSE;
 
@@ -300,10 +303,28 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 				}else{
 					*/
-				CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
-				int write_bytes = write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
-				CWLog("Inviati %d bytes");
-				if(write_bytes != (msglen - 24)){
+					
+					CW_CREATE_ARRAY_CALLOC_ERR(frame8023, (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211)), unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+					if(!CW80211ParseDataFrame(msgPtr->msg, &(dataFrame)))
+					{
+						CWLog("CW80211: Error parsing data frame");
+						return CW_FALSE;
+					}
+					CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
+					
+					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.DA))
+						return CW_FALSE;
+					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.SA))
+						return CW_FALSE;
+					if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), (msglen-HLEN_80211)))
+						return CW_FALSE;
+					
+					CW_COPY_MEMORY(frame8023[offsetFrame8023], (msgPtr->msg+HLEN_80211), (msglen-HLEN_80211));
+
+					
+					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, msglen-HLEN_80211);
+					CWLog("Inviati %d bytes");
+					if(write_bytes != (msglen - 24)){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 															msgPtr->msg[1],
 															msgPtr->msg[2],
@@ -312,8 +333,11 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 															msgPtr->msg[5]);
 						
 					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24,write_bytes);
+					
 				}
 				
+				CW_FREE_OBJECT(frame8023);
+				frame8023=NULL;
 				return CW_TRUE;
 			}
 #endif

@@ -222,6 +222,15 @@ CWBool CW80211AssembleIEDSSS(char * frame, int * offset, char value) {
 
 	return CW_TRUE;
 }
+
+//802.3
+CWBool CW80211AssembleHdrLength(char * frame, int * offset, short int value) {
+
+	CW_COPY_MEMORY(frame, &(value), 2);
+	(*offset) += 2;
+	
+	return CW_TRUE;
+}
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
 /* ------------------ PARSE ---------------------- */
