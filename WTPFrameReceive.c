@@ -242,6 +242,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 				CWLog("THR FRAME: Error extracting a frame");
 				EXIT_FRAME_THREAD(gRawSock);
 			}
+			
+			CWLog("frame[0]: %02x", frame->msg[0]);
+			CWLog("frame[1]: %02x", frame->msg[1]);
+			CWLog("frame[2]: %02x", frame->msg[2]);
+			CWLog("frame[3]: %02x", frame->msg[3]);
 
 			CWBindingTransportHeaderValues *bindValues;
 			CW_CREATE_OBJECT_ERR(listElement, CWBindingDataListElement, EXIT_FRAME_THREAD(gRawSock););

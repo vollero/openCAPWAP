@@ -302,6 +302,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					*/
 				CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
 				int write_bytes = write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
+				CWLog("Inviati %d bytes");
 				if(write_bytes != (msglen - 24)){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 															msgPtr->msg[1],
@@ -312,6 +313,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 						
 					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24,write_bytes);
 				}
+				
+				return CW_TRUE;
 			}
 #endif
 
