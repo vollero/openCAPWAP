@@ -304,35 +304,72 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				}else{
 					*/
 					
-					int llcHeaderLen = 8;
-					CW_CREATE_ARRAY_CALLOC_ERR(frame8023, (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211 -llcHeaderLen)), unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+					
 					if(!CW80211ParseDataFrame(msgPtr->msg, &(dataFrame)))
 					{
 						CWLog("CW80211: Error parsing data frame");
 						return CW_FALSE;
 					}
-					CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
-					CWLog("dataFrame.DA: %02x", (int)dataFrame.DA[0]);
-					CWLog("dataFrame.SA: %02x", (int)dataFrame.SA[0]);
-					CWLog("msglen-HLEN_80211-llcHeaderLen: %d", msglen-HLEN_80211-llcHeaderLen);
 					
-					CWLog("802.3 frame length: %d", (ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211 - llcHeaderLen)));
+					int llcHeaderLen = 8;
+					unsigned char * payload = msgPtr->msg+HLEN_80211;
+					short int etherType = (payload[6] << 8) | payload[7];
+					CWBool flagLLC=CW_FALSE;
+					int sizeEthFrame=0, offsetEthPayload=0;
+					/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
+					u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8}; 
+					/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
+					u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
+					if(
+						(
+							(!memcmp(payload, rfc1042_header, 6)) &&
+							(etherType != ETH_P_AARP && etherType != ETH_P_IPX) 
+						) ||
+						(!memcmp(payload, bridge_tunnel_header, 6))
+					)
+						flagLLC=CW_TRUE;
+					
+					if(flagLLC == CW_TRUE)
+					{
+						sizeEthFrame = ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211 -llcHeaderLen);
+						offsetEthPayload = HLEN_80211+llcHeaderLen;
+						CWLog("Con LLC. EthPayload Len: %d. EthType: %d", offsetEthPayload, etherType);
+					}
+					else
+					{
+						sizeEthFrame = ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211);
+						offsetEthPayload = HLEN_80211;
+						CWLog("Senza LLC. EthPayload Len: %d", offsetEthPayload);
+					}
+					
+					/* SET Eth vX Frame */
+					CW_CREATE_ARRAY_CALLOC_ERR(frame8023, sizeEthFrame, unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.DA))
 						return CW_FALSE;
 					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.SA))
 						return CW_FALSE;
-					short int etherType=8;
-				//	etherType = IEEE80211_FC();
-					if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), etherType))
-						return CW_FALSE;
 					
-					
-					CW_COPY_MEMORY((frame8023+offsetFrame8023), (msgPtr->msg+HLEN_80211+llcHeaderLen), (msglen-HLEN_80211-llcHeaderLen));
+					if(flagLLC == CW_TRUE)
+					{	
+						if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), msglen-offsetEthPayload))
+							return CW_FALSE;
+					}
+					else
+					{
+						if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), etherType))
+							return CW_FALSE;
+					}
+					CW_COPY_MEMORY((frame8023+offsetFrame8023), (msgPtr->msg+offsetEthPayload), (msglen-offsetEthPayload));
 
-					
-					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, msglen-HLEN_80211-llcHeaderLen);
+					CWLog("Ricevuto WLAN_FC_TYPE_DATA. Lo inoltro tramite tap del WTP %d", WTPIndex);
+					CWLog("dataFrame.DA: %02x", (int)dataFrame.DA[0]);
+					CWLog("dataFrame.SA: %02x", (int)dataFrame.SA[0]);
+					CWLog("msglen-HLEN_80211-llcHeaderLen: %d", msglen-offsetEthPayload);
+					CWLog("802.3 frame length: %d", (ETHERNET_HEADER_FRAME_LEN+(msglen - offsetEthPayload)));
+				
+					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, msglen-offsetEthPayload);
 					CWLog("Inviati %d bytes", write_bytes);
-					if(write_bytes != (msglen - HLEN_80211-llcHeaderLen)){
+					if(write_bytes != (msglen - offsetEthPayload)){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 															msgPtr->msg[1],
 															msgPtr->msg[2],
@@ -340,7 +377,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 															msgPtr->msg[4],
 															msgPtr->msg[5]);
 						
-					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24-llcHeaderLen,write_bytes);
+					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - offsetEthPayload,write_bytes);
 					
 				}
 				
@@ -738,26 +775,26 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					  return CW_FALSE;
     				}
 				  
-				  memset(&(UnixSocksArray[WTPIndex].clntaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].clntaddr));
-				  UnixSocksArray[WTPIndex].clntaddr.sun_family = AF_UNIX;
-				  
-				  //make unix socket client path name by index i 
-				snprintf(string,sizeof(string),"%d",WTPIndex);
-				string[sizeof(string)-1]=0;
-				strcpy(socketctl_path_name,SOCKET_PATH_AC);
-				strcat(socketctl_path_name,string);
-				strcpy(UnixSocksArray[WTPIndex].clntaddr.sun_path,socketctl_path_name);
-				
-				unlink(socketctl_path_name);
-				
-				memset(&(UnixSocksArray[WTPIndex].servaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].servaddr));
-				UnixSocksArray[WTPIndex].servaddr.sun_family = AF_UNIX;
+					  memset(&(UnixSocksArray[WTPIndex].clntaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].clntaddr));
+					  UnixSocksArray[WTPIndex].clntaddr.sun_family = AF_UNIX;
+					  
+					  //make unix socket client path name by index i 
+					snprintf(string,sizeof(string),"%d",WTPIndex);
+					string[sizeof(string)-1]=0;
+					strcpy(socketctl_path_name,SOCKET_PATH_AC);
+					strcat(socketctl_path_name,string);
+					strcpy(UnixSocksArray[WTPIndex].clntaddr.sun_path,socketctl_path_name);
+					
+					unlink(socketctl_path_name);
+					
+					memset(&(UnixSocksArray[WTPIndex].servaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].servaddr));
+					UnixSocksArray[WTPIndex].servaddr.sun_family = AF_UNIX;
 
-				//make unix socket server path name by index i 
-				strcpy(socketserv_path_name, SOCKET_PATH_RECV_AGENT);
-				strcat(socketserv_path_name, string);
-				strcpy(UnixSocksArray[WTPIndex].servaddr.sun_path, socketserv_path_name);
-				printf("\n%s\t%s",socketserv_path_name,socketctl_path_name);fflush(stdout);
+					//make unix socket server path name by index i 
+					strcpy(socketserv_path_name, SOCKET_PATH_RECV_AGENT);
+					strcat(socketserv_path_name, string);
+					strcpy(UnixSocksArray[WTPIndex].servaddr.sun_path, socketserv_path_name);
+					printf("\n%s\t%s",socketserv_path_name,socketctl_path_name);fflush(stdout);
 				}
 			  
 
