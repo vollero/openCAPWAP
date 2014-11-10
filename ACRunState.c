@@ -367,7 +367,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CWLog("802.3 frame length: %d", (ETHERNET_HEADER_FRAME_LEN+(msglen - offsetEthPayload)));
 				
 					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, (ETHERNET_HEADER_FRAME_LEN+msglen-offsetEthPayload));
-					if(write_bytes != (msglen - offsetEthPayload)){
+					if(write_bytes != (ETHERNET_HEADER_FRAME_LEN+msglen-offsetEthPayload)){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 															msgPtr->msg[1],
 															msgPtr->msg[2],
@@ -375,7 +375,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 															msgPtr->msg[4],
 															msgPtr->msg[5]);
 						
-					CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - offsetEthPayload,write_bytes);
+					CWLog("Error:. RecvByte:%d, write_Byte:%d ",ETHERNET_HEADER_FRAME_LEN+msglen-offsetEthPayload,write_bytes);
 					
 				}
 				
