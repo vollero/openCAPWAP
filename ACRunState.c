@@ -296,12 +296,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			//if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC)	
 			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA )
 			{
-				unsigned char frame8023[CW_BUFFER_SIZE];
+				unsigned char * frame8023;
 				int frame8023len=0;
 
 				if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
 					return CW_FALSE;
-
+		
 				int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, frame8023len);
 					if(write_bytes != frame8023len){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],

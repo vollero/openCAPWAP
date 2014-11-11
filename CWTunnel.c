@@ -75,7 +75,7 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 		}
 					
 		/* SET Eth vX Frame */
-		CW_CREATE_ARRAY_CALLOC_ERR(frame8023, sizeEthFrame, unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	//	CW_CREATE_ARRAY_CALLOC_ERR(frame8023, sizeEthFrame, unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.DA))
 			return CW_FALSE;
 		if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.SA))
@@ -96,8 +96,8 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 		CWLog("****** ETHERNET FRAME ******* ");
 		if(flagEncaps == CW_TRUE)
 			CWLog("** ENCAPS: %d bytes", ENCAPS_HDR_LEN);
-		CWLog("** DA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", ETH_ALEN, (int)dataFrame.DA[0], (int)dataFrame.DA[1], (int)dataFrame.DA[2], (int)dataFrame.DA[3], (int)dataFrame.DA[4], (int)dataFrame.DA[5]);
-		CWLog("** SA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", ETH_ALEN, (int)dataFrame.SA[0], (int)dataFrame.SA[1], (int)dataFrame.SA[2], (int)dataFrame.SA[3], (int)dataFrame.SA[4], (int)dataFrame.SA[5]);
+		CWLog("** DA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", (int)dataFrame.DA[0], (int)dataFrame.DA[1], (int)dataFrame.DA[2], (int)dataFrame.DA[3], (int)dataFrame.DA[4], (int)dataFrame.DA[5], ETH_ALEN);
+		CWLog("** SA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", (int)dataFrame.SA[0], (int)dataFrame.SA[1], (int)dataFrame.SA[2], (int)dataFrame.SA[3], (int)dataFrame.SA[4], (int)dataFrame.SA[5], ETH_ALEN);
 		CWLog("** TOT LEN 802.3 Frame: %d", (ETH_HLEN+(frameLen - offsetEthPayload)));
 		
 		*(frame8023Len) = (ETH_HLEN+(frameLen - offsetEthPayload));
