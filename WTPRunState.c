@@ -515,32 +515,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 									CWLog("NL80211: Errore CW80211SendFrame");
 					}
 #endif
-					//ELENA: questi sono frame dati
-		/*			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
-											
-						if(  WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_NULLFUNC ){
-							
-							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(frameControl),msgPtr.offset);
-						//	CWWTPsend_data_to_hostapd(msgPtr.msg, msgPtr.offset);
-							
-						}else{
-							
-							CWDebugLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(frameControl),msgPtr.offset);
-							CWWTPSendFrame(msgPtr.msg, msgPtr.offset);
-							
-						}
-						
-					}
-					
-					else {
-						//Management Frames: trova bss
-						//Invio
-						if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
-							CWLog("NL80211: Errore CW80211SendFrame");
-
-						CWLog("Control/Unknow Type type=%d",WLAN_FC_GET_TYPE(frameControl));
-					}
-					*/
 				}else{
 					CWLog("Unknow data_msgType");
 				}

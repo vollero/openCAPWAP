@@ -181,12 +181,15 @@ extern char * wtpLogFile;
 #include "CWList.h"
 #include "CWSafeList.h"
 
-//#include "ACNL80211.h"
 #include "IEEEBinding.h"
 
 #include "CWProtocol.h"
 #include "CWSecurity.h"
 #include "CWConfigFile.h"
+
+//ElenaAgostini
+#include "CWTunnel.h"
+
 
 int CWTimevalSubtract(struct timeval *res, const struct timeval *x, const struct timeval *y);
 CWBool CWParseSettingsFile();

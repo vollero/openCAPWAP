@@ -21,31 +21,6 @@
  * Author :  Elena Agostini elena.ago@gmail.com		                                       *  
  *                                                                                         *
  *******************************************************************************************/
- 
-/*#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <net/if.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include <endian.h>
-
-#include <netlink/genl/genl.h>
-#include <netlink/genl/family.h>
-#include <netlink/genl/ctrl.h>
-#include <netlink/msg.h>
-#include <netlink/attr.h>
-
-#include "nl80211.h"
-#include "ieee80211.h"
-*/
-
-//#include "HostapdHeaders/utils/radiotap_iter.h"
-//#include "HostapdHeaders/utils/platform.h"
-
 
 /* ********* DEFINE ********* */
 #define ETH_ALEN 6
@@ -152,8 +127,7 @@ extern struct nl80211SocketUnit globalNLSock;
 
 /* ++++++++ IE Frame Data ++++++++++ */
 #define DATA_FRAME_FIXED_LEN_ACK 10
-#define ETHERNET_HEADER_FRAME_LEN 14
-#define HLEN_80211 24
+
 
 
 enum {
@@ -590,7 +564,6 @@ typedef void (*cw_sock_handler)(void *cb, void *handle);
 void CW80211ManagementFrameEvent(struct nl_handle **handle, cw_sock_handler handler, void * cb, WTPBSSInfo * WTPBSSInfoPtr);
 CWBool CWStartAssociationRequestTimer(WTPSTAInfo * staInfo, WTPBSSInfo * WTPBSSInfoPtr);
 void CWWTPAssociationRequestTimerExpiredHandler(void *arg);
-
 int ieee80211_frequency_to_channel(int freq);
 
 
@@ -622,7 +595,7 @@ CWBool CW80211AssembleIESSID(char * frame, int * offset, char * value);
 float mapSupportedRatesValues(float rate, short int mode);
 CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value, int numRates);
 CWBool CW80211AssembleIEDSSS(char * frame, int * offset, char value);
-CWBool CW80211AssembleHdrLength(char * frame, int * offset, short int value);
+CWBool CW8023AssembleHdrLength(char * frame, int * offset, short int value);
 
 CWBool CW80211ParseFrameIEControl(char * frameReceived, int * offsetFrameReceived, short int * value);
 CWBool CW80211ParseFrameIEDuration(char * frameReceived, int * offsetFrameReceived, short int * value);
@@ -639,29 +612,3 @@ CWBool CW80211SetAssociationID(short int * assID);
 CWBool CW80211ParseAssociationResponse(char * frame, struct CWFrameAssociationResponse * assocResponse);
 CWBool CW80211ParseDataFrameToDS(char * frame, struct CWFrameDataHdr * dataFrame);
 CWBool CW80211ParseDataFrameFromDS(char * frame, struct CWFrameDataHdr * dataFrame);
-
-struct ieee80211_radiotap_header {
-        u_int8_t        it_version;     /* set to 0 */
-        u_int8_t        it_pad;
-        u_int16_t       it_len;         /* entire length */
-        u_int32_t       it_present;     /* fields present */
-} __attribute__((__packed__));
-
-#define	IEEE80211_RADIOTAP_F_WEP	0x04	/* sent/received
-						 * with WEP encryption
-						 */
-#define	IEEE80211_RADIOTAP_F_FRAG	0x08	/* sent/received
-						 * with fragmentation
-						 */
-#define	IEEE80211_RADIOTAP_F_FCS	0x10	/* frame includes FCS */
-#define	IEEE80211_RADIOTAP_F_DATAPAD	0x20	/* frame has padding between
-						 * 802.11 header and payload
-						 * (to 32-bit boundary)
-						 */
-#define IEEE80211_RADIOTAP_F_TX_NOACK	0x0008	/* don't expect an ACK */
-
-#define SETBIT(ADDRESS,BIT) (ADDRESS |= (1<<BIT))
-#define CLEARBIT(ADDRESS,BIT) (ADDRESS &= ~(1<<BIT))
-#define CHECKBIT(ADDRESS,BIT) (ADDRESS & (1<<BIT))
-
-int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer, unsigned char * BSSID);

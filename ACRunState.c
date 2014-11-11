@@ -288,98 +288,32 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			int fragmentsNum=0, dataSocket=0, k=0;
 			CWNetworkLev4Address address;
 			int offsetFrame8023=0;
-			struct CWFrameDataHdr dataFrame;
 
 			if(!CW80211ParseFrameIEControl(msgPtr->msg, &(offsetFrameReceived), &(frameControl)))
 				return CW_FALSE;
 
 #ifdef SPLIT_MAC
-			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
-				
-				/*if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
-					
-					CWACsend_data_to_hostapd(WTPIndex,msgPtr->msg, msglen);
-					
-				}else{
-					*/
-					
-					if(!CW80211ParseDataFrameToDS(msgPtr->msg, &(dataFrame)))
-					{
-						CWLog("CW80211: Error parsing data frame");
-						return CW_FALSE;
-					}
-					
-					int llcHeaderLen = 8;
-					unsigned char * payload = msgPtr->msg+HLEN_80211;
-					
-					short int etherType = (payload[6] << 8) | payload[7];
-					CWBool flagLLC=CW_FALSE;
-					int sizeEthFrame=0, offsetEthPayload=0;
-					/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-					u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8}; 
-					/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
-					u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
-					if(
-						(
-							(!memcmp(payload, rfc1042_header, 6)) &&
-							(etherType != ETH_P_AARP && etherType != ETH_P_IPX) 
-						) ||
-						(!memcmp(payload, bridge_tunnel_header, 6))
-					)
-						flagLLC=CW_TRUE;
-					
-					if(flagLLC == CW_TRUE)
-					{
-						sizeEthFrame = ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211 -llcHeaderLen);
-						offsetEthPayload = HLEN_80211+llcHeaderLen;
-					//	CWLog("Con LLC. EthPayload Len: %d. EthType: %d", offsetEthPayload, etherType);
-					}
-					else
-					{
-						sizeEthFrame = ETHERNET_HEADER_FRAME_LEN+(msglen - HLEN_80211);
-						offsetEthPayload = HLEN_80211;
-					//	CWLog("Senza LLC. EthPayload Len: %d", offsetEthPayload);
-					}
-					
-					/* SET Eth vX Frame */
-					CW_CREATE_ARRAY_CALLOC_ERR(frame8023, sizeEthFrame, unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.DA))
-						return CW_FALSE;
-					if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.SA))
-						return CW_FALSE;
-					
-					if(flagLLC == CW_TRUE)
-					{	
-						if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), htons(etherType)))
-							return CW_FALSE;
-					}
-					else
-					{
-						if(!CW80211AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), htons(msglen-offsetEthPayload)))
-							return CW_FALSE;
-					}
-					CW_COPY_MEMORY((frame8023+offsetFrame8023), (msgPtr->msg+offsetEthPayload), (msglen-offsetEthPayload));
+			//if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC)	
+			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA )
+			{
+				unsigned char frame8023[CW_BUFFER_SIZE];
+				int frame8023len=0;
 
-					CWLog("Received WLAN_FC_TYPE_DATA. Conversion and send with tap del WTP %d", WTPIndex);
-					CWLog("dataFrame.DA: %02x", (int)dataFrame.DA[0]);
-					CWLog("dataFrame.SA: %02x", (int)dataFrame.SA[0]);
-					CWLog("802.3 frame length: %d", (ETHERNET_HEADER_FRAME_LEN+(msglen - offsetEthPayload)));
-				
-					int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, (ETHERNET_HEADER_FRAME_LEN+msglen-offsetEthPayload));
-					if(write_bytes != (ETHERNET_HEADER_FRAME_LEN+msglen-offsetEthPayload)){
+				if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
+					return CW_FALSE;
+
+				int write_bytes = write(gWTPs[WTPIndex].tap_fd, frame8023, frame8023len);
+					if(write_bytes != frame8023len){
 					CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
 															msgPtr->msg[1],
 															msgPtr->msg[2],
 															msgPtr->msg[3],
 															msgPtr->msg[4],
 															msgPtr->msg[5]);
-						
-					CWLog("Error:. RecvByte:%d, write_Byte:%d ",ETHERNET_HEADER_FRAME_LEN+msglen-offsetEthPayload,write_bytes);
+					CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
 					
 				}
 				
-				CW_FREE_OBJECT(frame8023);
-				frame8023=NULL;
 				return CW_TRUE;
 			}
 #endif
@@ -646,43 +580,11 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			else
 			{
 				
-				CWLog("Pacchetto dati");
-				write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
-				CWDebugLog("Control Frame !!!\n");
-			}
- /*
-			if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT || isEAPOL_Frame(msgPtr->msg,msglen) ){
-				
-				CWACsend_data_to_hostapd(WTPIndex,msgPtr->msg, msglen);
-				
-			}else if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
-				
-				if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
-					
-					CWACsend_data_to_hostapd(WTPIndex,msgPtr->msg, msglen);
-					
-				}else{
-					
-					int write_bytes = write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
-			
-					if(write_bytes != (msglen - 24)){
-						CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
-																	msgPtr->msg[1],
-																	msgPtr->msg[2],
-																	msgPtr->msg[3],
-																	msgPtr->msg[4],
-																	msgPtr->msg[5]);
-						
-						CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24,write_bytes);
-					}
-				}
-			}else{
-			
-				
-			//}
-			
+				CWLog("Frame Unknown");
+				//write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
+				//CWDebugLog("Control Frame !!!\n");
+			}			
 			//flush_pcap(msgPtr->msg, msglen, "cap_wtp_to_ac.txt");
-			*/
 		}else{
 			CWDebugLog("Manage special data packets with frequency");
 

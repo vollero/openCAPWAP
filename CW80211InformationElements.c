@@ -243,7 +243,7 @@ CWBool CW80211AssembleIEDSSS(char * frame, int * offset, char value) {
 }
 
 //802.3
-CWBool CW80211AssembleHdrLength(char * frame, int * offset, short int value) {
+CWBool CW8023AssembleHdrLength(char * frame, int * offset, short int value) {
 
 	CW_COPY_MEMORY(frame, &(value), 2);
 	(*offset) += 2;

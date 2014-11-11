@@ -25,20 +25,9 @@
  *           Mauro Bisson (mauro.bis@gmail.com)                                            *
  *******************************************************************************************/
 
-
 #include "WTPFrameReceive.h"
 #include "common.h"
 #include "ieee802_11_defs.h"
-
-
-#define SETBIT(ADDRESS,BIT) (ADDRESS |= (1<<BIT))
-#define CLEARBIT(ADDRESS,BIT) (ADDRESS &= ~(1<<BIT))
-#define CHECKBIT(ADDRESS,BIT) (ADDRESS & (1<<BIT))
-
-#define TYPE_LEN 2
-#define ETH_ALEN 6
-#define ETH_HLEN 14
-#define FRAME_80211_LEN	24
 
 #ifdef DMALLOC
 #include "../dmalloc-5.5.0/dmalloc.h"
@@ -146,19 +135,6 @@ int from_8023_to_80211( unsigned char *inbuffer,int inlen, unsigned char *outbuf
 int gRawSock;
 extern int wtpInRunState;
 
-int CWWTPSendFrame(unsigned char *buf, int len){
-	
-	if( send(gRawSock, buf + FRAME_80211_LEN, len - FRAME_80211_LEN,0) < 1 ){
-		CWDebugLog("Error to send frame on raw socket");
-		return -1;
-	}
-	CWDebugLog("Send (%d) bytes on raw socket",len - FRAME_80211_LEN);
-
-	return 1;
-	
-}
-
-
 CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
  
 	int n,encaps_len;
@@ -217,13 +193,13 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 		if (!wtpInRunState){
 			continue;
 		}
-	
-		//Check radiotap
+		
+		//mac80211 puts radiotap header to data frames
 		radiotapHeader = (struct ieee80211_radiotap_header *) buffer;
 		if(!CW80211ParseFrameIEControl((buffer+radiotapHeader->it_len), &(tmpOffset), &(dataFrame.frameControl)))
 			return;
 		
-		//if it's not data frame, no more operations
+		//if it's not data frame, continue
 		if (!(WLAN_FC_GET_TYPE(dataFrame.frameControl) == WLAN_FC_TYPE_DATA))
 			continue;
 		
@@ -232,8 +208,12 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 			CWLog("CW80211: Error parsing data frame");
 			continue;
 		}
-
-		if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_DATA)
+		
+		//If data frame && toDS
+		if(
+			WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_DATA &&
+			((dataFrame.frameControl & IEEE80211_FCTL_TODS) == IEEE80211_FCTL_TODS)
+			)
 		{
 			encaps_len = n-radiotapHeader->it_len;
 			CWLog("[80211] Pure frame data. %d byte letti, %d byte data frame", n, encaps_len);
@@ -241,7 +221,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 				CWLog("THR FRAME: Error extracting a frame");
 				EXIT_FRAME_THREAD(gRawSock);
 			}
-
+			
 			CWBindingTransportHeaderValues *bindValues;
 			CW_CREATE_OBJECT_ERR(listElement, CWBindingDataListElement, EXIT_FRAME_THREAD(gRawSock););
 				
