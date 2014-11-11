@@ -130,7 +130,6 @@ int flush_pcap(u_char *buf,int len,char *filename){
 	return 0;
 }
 
-#define HLEN_80211 24
 int isEAPOL_Frame( unsigned char *buf, int len){
 	unsigned char rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 	int i;
@@ -304,7 +303,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				}else{
 					*/
 					
-					if(!CW80211ParseDataFrame(msgPtr->msg, &(dataFrame)))
+					if(!CW80211ParseDataFrameToDS(msgPtr->msg, &(dataFrame)))
 					{
 						CWLog("CW80211: Error parsing data frame");
 						return CW_FALSE;

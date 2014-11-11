@@ -1083,3 +1083,62 @@ CWBool ioctlActivateInterface(char * interface){
 	
 	return CW_TRUE;
 }
+
+int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack)
+{
+	CWLog("len: %d", len);
+	
+	
+	
+	__u8 rtap_hdr[] = {
+		0x00, 0x00, /* radiotap version */
+		0x0e, 0x00, /* radiotap length */
+		0x02, 0xc0, 0x00, 0x00, //bmap: flags, tx and rx flags
+		IEEE80211_RADIOTAP_F_FRAG, // F_FRAG (fragment if required)
+		0x00,       // padding
+		0x00, 0x00, // RX and TX flags to indicate that
+		0x00, 0x00, // this is the injected frame directly
+	};
+	struct iovec iov[2] = {
+		{
+			.iov_base = &rtap_hdr,
+			.iov_len = sizeof(rtap_hdr),
+		},
+		{
+			.iov_base = (void *) data,
+			.iov_len = len,
+		}
+	};
+	struct msghdr msg = {
+		.msg_name = NULL,
+		.msg_namelen = 0,
+		.msg_iov = iov,
+		.msg_iovlen = 2,
+		.msg_control = NULL,
+		.msg_controllen = 0,
+		.msg_flags = 0,
+	};
+	int res;
+	u16 txflags = 0;
+
+	if (encrypt)
+		rtap_hdr[8] |= IEEE80211_RADIOTAP_F_WEP;
+
+	if (rawSocket < 0) {
+		CWLog("nl80211: No monitor socket available for %s", __func__);
+		return -1;
+	}
+
+	if (noack)
+		txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
+	WPA_PUT_LE16(&rtap_hdr[12], txflags);
+
+CWLog("STO PER INVIARE");
+	res = sendmsg(rawSocket, &msg, 0);
+CWLog("RES: %d", res);
+	if (res < 0) {
+		CWLog("nl80211: sendmsg: %s", strerror(errno));
+		return -1;
+	}
+	return 0;
+}

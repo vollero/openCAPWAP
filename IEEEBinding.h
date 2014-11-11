@@ -81,9 +81,7 @@
 #define IF_OPER_UP 6
 #endif
 
-#ifndef BIT0
-#define BIT0(x) (0 << (x))
-#endif
+
 
 //Netlink socket
 typedef struct nl80211SocketUnit {
@@ -154,8 +152,10 @@ extern struct nl80211SocketUnit globalNLSock;
 
 /* ++++++++ IE Frame Data ++++++++++ */
 #define DATA_FRAME_FIXED_LEN_ACK 10
-
 #define ETHERNET_HEADER_FRAME_LEN 14
+#define HLEN_80211 24
+
+
 enum {
 	CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME,
 	CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE
@@ -601,12 +601,14 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
 char * CW80211AssembleBeacon(WTPBSSInfo * WTPBSSInfoPtr, int *offset);
 char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset);
+unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, int *offset, int toDS, int fromDS);
 
 CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest);
 CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest);
 CWBool CW80211ParseAssociationRequest(char * frame, struct CWFrameAssociationRequest * assocRequest);
 
 CWBool CW80211AssembleIEFrameControl(char * frame, int * offset, int frameType, int frameSubtype);
+CWBool CW80211AssembleIEFrameControlData(char * frame, int * offset, int frameType, int frameSubtype, int toDS, int fromDS);
 CWBool CW80211AssembleIEDuration(char * frame, int * offset, int value);
 CWBool CW80211AssembleIEAddr(char * frame, int * offset, char * value);
 CWBool CW80211AssembleIEBeaconInterval(char * frame, int * offset, short int value);
@@ -635,8 +637,8 @@ CWBool CW80211ParseFrameIEListenInterval(char * frameReceived, int * offsetFrame
 CWBool CW80211ParseFrameIESupportedRates(char * frameReceived, int * offsetFrameReceived, char ** value, int * lenIE);
 CWBool CW80211SetAssociationID(short int * assID);
 CWBool CW80211ParseAssociationResponse(char * frame, struct CWFrameAssociationResponse * assocResponse);
-CWBool CW80211ParseDataFrame(char * frame, struct CWFrameDataHdr * dataFrame);
-
+CWBool CW80211ParseDataFrameToDS(char * frame, struct CWFrameDataHdr * dataFrame);
+CWBool CW80211ParseDataFrameFromDS(char * frame, struct CWFrameDataHdr * dataFrame);
 
 struct ieee80211_radiotap_header {
         u_int8_t        it_version;     /* set to 0 */
@@ -644,3 +646,22 @@ struct ieee80211_radiotap_header {
         u_int16_t       it_len;         /* entire length */
         u_int32_t       it_present;     /* fields present */
 } __attribute__((__packed__));
+
+#define	IEEE80211_RADIOTAP_F_WEP	0x04	/* sent/received
+						 * with WEP encryption
+						 */
+#define	IEEE80211_RADIOTAP_F_FRAG	0x08	/* sent/received
+						 * with fragmentation
+						 */
+#define	IEEE80211_RADIOTAP_F_FCS	0x10	/* frame includes FCS */
+#define	IEEE80211_RADIOTAP_F_DATAPAD	0x20	/* frame has padding between
+						 * 802.11 header and payload
+						 * (to 32-bit boundary)
+						 */
+#define IEEE80211_RADIOTAP_F_TX_NOACK	0x0008	/* don't expect an ACK */
+
+#define SETBIT(ADDRESS,BIT) (ADDRESS |= (1<<BIT))
+#define CLEARBIT(ADDRESS,BIT) (ADDRESS &= ~(1<<BIT))
+#define CHECKBIT(ADDRESS,BIT) (ADDRESS & (1<<BIT))
+
+int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer, unsigned char * BSSID);

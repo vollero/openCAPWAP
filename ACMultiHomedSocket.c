@@ -32,10 +32,6 @@
 #include "ieee802_11_defs.h"
 
 
-#define SETBIT(ADDRESS,BIT) (ADDRESS |= (1<<BIT))
-#define CLEARBIT(ADDRESS,BIT) (ADDRESS &= ~(1<<BIT))
-#define CHECKBIT(ADDRESS,BIT) (ADDRESS & (1<<BIT))
-
 #define TYPE_LEN 2
 #define ETH_ALEN 6
 #define ETH_HLEN 14
@@ -48,6 +44,46 @@ __inline__ void CWNetworkDeleteMHInterface(void *intPtr) {
 
 	CW_FREE_OBJECT(intPtr);
 }
+
+
+	//CW_CREATE_ARRAY_CALLOC_ERR(frameData80211, HLEN_80211+payloadLen, unsigned char, CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer, unsigned char * BSSID){
+
+	int offset=0;
+	unsigned char * hdr80211;
+	unsigned char * SA[ETH_ALEN];
+	unsigned char * DA[ETH_ALEN];
+	
+	CW_COPY_MEMORY(DA, frameReceived, ETH_ALEN);
+	CW_COPY_MEMORY(SA, frameReceived+ETH_ALEN+ETH_ALEN, ETH_ALEN);
+	
+	hdr80211 = CW80211AssembleDataFrameHdr(SA, DA, BSSID, &(offset), 0, 1);
+	
+	int ethertype = (frameReceived[12] << 8) | frameReceived[13];
+	
+	u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8}; 
+	/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
+	u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
+	short int sizeEncapsHdr=8;
+
+	CW_COPY_MEMORY(outbuffer, hdr80211, HLEN_80211);
+	//Encaps header
+	if (ethertype == ETH_P_AARP || ethertype == ETH_P_IPX) {
+			CW_COPY_MEMORY((outbuffer+HLEN_80211), bridge_tunnel_header, sizeof(bridge_tunnel_header));
+			CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeof(bridge_tunnel_header)), &(sizeEncapsHdr), 2);
+	} else if (ethertype >= ETH_P_802_3_MIN) {
+		CW_COPY_MEMORY((outbuffer+HLEN_80211), rfc1042_header, sizeof(rfc1042_header));
+		CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeof(rfc1042_header)), &(sizeEncapsHdr), 2);
+	}
+	else
+		sizeEncapsHdr=0;
+
+	CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeEncapsHdr), (frameReceived+ETH_HLEN), frameLen-ETH_HLEN);
+	
+	return (frameLen-ETH_HLEN+HLEN_80211+sizeEncapsHdr);
+}
+
 
 int from_8023_to_80211( unsigned char *inbuffer,int inlen, unsigned char *outbuffer, unsigned char *own_addr){
 
@@ -72,6 +108,8 @@ int from_8023_to_80211( unsigned char *inbuffer,int inlen, unsigned char *outbuf
 	
 	return indx;
 }
+
+
 
 
 
@@ -651,7 +689,10 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				unsigned char macAddrTap[6];
 				get_mac_addr(macAddrTap, gWTPs[i].tap_name);
 				unsigned char buf80211[CW_BUFFER_SIZE + 24];
-				int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
+				//Qui va fatta la ricerca lato AC del WTP
+				unsigned char BSSID[ETH_ALEN]={0x2, 0x0, 0x0, 0x0, 0x0, 0x0};
+				int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211, BSSID);
+			//	int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
 				CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
 				CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
 				memcpy(frame->msg, buf80211, readByest80211);

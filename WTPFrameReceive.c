@@ -227,7 +227,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 		if (!(WLAN_FC_GET_TYPE(dataFrame.frameControl) == WLAN_FC_TYPE_DATA))
 			continue;
 		
-		if(!CW80211ParseDataFrame((buffer+radiotapHeader->it_len), &(dataFrame)))
+		if(!CW80211ParseDataFrameToDS((buffer+radiotapHeader->it_len), &(dataFrame)))
 		{
 			CWLog("CW80211: Error parsing data frame");
 			continue;

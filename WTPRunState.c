@@ -374,6 +374,69 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					if(!CW80211ParseFrameIEControl(msgPtr.msg, &(offsetFrameReceived), &(frameControl)))
 						return NULL;
 					
+					if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
+						int rawSocket;
+						unsigned char buffer[CW_BUFFER_SIZE];
+						unsigned char buf80211[CW_BUFFER_SIZE];
+						unsigned char macAddr[MAC_ADDR_LEN];
+						unsigned char staAddr[ETH_ALEN];
+						struct ieee80211_radiotap_header * radiotapHeader;
+						int frameRespLen=0;
+						struct CWFrameDataHdr dataFrame;
+						int tmpOffset;
+						struct sockaddr_ll addr;
+						struct ifreq ethreq;
+						WTPSTAInfo * thisSTA;
+						int offsetFrameReceived;
+						int indexBSS;
+						
+							if ((rawSocket=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0) 	{
+								CWLog("THR FRAME: Error creating socket");
+								//CWExitThread();
+							}
+
+							memset(&addr, 0, sizeof(addr));
+							addr.sll_family = AF_PACKET;
+							addr.sll_ifindex = if_nametoindex("monitor0");
+						  
+							if ((bind(rawSocket, (struct sockaddr*)&addr, sizeof(addr)))<0) {
+								CWLog("THR FRAME: Error binding socket");
+								//CWExitThread();
+							}
+						 
+							if (!getMacAddr(rawSocket, "monitor0", macAddr)){
+								CWLog("THR FRAME: Ioctl error");
+								//EXIT_FRAME_THREAD(gRawSock);
+							}
+							
+							if(!CW80211ParseDataFrameFromDS(msgPtr.msg, &(dataFrame)))
+							{
+								CWLog("CW80211: Error parsing data frame");
+								return CW_FALSE;
+							}
+							
+							CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
+							CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
+							CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
+							CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
+
+							for(indexBSS=0; indexBSS < (WTP_MAX_INTERFACES*gRadiosInfo.radioCount); indexBSS++)
+							{
+								if(WTPGlobalBSSList[indexBSS]->active == CW_FALSE)
+									continue;
+								
+								CWLog("CERCO IN BSS %d", indexBSS);
+								thisSTA = findSTABySA(WTPGlobalBSSList[indexBSS], dataFrame.DA);
+								if(thisSTA)
+									CWLog("Sta trovata");
+								else
+									CWLog("sta no trovata");
+							}
+
+							CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
+							close(rawSocket);
+					}
+					
 					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_AUTH)
 					{
 						CWLog("Ricevuto Subtype AUTH");

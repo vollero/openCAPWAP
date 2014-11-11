@@ -70,101 +70,6 @@ void CW80211EventReceive(void *cbPtr, void *handlePtr)
 	}
 }
 
-/*
-void CW80211EventDataReceive(int dataRawSock, struct WTPBSSInfo * BSSInfo)
-{
-	CWLog("Dentro CW80211EventDataReceive");
-	
-	int n,encaps_len;
-	unsigned char buffer[CW_BUFFER_SIZE];
-	unsigned char buf80211[CW_BUFFER_SIZE];
-	CWProtocolMessage* frame=NULL;
-	CWBindingDataListElement* listElement=NULL;
-	struct ifreq ethreq;
-	
-	char * frameResponse = NULL;
-	WTPSTAInfo * thisSTA;
-	u64 cookie_out;
-	int frameRespLen=0, offsetFrameReceived=0;
-	short int fc, stateSTA = CW_80211_STA_OFF;
-	int frameLen;
-	struct CWFrameDataHdr dataFrame;
-	
-	
-	n = recvfrom(dataRawSock,buffer,sizeof(buffer),0,NULL,NULL);
-	if(n<0)
-	{
-		CWLog("n: %d", n);
-		return;
-	}
-	
-	CWLog("Letti %d byte", n);
-	encaps_len = from_8023_to_80211(buffer, n, buf80211, BSSInfo->interfaceInfo->MACaddr);
-	
-	
-	
-	if (!extract802_11_Frame(&frame, buf80211, encaps_len)){
-		CWLog("THR FRAME: Error extracting a frame");
-		CWExitThread();
-	}
-	
-	
-	CWLog("nl80211: Parse frame");
-	
-	
-	CWLog("CW80211: Parse del frame control");
-	if(!CW80211ParseFrameIEControl(frame->msg, &(offsetFrameReceived), &(dataFrame.frameControl)))
-		return;
-	
-	/*
-	CWLog("CW80211: Frame Control %02x", dataFrame.frameControl);
-	//Duration
-	if(!CW80211ParseFrameIEControl((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), &(dataFrame.duration)))
-		return CW_FALSE;
-	CWLog("CW80211: Duration %02x", dataFrame.duration);
-
-	//DA
-	if(!CW80211ParseFrameIEAddr((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), dataFrame.DA))
-		return CW_FALSE;
-	CWLog("CW80211: DA %02x:%02x:%02x:%02x:%02x:%02x", (int)dataFrame.DA[0], (int)dataFrame.DA[1], (int)dataFrame.DA[2], (int)dataFrame.DA[3], (int)dataFrame.DA[4], (int)dataFrame.DA[5]);
-	
-	//SA
-	if(!CW80211ParseFrameIEAddr((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), dataFrame.SA))
-		return CW_FALSE;
-	CWLog("CW80211: SA %02x:%02x:%02x:%02x:%02x:%02x", (int)dataFrame.SA[0], (int)dataFrame.SA[1], (int)dataFrame.SA[2], (int)dataFrame.SA[3], (int)dataFrame.SA[4], (int)dataFrame.SA[5]);
-		
-	//BSSID
-	if(!CW80211ParseFrameIEAddr((frameBuffer+offsetFrameReceived), &(offsetFrameReceived), dataFrame.BSSID))
-		return CW_FALSE;
-	CWLog("CW80211: BSSID %02x:%02x:%02x:%02x:%02x:%02x", (int)dataFrame.BSSID[0], (int)dataFrame.BSSID[1], (int)dataFrame.BSSID[2], (int)dataFrame.BSSID[3], (int)dataFrame.BSSID[4], (int)dataFrame.BSSID[5]);
-	
-	
-	CWLog("CW80211: type: %02x, subtype: %02x", (int)WLAN_FC_GET_TYPE(dataFrame.frameControl), (int)WLAN_FC_GET_STYPE(dataFrame.frameControl));
-	// +++ DATA +++
-	if (WLAN_FC_GET_TYPE(dataFrame.frameControl) == WLAN_FC_TYPE_DATA)
-	{
-		if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_NULLFUNC)
-		{
-			CWLog("[80211] Pure frame null func");
-			//frameResponse = CW80211AssembleACK(WTPBSSInfoPtr, tb[NL80211_ATTR_MAC], &frameRespLen);
-		}
-		else if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_DATA)
-		{
-			CWLog("[80211] Pure frame data");
-		}
-		else if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_CFACK)
-		{
-			CWLog("[80211] WLAN_FC_STYPE_CFACK");
-		}
-	}
-	else
-		CWLog("NO DATA FRAME");
-	
-	
-	CWLog("Recv 802.11 data(len:%d) from %s",encaps_len, BSSInfo->interfaceInfo->ifName);
-}
-*/
-
 void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer)
 {
 	char * frameResponse = NULL;
@@ -486,7 +391,7 @@ void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 	struct CWTimerAssociationInfo * info = (struct CWTimerAssociationInfo *) arg;
 	
 	CWLog("[CW80211] Association Timer Raised");
-	if((info != NULL) && (info->staInfo != NULL) && info->staInfo->state == CW_80211_STA_ASSOCIATION)
+	if((info != NULL) && (info->staInfo != NULL) && info->staInfo->address != NULL && info->staInfo->state == CW_80211_STA_ASSOCIATION)
 		return;
 	
 	if(!nl80211CmdDelStation(info->BSSInfo, info->staInfo->address))

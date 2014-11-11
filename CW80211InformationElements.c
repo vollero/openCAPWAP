@@ -18,6 +18,25 @@ CWBool CW80211AssembleIEFrameControl(char * frame, int * offset, int frameType, 
 	return CW_TRUE;
 }
 
+CWBool CW80211AssembleIEFrameControlData(char * frame, int * offset, int frameType, int frameSubtype, int toDS, int fromDS) {
+		
+	short int val = IEEE80211_FC(frameType, frameSubtype);
+	if(toDS == 1)
+		SETBIT(val,8);
+	else
+		CLEARBIT(val,8);
+		
+	if(fromDS == 1)
+		SETBIT(val,9);
+	else
+		CLEARBIT(val,9);
+
+	CW_COPY_MEMORY(frame, &(val), LEN_IE_FRAME_CONTROL);
+	(*offset) += LEN_IE_FRAME_CONTROL;
+	
+	return CW_TRUE;
+}
+
 CWBool CW80211AssembleIEDuration(char * frame, int * offset, int value) {
 	
 	short int val = htons(host_to_le16(value));
@@ -862,6 +881,46 @@ char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset) {
 	
 	return frameACK;
 }
+
+unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, int *offset, int toDS, int fromDS) {
+	if(DA == NULL || SA == NULL || BSSID == NULL)
+		return NULL;
+		
+	(*offset)=0;
+
+	unsigned char * frameACK;
+	CW_CREATE_ARRAY_CALLOC_ERR(frameACK, HLEN_80211, unsigned char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	
+	//frame control: 2 byte
+	if(!CW80211AssembleIEFrameControlData(&(frameACK[(*offset)]), offset, WLAN_FC_TYPE_DATA, WLAN_FC_STYPE_DATA, toDS, fromDS))
+		return NULL;
+	
+	//duration: 2 byte
+	if(!CW80211AssembleIEDuration(&(frameACK[(*offset)]), offset, 0))
+		return NULL;
+	
+	//DA: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, DA))
+		return NULL;
+	
+	CWLog("DA: %02x:%02x:%02x:%02x:%02x", (int)DA[0], (int)DA[1], (int)DA[2], (int)DA[3], (int)DA[4], (int)DA[5]);
+
+	//BSSID: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, BSSID))
+		return NULL;
+		
+	CWLog("BSSID: %02x:%02x:%02x:%02x:%02x", (int)BSSID[0], (int)BSSID[1], (int)BSSID[2], (int)BSSID[3], (int)BSSID[4], (int)BSSID[5]);
+
+	//SA: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, SA))
+		return NULL;
+	CWLog("SA: %02x:%02x:%02x:%02x:%02x", (int)SA[0], (int)SA[1], (int)SA[2], (int)SA[3], (int)SA[4], (int)SA[5]);
+	
+	//2 (sequence ctl)
+	(*offset) += LEN_IE_SEQ_CTRL;
+	
+	return frameACK;
+}
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
 /* -------------------- PARSE -------------------- */
@@ -1128,7 +1187,7 @@ CWBool CW80211ParseDeauthDisassociationRequest(char * frame, struct CWFrameDeaut
 	return CW_TRUE;
 }
 
-CWBool CW80211ParseDataFrame(char * frame, struct CWFrameDataHdr * dataFrame) {
+CWBool CW80211ParseDataFrameToDS(char * frame, struct CWFrameDataHdr * dataFrame) {
 	int offset=0;
 	
 	if(dataFrame == NULL)
@@ -1152,6 +1211,40 @@ CWBool CW80211ParseDataFrame(char * frame, struct CWFrameDataHdr * dataFrame) {
 	
 	//DA
 	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), dataFrame->DA))
+		return CW_FALSE;
+	
+	//Seq Ctrl
+	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(dataFrame->seqCtrl)))
+		return CW_FALSE;
+
+	return CW_TRUE;
+}
+
+
+CWBool CW80211ParseDataFrameFromDS(char * frame, struct CWFrameDataHdr * dataFrame) {
+	int offset=0;
+	
+	if(dataFrame == NULL)
+		return CW_FALSE;
+		
+	//Frame Control
+	if(!CW80211ParseFrameIEControl(frame, &(offset), &(dataFrame->frameControl)))
+		return CW_FALSE;
+	
+	//Duration
+	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(dataFrame->duration)))
+		return CW_FALSE;
+	
+	//DA
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), dataFrame->DA))
+		return CW_FALSE;
+
+	//BSSID
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), dataFrame->BSSID))
+		return CW_FALSE;
+	
+	//SA
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), dataFrame->SA))
 		return CW_FALSE;
 	
 	//Seq Ctrl
