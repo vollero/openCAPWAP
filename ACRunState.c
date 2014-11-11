@@ -296,7 +296,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			//if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC)	
 			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA )
 			{
-				unsigned char * frame8023;
+				unsigned char frame8023[CW_BUFFER_SIZE];
 				int frame8023len=0;
 
 				if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))

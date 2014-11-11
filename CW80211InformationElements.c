@@ -885,7 +885,8 @@ char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset) {
 unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, int *offset, int toDS, int fromDS) {
 	if(DA == NULL || SA == NULL || BSSID == NULL)
 		return NULL;
-		
+	
+	CWLog("****** 802.11 FRAME HDR ******");
 	(*offset)=0;
 
 	unsigned char * frameACK;
