@@ -102,6 +102,12 @@ int gEchoRequestTimer=CW_ECHO_INTERVAL_DEFAULT;
 /* PROVVISORIO: Il valore e' scelto a caso */
 int gIdleTimeout=10;
 
+//Elena Agostini - 11/2014: avlTree for WTP - STA associated
+#ifdef SPLIT_MAC
+nodeAVL * avlTree = NULL;
+CWThreadMutex mutexAvlTree;
+#endif
+
 /*_________________________________________________________*/
 /*  *******************___FUNCTIONS___*******************  */
 int main (int argc, const char * argv[]) {
@@ -258,7 +264,12 @@ void CWACInit() {
 	if(!CWErr(CWCreateThreadMutex(&gCreateIDMutex))) {
 		exit(1);
 	}
-		
+
+	//Elena Agostini - 11/2014: AVL WTP - STA mutex
+#ifdef SPLIT_MAC
+	CWCreateThreadMutex(&(mutexAvlTree));
+#endif
+
 	CWLog("AC Started");
 }
 

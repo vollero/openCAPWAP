@@ -40,5 +40,5 @@ extern u8 bridge_tunnel_header[];
 extern u8 rfc1042_header[];
 /* ++++++++++++++++++++++++++++++++++++++ */
 
-int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer, unsigned char * BSSID);
+int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer);
 CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameLen, unsigned char *frame8023, int * frame8023Len);

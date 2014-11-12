@@ -4,6 +4,7 @@ typedef struct nodeAVL
 	//AC: index == WTP index
     int index;
     unsigned char staAddr[ETH_ALEN];
+    unsigned char BSSID[ETH_ALEN];
     struct nodeAVL*  left;
     struct nodeAVL*  right;
     int      height;
@@ -16,7 +17,7 @@ void AVLdispose(nodeAVL* t);
 nodeAVL* AVLfind( unsigned char * staAddr, nodeAVL *t );
 nodeAVL* AVLfind_min( nodeAVL *t );
 nodeAVL* AVLfind_max( nodeAVL *t );
-nodeAVL* AVLinsert( int index, unsigned char * staAddr, nodeAVL *t );
+nodeAVL* AVLinsert( int index, unsigned char * staAddr, unsigned char * BSSID, nodeAVL *t );
 struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr);
 void AVLdisplay_avl(nodeAVL* t);
 int AVLget( nodeAVL* n );

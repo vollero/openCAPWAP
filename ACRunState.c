@@ -168,24 +168,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 		int seqNum = CWGetSeqNum();
 
 	CWLog("CW_DATA_MSG_FRAME_TYPE. Non faccio nulla?");
-	/*
-		//Send a Station Configuration Request
-			if (CWAssembleStationConfigurationRequest(&(gWTPs[WTPIndex].messages),
-							  &(gWTPs[WTPIndex].messagesCount),
-							  gWTPs[WTPIndex].pathMTU,
-							  seqNum,StationMacAddr,
-							  CW_MSG_ELEMENT_ADD_STATION_CW_TYPE)) {
-
-				if(CWACSendAcknowledgedPacket(WTPIndex, 
-						      CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
-						      seqNum)) 
-				return CW_TRUE;
-			else
-				CWACStopRetransmission(WTPIndex);
-			}
-			
-			CWDebugLog("Send a Station Configuration Request");
-		*/
 		}else if(msgPtr->data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE){
 			
 			char * valPtr=NULL;
@@ -539,7 +521,20 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 						if(CWACSendAcknowledgedPacket(WTPIndex, 
 									  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
 									  seqNum)) 
+						{
+							//---- Elena : Insert new AVL node
+							nodeAVL * tmpRoot;
+							CWThreadMutexLock(&mutexAvlTree);
+							tmpRoot = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, avlTree);
+							if(tmpRoot != NULL)
+								avlTree = tmpRoot;
+							CWThreadMutexUnlock(&mutexAvlTree);
+							if(tmpRoot == NULL)
+								CWLog("NON aggiunto nell'AVL");
+							//----
+							
 							return CW_TRUE;
+						}
 						else
 							CWACStopRetransmission(WTPIndex);
 					}
@@ -568,7 +563,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 
 						if(CWACSendAcknowledgedPacket(WTPIndex, 
 									  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
-									  seqNum)) 
+									  seqNum))
 							return CW_TRUE;
 						else
 							CWACStopRetransmission(WTPIndex);

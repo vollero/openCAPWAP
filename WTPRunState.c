@@ -419,21 +419,23 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 							CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
 							CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 							CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
-
-							for(indexBSS=0; indexBSS < (WTP_MAX_INTERFACES*gRadiosInfo.radioCount); indexBSS++)
+							
+							nodeAVL *tmpNodeSta=NULL;
+							//---- Search AVL node
+							CWThreadMutexLock(&mutexAvlTree);
+							tmpNodeSta = AVLfind(dataFrame.DA, avlTree);
+							//AVLdisplay_avl(avlTree);
+							CWThreadMutexUnlock(&mutexAvlTree);
+							if(tmpNodeSta == NULL)
+								CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) dataFrame.SA[0], (int) dataFrame.SA[1], (int) dataFrame.SA[2], (int) dataFrame.SA[3], (int) dataFrame.SA[4], (int) dataFrame.SA[5]);
+							else
 							{
-								if(WTPGlobalBSSList[indexBSS]->active == CW_FALSE)
-									continue;
-								
-								CWLog("CERCO IN BSS %d", indexBSS);
-								thisSTA = findSTABySA(WTPGlobalBSSList[indexBSS], dataFrame.DA);
-								if(thisSTA)
-									CWLog("Sta trovata");
-								else
-									CWLog("sta no trovata");
+								//NB. Controllo anche il BSSID?
+								CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x]", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
+								CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
 							}
-
-							CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
+							//----
+							
 							close(rawSocket);
 					}
 					

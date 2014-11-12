@@ -645,9 +645,8 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				get_mac_addr(macAddrTap, gWTPs[i].tap_name);
 				unsigned char buf80211[CW_BUFFER_SIZE + 24];
 				
-				//Qui va fatta la ricerca lato AC del WTP
-				unsigned char BSSID[ETH_ALEN]={0x2, 0x0, 0x0, 0x0, 0x0, 0x0};
-				int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211, BSSID);
+//				unsigned char BSSID[ETH_ALEN]={0x2, 0x0, 0x0, 0x0, 0x0, 0x0};
+				int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211);
 			//	int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
 				
 				CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);

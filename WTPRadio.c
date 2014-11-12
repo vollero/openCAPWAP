@@ -339,7 +339,7 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 	
 		//---- Insert new AVL node
 		CWThreadMutexLock(&mutexAvlTree);
-		tmpRoot = AVLinsert(BSSIndex, WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address, avlTree);
+		tmpRoot = AVLinsert(BSSIndex, WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address, WTPGlobalBSSList[BSSIndex]->interfaceInfo->MACaddr, avlTree);
 		if(tmpRoot != NULL)
 			avlTree = tmpRoot;
 		CWThreadMutexUnlock(&mutexAvlTree);

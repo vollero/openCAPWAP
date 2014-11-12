@@ -164,7 +164,7 @@ nodeAVL* AVLdouble_rotate_with_right( nodeAVL* k1 )
 /*
     insert a new nodeAVL into the tree
 */
-nodeAVL* AVLinsert(int index, unsigned char * staAddr, nodeAVL* t )
+nodeAVL* AVLinsert(int index, unsigned char * staAddr, unsigned char * BSSID, nodeAVL* t )
 {
 	if(staAddr == NULL)
 		return NULL;
@@ -181,12 +181,15 @@ nodeAVL* AVLinsert(int index, unsigned char * staAddr, nodeAVL* t )
         
         t->index = index;
         CW_COPY_MEMORY(t->staAddr, staAddr,ETH_ALEN);
+        if(BSSID != NULL)
+			 CW_COPY_MEMORY(t->BSSID, BSSID,ETH_ALEN);
+			 
         t->height = 0;
         t->left = t->right = NULL;
     }
     else if(compareEthAddr(staAddr, t->staAddr) < 0)
     {
-        t->left = AVLinsert(index, staAddr, t->left );
+        t->left = AVLinsert(index, staAddr, BSSID, t->left );
         if( AVLheight( t->left ) - AVLheight( t->right ) == 2 )
             if( compareEthAddr(staAddr, t->left->staAddr) < 0 )
                 t = AVLsingle_rotate_with_left( t );
@@ -195,7 +198,7 @@ nodeAVL* AVLinsert(int index, unsigned char * staAddr, nodeAVL* t )
     }
     else if(compareEthAddr(staAddr, t->staAddr) > 0)
     {
-        t->right = AVLinsert(index, staAddr, t->right );
+        t->right = AVLinsert(index, staAddr, BSSID, t->right );
         if( AVLheight( t->right ) - AVLheight( t->left ) == 2 )
             if( compareEthAddr(staAddr, t->right->staAddr) > 0)
                 t = AVLsingle_rotate_with_right( t );
@@ -270,6 +273,7 @@ struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr)
             // Copy the inorder successor's data to this node
             root->index = temp->index;
             CW_COPY_MEMORY(root->staAddr, temp->staAddr, ETH_ALEN);
+            CW_COPY_MEMORY(root->BSSID, temp->BSSID, ETH_ALEN);
             
             // Delete the inorder successor
             root->right = AVLdeleteNode(root->right, temp->staAddr);
