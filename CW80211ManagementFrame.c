@@ -233,18 +233,11 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			{
 				if(thisSTA->radioAdd==CW_TRUE)
 				{
-					if(!nl80211CmdDelStation(WTPBSSInfoPtr, disassocRequest.SA))
-					{
-						CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
-						return;
-					}
-					
-					if(thisSTA)
-						thisSTA->radioAdd=CW_FALSE;
+					if(CWWTPDelStation(WTPBSSInfoPtr, thisSTA))
+						CWLog("[CW80211] STA deleted by timer handler");
+					else
+						CWLog("[CW80211] STA NOT deleted by timer handler");
 				}
-				if(!delSTABySA(WTPBSSInfoPtr, disassocRequest.SA))
-					CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) disassocRequest.SA[0], (int) disassocRequest.SA[1], (int) disassocRequest.SA[2], (int) disassocRequest.SA[3], (int) disassocRequest.SA[4], (int) disassocRequest.SA[5]);
-				
 			}
 			//Disassociation regredisce di stato
 			else
@@ -394,16 +387,8 @@ void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 	if((info != NULL) && (info->staInfo != NULL) && info->staInfo->address != NULL && info->staInfo->state == CW_80211_STA_ASSOCIATION)
 		return;
 	
-	if(!nl80211CmdDelStation(info->BSSInfo, info->staInfo->address))
-	{
-		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) info->staInfo->address[0], (int) info->staInfo->address[1], (int) info->staInfo->address[2], (int) info->staInfo->address[3], (int) info->staInfo->address[4], (int) info->staInfo->address[5]);
-		return;
-	}
-	
-	info->staInfo->radioAdd=CW_FALSE;
-	
-	if(!delSTABySA(info->BSSInfo, info->staInfo->address))
-		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) info->staInfo->address[0], (int) info->staInfo->address[1], (int) info->staInfo->address[2], (int) info->staInfo->address[3], (int) info->staInfo->address[4], (int) info->staInfo->address[5]);
-	
-	CWLog("[CW80211] Association Timer Raised. STA deleted");
+	if(CWWTPDelStation(info->BSSInfo, info->staInfo))
+		CWLog("[CW80211] STA deleted by timer handler");
+	else
+		CWLog("[CW80211] STA NOT deleted by timer handler");
 }

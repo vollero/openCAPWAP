@@ -469,6 +469,7 @@ typedef struct CWFrameDataHdr {
 	short int seqCtrl; 
 } CWFrameDataHdr;
 
+
 //WTPRadio.c
 CWBool CWWTPGetRadioGlobalInfo(void);
 CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID);
@@ -477,6 +478,7 @@ CWBool CWWTPDeleteWLANAPInterface(int radioID, int wlanID);
 CWBool CWWTPCreateNewBSS(int radioID, int wlanID);
 CWBool CWWTPDeleteBSS(int radioIndex, int wlanIndex);
 CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex);
+CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo);
 
 #define WTP_NL80211_BITRATE_NUM NL80211_MAX_SUPP_RATES
 #define WTP_NL80211_CHANNELS_NUM 50
@@ -536,6 +538,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo);
 CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo);
 
 CWBool ioctlActivateInterface(char * interface);
+int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack);
 const char * nl80211_command_to_string(enum nl80211_commands cmd);
 
 int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID, WTPBSSInfo * WTPBSSInfoPtr);

@@ -189,6 +189,7 @@ extern char * wtpLogFile;
 
 //ElenaAgostini
 #include "CWTunnel.h"
+#include "CWAVL.h"
 
 
 int CWTimevalSubtract(struct timeval *res, const struct timeval *x, const struct timeval *y);

@@ -8,6 +8,10 @@
 #include "CWWTP.h"
 
 struct WTPBSSInfo ** WTPGlobalBSSList;
+#ifdef SPLIT_MAC
+nodeAVL * avlTree = NULL;
+CWThreadMutex mutexAvlTree;
+#endif
 
 CWBool CWWTPGetRadioGlobalInfo(void) {
 	
@@ -19,6 +23,10 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	//Inizializza la variabile globale che conterrà tutte le bss presenti da questo WTP
 	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList, (WTP_MAX_INTERFACES*gRadiosInfo.radioCount), WTPBSSInfo *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
+#ifdef SPLIT_MAC
+	CWCreateThreadMutex(&(mutexAvlTree));
+#endif
 	
 	err = nl80211_init_socket(&(globalNLSock));
 	if(err != 0)
@@ -277,7 +285,6 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	//Register mgmt functions
 	if(CW80211SetAPTypeFrame(interfaceInfo, radioIndex, WTPGlobalBSSList[BSSId]) < 0)
 		return CW_FALSE;
-	
 
 	if(!CWErr(CWCreateThread(&(WTPGlobalBSSList[BSSId]->threadBSS), CWWTPBSSManagement, WTPGlobalBSSList[BSSId]))) {
 		CWLog("Error starting Thread that receive binding frame");
@@ -312,7 +319,9 @@ CWBool CWWTPDeleteWLANAPInterface(int radioIndex, int wlanIndex)
 }
 
 CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
-{
+{	
+	nodeAVL * tmpRoot;
+	
 	if(BSSIndex < 0 || BSSIndex >= (WTP_RADIO_MAX*WTP_MAX_INTERFACES) || STAIndex < 0 || STAIndex >= WTP_MAX_STA)
 		return CW_FALSE;
 	
@@ -327,6 +336,16 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 		if(!nl80211CmdNewStation(WTPGlobalBSSList[BSSIndex], WTPGlobalBSSList[BSSIndex]->staList[STAIndex]))
 			return CW_FALSE;
 		WTPGlobalBSSList[BSSIndex]->staList[STAIndex].radioAdd = CW_TRUE;
+	
+		//---- Insert new AVL node
+		CWThreadMutexLock(&mutexAvlTree);
+		tmpRoot = AVLinsert(BSSIndex, WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address, avlTree);
+		if(tmpRoot != NULL)
+			avlTree = tmpRoot;
+		CWThreadMutexUnlock(&mutexAvlTree);
+		if(tmpRoot == NULL)
+			return CW_FALSE;
+		//----
 	}
 	else
 	{
@@ -334,5 +353,35 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 			return CW_FALSE;
 	}
 		
+	return CW_TRUE;
+}
+
+CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
+{	
+	nodeAVL * tmpRoot;
+	if(!nl80211CmdDelStation(BSSInfo, staInfo->address))
+	{
+		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		return CW_FALSE;
+	}
+	
+	staInfo->radioAdd=CW_FALSE;
+	
+	//---- Delete AVL node
+	CWThreadMutexLock(&mutexAvlTree);
+	tmpRoot = AVLdeleteNode(avlTree, staInfo->address);
+	if(tmpRoot != NULL)
+		avlTree = tmpRoot;
+	CWThreadMutexUnlock(&mutexAvlTree);
+	if(tmpRoot == NULL)
+		return CW_FALSE;
+	//----
+		
+	if(!delSTABySA(BSSInfo, staInfo->address))
+	{
+		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		return CW_FALSE;
+	}
+	
 	return CW_TRUE;
 }

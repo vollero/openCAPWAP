@@ -73,7 +73,7 @@ AC_OBJS = AC.o ACConfigFile.o ACMainLoop.o ACDiscoveryState.o ACJoinState.o \
 	CWLog.o ACMultiHomedSocket.o ACProtocol.o CWSafeList.o CWNetwork.o CWProtocol.o \
 	CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsAC.o \
 	ACBinding.o ACInterface.o ACSettingsFile.o timerlib.o tap.o \
-	ACIEEEConfigurationState.o CW80211InformationElements.o CWTunnel.o \
+	ACIEEEConfigurationState.o CW80211InformationElements.o CWTunnel.o CWAVL.o \
 	./HostapdHeaders/utils/eloop.o ./HostapdHeaders/utils/os_unix.o
 
 # list of generated object files for WTP.
@@ -82,7 +82,7 @@ WTP_OBJS = WTP.o WTPFrameReceive.o WTPFreqStatsReceive.o WTPStatsReceive.o WTPCo
 	WTPRetransmission.o WTPSulkingState.o CWCommon.o CWConfigFile.o CWErrorHandling.o CWSafeList.o CWList.o CWLog.o CWNetwork.o \
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
 	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o \
-	 WTPRadio.o WTPNL80211DriverCallback.o WTPNL80211Driver.o WTPNL80211Netlink.o WTPIEEEConfigurationState.o CW80211ManagementFrame.o CW80211InformationElements.o CWTunnel.o \
+	 WTPRadio.o WTPNL80211DriverCallback.o WTPNL80211Driver.o WTPNL80211Netlink.o WTPIEEEConfigurationState.o CW80211ManagementFrame.o CW80211InformationElements.o CWTunnel.o CWAVL.o \
         ./HostapdHeaders/utils/eloop.o ./HostapdHeaders/utils/os_unix.o
 
 WUA_OBJS = WUA.o

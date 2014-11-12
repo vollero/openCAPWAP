@@ -859,56 +859,12 @@ CWBool CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned 
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
 	NLA_PUT_FLAG(msg, NL80211_ATTR_DONT_WAIT_FOR_ACK);
 	
-	/*
-	NLA_PUT_FLAG(msg, NL80211_ATTR_TX_NO_CCK_RATE);
-	//int channel = 2417;
-	//NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, channel);
-	
-	
-	*/
-	/*
-	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
-11060             (netdev && nla_put_u32(msg, NL80211_ATTR_IFINDEX,
-11061                                         netdev->ifindex)) ||
-11062             nla_put_u64(msg, NL80211_ATTR_WDEV, wdev_id(wdev)) ||
-11063             nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ, freq) ||
-11064             
-* (sig_dbm &&
-11065              nla_put_u32(msg, NL80211_ATTR_RX_SIGNAL_DBM, sig_dbm)) ||
-11066             nla_put(msg, NL80211_ATTR_FRAME, len, buf) ||
-11067             (flags &&
-11068              nla_put_u32(msg, NL80211_ATTR_RXMGMT_FLAGS, flags)))
-11069                 goto nla_put_failure;
-*/
-
-	//Frequenza (canale) su cui inviare il frame
-//	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, 2417);
-	//Opzionale: tempo di attesa risposta
-	//if (wait)
-	//	NLA_PUT_U32(msg, NL80211_ATTR_DURATION, wait);
-	/*
-	 if (offchanok && ((drv->capa.flags & WPA_DRIVER_FLAGS_OFFCHANNEL_TX) ||
-			  drv->test_use_roc_tx))
-		NLA_PUT_FLAG(msg, NL80211_ATTR_OFFCHANNEL_TX_OK);
-	*/
-	//is used to decide whether to send the management frames at CCK rate or not in 2GHz band.
-	//if (no_cck)
-//		NLA_PUT_FLAG(msg, NL80211_ATTR_TX_NO_CCK_RATE);
-	//attendi o no un ack
-	/*if (no_ack)
-		NLA_PUT_FLAG(msg, NL80211_ATTR_DONT_WAIT_FOR_ACK);
-*/
-
 	//L'operazione ritorna un cookie
 	cookie = 0;
-//	ret = send_and_recv(&(globalNLSock), interfaceInfo->nl_mgmt, msg, CB_cookieHandler, &cookie);
 	
-	ret = nl80211_send_recv_cb_input(&(WTPBSSInfoPtr->BSSNLSock), msg, NULL, NULL); //CB_cookieHandler, &cookie);
-//	ret = send_and_recv(drv, msg, CB_cookieHandler, &cookie);
-	
+	ret = nl80211_send_recv_cb_input(&(WTPBSSInfoPtr->BSSNLSock), msg, NULL, NULL); //CB_cookieHandler, &cookie);	
 	msg = NULL;
 	if (ret) {
-		
 		CWLog("nl80211: Frame command failed: ret=%d (%s) (freq=%u wait=%u) nl_geterror: %s", ret, strerror(-ret), freq, wait, nl_geterror(ret));
 		goto nla_put_failure;
 	}
@@ -924,8 +880,6 @@ nla_put_failure:
 	nlmsg_free(msg);
 	return ret;
 }
-
-
 
 const char * nl80211_command_to_string(enum nl80211_commands cmd)
 {
@@ -1086,10 +1040,6 @@ CWBool ioctlActivateInterface(char * interface){
 
 int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack)
 {
-	CWLog("len: %d", len);
-	
-	
-	
 	__u8 rtap_hdr[] = {
 		0x00, 0x00, /* radiotap version */
 		0x0e, 0x00, /* radiotap length */
@@ -1133,9 +1083,7 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
 	WPA_PUT_LE16(&rtap_hdr[12], txflags);
 
-CWLog("STO PER INVIARE");
 	res = sendmsg(rawSocket, &msg, 0);
-CWLog("RES: %d", res);
 	if (res < 0) {
 		CWLog("nl80211: sendmsg: %s", strerror(errno));
 		return -1;

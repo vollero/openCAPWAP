@@ -184,8 +184,9 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 			   strerror(errno));
 	}
 	
+	nodeAVL * tmpNodeSta=NULL;
+	
  	CW_REPEAT_FOREVER{
-		
 		n = recvfrom(gRawSock,buffer,sizeof(buffer),0,NULL,NULL);
 
 		if(n<0)continue;
@@ -193,6 +194,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 		if (!wtpInRunState){
 			continue;
 		}
+		
+		tmpNodeSta=NULL;
 		
 		//mac80211 puts radiotap header to data frames
 		radiotapHeader = (struct ieee80211_radiotap_header *) buffer;
@@ -215,6 +218,17 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 			((dataFrame.frameControl & IEEE80211_FCTL_TODS) == IEEE80211_FCTL_TODS)
 			)
 		{
+			//---- Search AVL node
+			CWThreadMutexLock(&mutexAvlTree);
+			tmpNodeSta = AVLfind(dataFrame.SA, avlTree);
+			CWThreadMutexUnlock(&mutexAvlTree);
+			if(tmpNodeSta == NULL)
+			{
+				CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) dataFrame.SA[0], (int) dataFrame.SA[1], (int) dataFrame.SA[2], (int) dataFrame.SA[3], (int) dataFrame.SA[4], (int) dataFrame.SA[5]);
+				continue;
+			}
+			//----
+			
 			encaps_len = n-radiotapHeader->it_len;
 			CWLog("[80211] Pure frame data. %d byte letti, %d byte data frame", n, encaps_len);
 			if (!extract802_11_Frame(&frame, (buffer+radiotapHeader->it_len), encaps_len)){
