@@ -389,7 +389,7 @@ void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 		(info != NULL) && 
 		(info->staInfo != NULL) && 
 		info->staInfo->address != NULL && 
-		info->staInfo->state == CW_80211_STA_ASSOCIATION && 
+		info->staInfo->state != CW_80211_STA_ASSOCIATION && 
 		info->staInfo->radioAdd != CW_FALSE
 	)
 	{
