@@ -344,7 +344,10 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 			avlTree = tmpRoot;
 		CWThreadMutexUnlock(&mutexAvlTree);
 		if(tmpRoot == NULL)
+		{
+			CWLog("NON aggiunto nell'AVL");
 			return CW_FALSE;
+		}
 		//----
 	}
 	else
@@ -359,6 +362,11 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 {	
 	nodeAVL * tmpRoot;
+	int heightAVL=-1;
+	
+	if(staInfo->radioAdd == CW_FALSE)
+		return CW_FALSE;
+		
 	if(!nl80211CmdDelStation(BSSInfo, staInfo->address))
 	{
 		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
@@ -369,19 +377,24 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	
 	//---- Delete AVL node
 	CWThreadMutexLock(&mutexAvlTree);
+	heightAVL = AVLheight(avlTree);
 	tmpRoot = AVLdeleteNode(avlTree, staInfo->address);
-	if(tmpRoot != NULL)
+	if(tmpRoot != NULL && heightAVL > 1)
 		avlTree = tmpRoot;
 	CWThreadMutexUnlock(&mutexAvlTree);
-	if(tmpRoot == NULL)
+	if(tmpRoot == NULL && heightAVL > 1)
+	{
+		CWLog("Non era nel AVL");
 		return CW_FALSE;
+	}
 	//----
-		
+	
 	if(!delSTABySA(BSSInfo, staInfo->address))
 	{
 		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
 		return CW_FALSE;
 	}
 	
+	CWLog("STA eliminata da WTP");
 	return CW_TRUE;
 }

@@ -234,9 +234,9 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 				if(thisSTA->radioAdd==CW_TRUE)
 				{
 					if(CWWTPDelStation(WTPBSSInfoPtr, thisSTA))
-						CWLog("[CW80211] STA deleted by timer handler");
+						CWLog("[CW80211] STA deleted");
 					else
-						CWLog("[CW80211] STA NOT deleted by timer handler");
+						CWLog("[CW80211] STA NOT deleted");
 				}
 			}
 			//Disassociation regredisce di stato
@@ -384,11 +384,19 @@ void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 	struct CWTimerAssociationInfo * info = (struct CWTimerAssociationInfo *) arg;
 	
 	CWLog("[CW80211] Association Timer Raised");
-	if((info != NULL) && (info->staInfo != NULL) && info->staInfo->address != NULL && info->staInfo->state == CW_80211_STA_ASSOCIATION)
-		return;
 	
-	if(CWWTPDelStation(info->BSSInfo, info->staInfo))
-		CWLog("[CW80211] STA deleted by timer handler");
-	else
-		CWLog("[CW80211] STA NOT deleted by timer handler");
+	if(
+		(info != NULL) && 
+		(info->staInfo != NULL) && 
+		info->staInfo->address != NULL && 
+		info->staInfo->state == CW_80211_STA_ASSOCIATION && 
+		info->staInfo->radioAdd != CW_FALSE
+	)
+	{
+		CWLog("Entro in CWWTPDelStation");
+		if(CWWTPDelStation(info->BSSInfo, info->staInfo))
+			CWLog("[CW80211] STA deleted by timer handler");
+		else
+			CWLog("[CW80211] STA NOT deleted by timer handler");
+	}
 }
