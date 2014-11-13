@@ -540,6 +540,20 @@ CWBool CWAssembleMsgElemWTPRebootStatistics(CWProtocolMessage *msgPtr)
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_WTP_REBOOT_STATISTICS_CW_TYPE);
 }
 
+//Elena Agostini - 11/2014: Delete Station Msg Elem
+CWBool CWAssembleMsgElemWTPDeleteStation(CWProtocolMessage *msgPtr, CWMsgElemDataDeleteStation * infoDeleteStation)
+{	
+	if(msgPtr == NULL || infoDeleteStation == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 2+ETH_ALEN, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
+	CWProtocolStore8(msgPtr, infoDeleteStation->radioID);
+	CWProtocolStore8(msgPtr, ETH_ALEN);
+	CWProtocolStoreRawBytes(msgPtr, infoDeleteStation->staAddr, ETH_ALEN);
+	
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE);
+}
+
 //test version
 CWBool CWAssembleMsgElemDuplicateIPv4Address(CWProtocolMessage *msgPtr) {
 	const int duplicate_ipv4_length= 11;

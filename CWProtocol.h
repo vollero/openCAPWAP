@@ -336,6 +336,12 @@ typedef struct {
 	int value;
 } CWMsgElemData;
 
+//Elena Agostini - 11/2014: Delete Station
+typedef struct {
+	int radioID;
+	unsigned char staAddr[ETH_ALEN];
+} CWMsgElemDataDeleteStation;
+
 typedef unsigned char CWMACAddress[6];
 
 typedef enum {

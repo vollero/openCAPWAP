@@ -1353,6 +1353,7 @@ CWBool CWParseWTPEventRequestMessage(CWProtocolMessage *msgPtr,
 	valuesPtr->WTPRadioStatisticsCount = 0;
 	valuesPtr->WTPRadioStatistics = NULL;
 	valuesPtr->WTPRebootStatistics = NULL;
+	valuesPtr->WTPStaDeleteInfo = NULL;
 
 	/* parse message elements */
 	while((msgPtr->offset - offsetTillMessages) < len) {
@@ -1411,6 +1412,12 @@ CWBool CWParseWTPEventRequestMessage(CWProtocolMessage *msgPtr,
 						     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
 				if (!(CWParseWTPRebootStatistics(msgPtr, elemLen, valuesPtr->WTPRebootStatistics)))
+					return CW_FALSE;	
+				break;
+			//Elena Agostini - 11/2014: Delete Station MsgElem
+			case CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE:
+				CW_CREATE_OBJECT_ERR(valuesPtr->WTPStaDeleteInfo, CWMsgElemDataDeleteStation, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				if (!(CWParseWTPDeleteStation(msgPtr, elemLen, valuesPtr->WTPStaDeleteInfo)))
 					return CW_FALSE;	
 				break;
 			default:
@@ -1543,6 +1550,33 @@ CWBool CWSaveWTPEventRequestMessage(CWProtocolWTPEventRequestValues *WTPEventReq
 	CW_FREE_OBJECT(WTPEventRequest->WTPOperationalStatistics);
 	CW_FREE_OBJECT(WTPEventRequest->WTPRadioStatistics);
 	/*CW_FREE_OBJECT(WTPEventRequest);*/
+	
+	//Elena Agostini - 11/2014: Delete Station MsgElem
+	/*
+	 * NB. Il radioID devo introdurlo in AVL: WTP - STA?
+	 */
+	if(WTPEventRequest->WTPStaDeleteInfo != NULL)
+	{
+		int heightAVL = -1;
+		nodeAVL * tmpRoot;
+				
+		if(WTPEventRequest->WTPStaDeleteInfo->staAddr == NULL)
+			return CW_FALSE;
+		
+		//---- Delete AVL node (per ora solo per STA addr)
+		CWThreadMutexLock(&mutexAvlTree);
+		heightAVL = AVLheight(avlTree);
+		tmpRoot = AVLdeleteNode(avlTree, WTPEventRequest->WTPStaDeleteInfo->staAddr);
+		if(tmpRoot != NULL && heightAVL > 1)
+			avlTree = tmpRoot;
+		CWThreadMutexUnlock(&mutexAvlTree);
+		if(tmpRoot == NULL && heightAVL > 1)
+			CWLog("Non era nel AVL");
+		else
+			CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] deleted from AVL STA", (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[0], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[1], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[2], 
+																			(int)WTPEventRequest->WTPStaDeleteInfo->staAddr[3], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[4], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[5]);
+		//----
+	}
 
 	return CW_TRUE;
 }

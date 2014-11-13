@@ -43,7 +43,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr);
 
 CWBool CWWTPCheckForBindingFrame();
 
-CWBool CWWTPCheckForWTPEventRequest();
+CWBool CWWTPCheckForWTPEventRequest(int eventType, CWMsgElemDataDeleteStation * infoDeleteStation);
 CWBool CWParseWTPEventResponseMessage(char *msg,
 				      int len,
 				      int seqNum,
@@ -498,6 +498,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 							{
 								BSSIndex=getBSSIndex(radioIndex, wlanIndex);
 								if(
+									WTPGlobalBSSList[BSSIndex] &&
+									(WTPGlobalBSSList[BSSIndex]->interfaceInfo) &&
 									(WTPGlobalBSSList[BSSIndex]->interfaceInfo->BSSID != NULL) && 
 									(!strcmp(WTPGlobalBSSList[BSSIndex]->interfaceInfo->BSSID, assResponse.BSSID))
 								)
@@ -859,6 +861,8 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 				{
 					if(!CWWTPAddNewStation(BSSIndex, STAIndex))
 						resultCode=CW_PROTOCOL_FAILURE;
+					
+					//Add function for delete station
 				}
 				else
 					resultCode=CW_PROTOCOL_FAILURE;
@@ -1609,11 +1613,13 @@ cw_assemble_error:
 	}
 }
 
+//Elena Agostini - 11/2014: Delete Station Msg Elem
 CWBool CWAssembleWTPEventRequest(CWProtocolMessage **messagesPtr,
 				 int *fragmentsNumPtr,
 				 int PMTU,
 				 int seqNum,
-				 CWList msgElemList) {
+				 CWList msgElemList,
+				 CWMsgElemDataDeleteStation * infoDeleteStation) {
 
 	CWProtocolMessage *msgElems= NULL;
 	int msgElemCount = 0;
@@ -1625,7 +1631,7 @@ CWBool CWAssembleWTPEventRequest(CWProtocolMessage **messagesPtr,
 
 	if(messagesPtr == NULL || fragmentsNumPtr == NULL || msgElemList == NULL)
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	
+		
 	msgElemCount = CWCountElementInList(msgElemList);
 
 	if (msgElemCount > 0) {
@@ -1666,6 +1672,13 @@ CWBool CWAssembleWTPEventRequest(CWProtocolMessage **messagesPtr,
 				break;
 			case CW_MSG_ELEMENT_WTP_REBOOT_STATISTICS_CW_TYPE:
 				if (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k]))))
+					goto cw_assemble_error;	
+				break;
+			case CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE:
+				if(infoDeleteStation == NULL)
+					return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+					
+				if (!(CWAssembleMsgElemWTPDeleteStation(&(msgElems[++k]), infoDeleteStation)))
 					goto cw_assemble_error;	
 				break;
 			default:
@@ -2091,7 +2104,7 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, i
 				break;
 				
 			case CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE:
-				
+				//Add function for delete station
 				if (!(CWParseDeleteStation(&completeMsg,  elemLen)))
 					return CW_FALSE;
 				break;
@@ -2106,6 +2119,8 @@ CWBool CWParseStationConfigurationRequest (char *msg, int len, int * BSSIndex, i
 		if(!(CWBindingParseConfigurationUpdateRequest (msg, len, &(valuesPtr->bindingValues))))
 			return CW_FALSE;
 	*/
+	
+	//Add function for delete station
 	
 	//Ricavo indici di BSS e STA
 	int radioIndex = CWIEEEBindingGetIndexFromDevID(radioID);

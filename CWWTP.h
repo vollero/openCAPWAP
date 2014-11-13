@@ -192,7 +192,8 @@ CWBool CWAssembleWTPEventRequest(CWProtocolMessage **messagesPtr,
 				 int *fragmentsNumPtr,
 				 int PMTU,
 				 int seqNum,
-				 CWList msgElemList);
+				 CWList msgElemList,
+				 CWMsgElemDataDeleteStation * infoDeleteStation);
 
 CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg);
 CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg);

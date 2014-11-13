@@ -79,6 +79,9 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	int frameRespLen=0, offsetFrameReceived=0;
 	short int fc, stateSTA = CW_80211_STA_OFF;
 	int frameLen;
+	int deleteRadioID;
+	unsigned char deleteStaAddr[ETH_ALEN];
+	
 	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
 	
 	//union wpa_event_data data;
@@ -231,10 +234,16 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			//Deauth elimina dal BSS la STA
 			if(WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DEAUTH)
 			{
+				deleteRadioID = WTPBSSInfoPtr->phyInfo->radioID;
+				CW_COPY_MEMORY(deleteStaAddr, thisSTA->address, ETH_ALEN);
+		
 				if(thisSTA->radioAdd==CW_TRUE)
 				{
 					if(CWWTPDelStation(WTPBSSInfoPtr, thisSTA))
+					{
 						CWLog("[CW80211] STA deleted");
+						CWWTPEventRequestDeleteStation(deleteRadioID, deleteStaAddr);
+					}
 					else
 						CWLog("[CW80211] STA NOT deleted");
 				}
@@ -293,7 +302,7 @@ void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr
 	int frameRespLen=0, offsetFrameReceived=0;
 	short int fc, stateSTA = CW_80211_STA_OFF;
 	int frameLen;
-	CWLog("nl80211: Devo gestire un frame di classe 3 (%s) received for %s", nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
+	//CWLog("nl80211: Devo gestire un frame di classe 3 (%s) received for %s", nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
 	
 	//Deauth?
 	return;
@@ -382,6 +391,8 @@ CWBool CWStartAssociationRequestTimer(WTPSTAInfo * staInfo, WTPBSSInfo * WTPBSSI
 void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 
 	struct CWTimerAssociationInfo * info = (struct CWTimerAssociationInfo *) arg;
+	int radioID;
+	unsigned char staAddr[ETH_ALEN];
 	
 	CWLog("[CW80211] Association Timer Raised");
 	
@@ -393,10 +404,30 @@ void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 		info->staInfo->radioAdd != CW_FALSE
 	)
 	{
-		CWLog("Entro in CWWTPDelStation");
+		radioID =  info->BSSInfo->phyInfo->radioID;
+		CW_COPY_MEMORY(staAddr, info->staInfo->address, ETH_ALEN);
+		
 		if(CWWTPDelStation(info->BSSInfo, info->staInfo))
+		{
 			CWLog("[CW80211] STA deleted by timer handler");
+			CWWTPEventRequestDeleteStation(radioID, staAddr);
+		}
 		else
 			CWLog("[CW80211] STA NOT deleted by timer handler");
 	}
+}
+
+CWBool CWWTPEventRequestDeleteStation(int radioId, unsigned char * staAddr) {
+	
+	CWMsgElemDataDeleteStation * infoDeleteStation;
+	
+	if(staAddr == NULL)
+		return CW_FALSE;
+	
+	CW_CREATE_OBJECT_ERR(infoDeleteStation, CWMsgElemDataDeleteStation, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	infoDeleteStation->radioID = radioId;
+	CW_COPY_MEMORY(infoDeleteStation->staAddr, staAddr, ETH_ALEN);
+	
+	if(!CWWTPCheckForWTPEventRequest(CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE, infoDeleteStation))
+		return CW_FALSE;
 }

@@ -968,6 +968,18 @@ CWBool CWParseWTPRebootStatistics (CWProtocolMessage *msgPtr, int len, WTPReboot
 	CWParseMessageElementEnd();
 }
 
+//Elena Agostini - 11/2014: Delete Station MsgElem
+CWBool CWParseWTPDeleteStation (CWProtocolMessage *msgPtr, int len, CWMsgElemDataDeleteStation *valPtr)
+{
+	CWParseMessageElementStart();
+	int length=0;
+	valPtr->radioID = CWProtocolRetrieve8(msgPtr);
+	length=CWProtocolRetrieve8(msgPtr);
+	CW_COPY_MEMORY(valPtr->staAddr, CWProtocolRetrieveRawBytes(msgPtr, length), ETH_ALEN);
+	
+	CWParseMessageElementEnd();
+}
+
 CWBool CWParseWTPRadioStatistics(CWProtocolMessage *msgPtr, int len, WTPRadioStatisticsValues *valPtr) 
 {
 	CWParseMessageElementStart();

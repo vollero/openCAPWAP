@@ -31,7 +31,7 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 	{
 		CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 		CW_COPY_MEMORY(BSSID, tmpNode->BSSID, ETH_ALEN);
-		CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+		CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
 	}
 	//----
 				

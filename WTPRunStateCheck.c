@@ -97,7 +97,7 @@ CWBool CWWTPCheckForBindingFrame()
 	return CW_TRUE;
 }
 
-CWBool CWWTPCheckForWTPEventRequest(){
+CWBool CWWTPCheckForWTPEventRequest(int eventType, CWMsgElemDataDeleteStation * infoDeleteStation){
 
 	CWLog("\n");
 	CWLog("#________ WTP Event Request Message (Run) ________#");
@@ -117,10 +117,11 @@ CWBool CWWTPCheckForWTPEventRequest(){
 	CW_CREATE_OBJECT_ERR(msgElemList->data, CWMsgElemData, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
 	msgElemList->next= NULL;
 	//Change type and value to change the msg elem to send
-	((CWMsgElemData*)(msgElemList->data))->type = CW_MSG_ELEMENT_CW_DECRYPT_ER_REPORT_CW_TYPE;
+	//Elena Agostini - 11/2014: Delete Station MsgElem
+	((CWMsgElemData*)(msgElemList->data))->type = eventType;//CW_MSG_ELEMENT_CW_DECRYPT_ER_REPORT_CW_TYPE;
 	((CWMsgElemData*)(msgElemList->data))->value = 0;
 
-	if(!CWAssembleWTPEventRequest(&messages, &fragmentsNum, gWTPPathMTU, seqNum, msgElemList)){
+	if(!CWAssembleWTPEventRequest(&messages, &fragmentsNum, gWTPPathMTU, seqNum, msgElemList, infoDeleteStation)){
 		int i;
 		if(messages)
 			for(i = 0; i < fragmentsNum; i++) {

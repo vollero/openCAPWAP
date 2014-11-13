@@ -125,6 +125,8 @@ typedef struct{
 	int WTPRadioStatisticsCount;
 	WTPRadioStatisticsValues *WTPRadioStatistics;
 	WTPRebootStatisticsInfo *WTPRebootStatistics;
+	//Elena Agostini - 11/2014: Delete Station MsgElem
+	CWMsgElemDataDeleteStation * WTPStaDeleteInfo;
 } CWProtocolWTPEventRequestValues;
 
 typedef struct {
@@ -195,6 +197,8 @@ CWBool CWParseWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int len, PhyFr
 CWBool CWParseWTPECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr);
 /* Elena Agostini - 09/2014: IEEE Binding */
 CWBool CWParseACAssignedWTPBSSID(int WTPIndex, CWProtocolMessage *msgPtr, int len, int * radioID, int * wlanID, char ** valPtr);
+//Elena Agostini - 11/2014: Delete Station MsgElem
+CWBool CWParseWTPDeleteStation (CWProtocolMessage *msgPtr, int len, CWMsgElemDataDeleteStation *valPtr);
 
 //---------------------------------------------------------/
 CWBool CWACGetACIPv4List(int **listPtr, int *countPtr);

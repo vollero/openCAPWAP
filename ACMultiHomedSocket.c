@@ -648,7 +648,8 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 //				unsigned char BSSID[ETH_ALEN]={0x2, 0x0, 0x0, 0x0, 0x0, 0x0};
 				int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211);
 			//	int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
-				
+				if(readByest80211 == -1)
+					continue;
 				CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
 				CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
 				memcpy(frame->msg, buf80211, readByest80211);

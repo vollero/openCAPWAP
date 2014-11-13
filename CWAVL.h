@@ -5,6 +5,7 @@ typedef struct nodeAVL
     int index;
     unsigned char staAddr[ETH_ALEN];
     unsigned char BSSID[ETH_ALEN];
+    //per AC: serve anche radioID?
     struct nodeAVL*  left;
     struct nodeAVL*  right;
     int      height;
