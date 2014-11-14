@@ -39,6 +39,38 @@
 
 
 
+int CWWTPSendFrame(unsigned char *buf, int len){
+    int FRAME_80211_LEN=24;
+    int gRawSockLocal;
+    struct sockaddr_ll addr;
+    
+    if ((gRawSockLocal=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0) 	{
+		CWDebugLog("THR FRAME: Error creating socket");
+		CWExitThread();
+	}
+
+    memset(&addr, 0, sizeof(addr));
+	addr.sll_family = AF_PACKET;
+//	addr.sll_protocol = htons(ETH_P_ALL);
+//	addr.sll_pkttype = PACKET_HOST;
+	addr.sll_ifindex = if_nametoindex("monitor0"); //if_nametoindex(gRadioInterfaceName_0);
+ 
+	 
+	if ((bind(gRawSockLocal, (struct sockaddr*)&addr, sizeof(addr)))<0) {
+ 		CWDebugLog("THR FRAME: Error binding socket");
+ 		CWExitThread();
+ 	}
+ 	
+    if( send(gRawSockLocal, buf + FRAME_80211_LEN, len - FRAME_80211_LEN,0) < 1 ){
+        CWDebugLog("Error to send frame on raw socket");
+        return -1;
+    }
+    CWDebugLog("Send (%d) bytes on raw socket",len - FRAME_80211_LEN);
+
+    return 1;
+    
+}
+
 int getMacAddr(int sock, char* interface, unsigned char* macAddr){
 	
 	struct ifreq s;
@@ -131,6 +163,7 @@ int from_8023_to_80211( unsigned char *inbuffer,int inlen, unsigned char *outbuf
 	return indx;
 }
 
+#ifdef SPLIT_MAC
 
 int gRawSock;
 extern int wtpInRunState;
@@ -151,7 +184,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 	struct ifreq ethreq;
  
 	CWThreadSetSignals(SIG_BLOCK, 1, SIGALRM);
-	
 	
 	if ((gRawSock=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0) 	{
 		CWDebugLog("THR FRAME: Error creating socket");
@@ -183,7 +215,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 		CWLog("nl80211: Failed to set socket priority: %s",
 			   strerror(errno));
 	}
-	
+
 	nodeAVL * tmpNodeSta=NULL;
 	
  	CW_REPEAT_FOREVER{
@@ -262,3 +294,5 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 	close(gRawSock);
 	return(NULL);
 }
+
+#endif

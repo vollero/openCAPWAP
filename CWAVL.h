@@ -3,6 +3,7 @@ typedef struct nodeAVL
 	//WTP: index == BSS index
 	//AC: index == WTP index
     int index;
+    int radioID;
     unsigned char staAddr[ETH_ALEN];
     unsigned char BSSID[ETH_ALEN];
     //per AC: serve anche radioID?
@@ -18,8 +19,8 @@ void AVLdispose(nodeAVL* t);
 nodeAVL* AVLfind( unsigned char * staAddr, nodeAVL *t );
 nodeAVL* AVLfind_min( nodeAVL *t );
 nodeAVL* AVLfind_max( nodeAVL *t );
-nodeAVL* AVLinsert( int index, unsigned char * staAddr, unsigned char * BSSID, nodeAVL *t );
-struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr);
+nodeAVL* AVLinsert( int index, unsigned char * staAddr, unsigned char * BSSID, int radioID, nodeAVL *t );
+struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr, int radioID);
 void AVLdisplay_avl(nodeAVL* t);
 int AVLget( nodeAVL* n );
 int AVLgetBalance(struct nodeAVL *N);

@@ -130,7 +130,7 @@ CWBool CWParseACIPv4List(CWProtocolMessage *msgPtr, int len, ACIPv4ListValues *v
 CWBool CWParseACIPv6List(CWProtocolMessage *msgPtr, int len, ACIPv6ListValues *valPtr);					// 3
 CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address);
 CWBool CWParse80211Station(CWProtocolMessage *msgPtr, int len, int * radioID, short int * assID, char * flags, char ** address, short int * capability, int * wlanID, int * supportedRatesLen, char ** supportedRates);
-CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len);								// 18
+CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address);								// 18
 CWBool CWParseCWControlIPv4Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv4NetworkInterface *valPtr);	//10 
 CWBool CWParseCWControlIPv6Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv6NetworkInterface *valPtr);	//11 
 CWBool CWParseCWTimers (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);			//12 

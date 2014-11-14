@@ -336,10 +336,11 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 		if(!nl80211CmdNewStation(WTPGlobalBSSList[BSSIndex], WTPGlobalBSSList[BSSIndex]->staList[STAIndex]))
 			return CW_FALSE;
 		WTPGlobalBSSList[BSSIndex]->staList[STAIndex].radioAdd = CW_TRUE;
-	
+
+#ifdef SPLIT_MAC
 		//---- Insert new AVL node
 		CWThreadMutexLock(&mutexAvlTree);
-		tmpRoot = AVLinsert(BSSIndex, WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address, WTPGlobalBSSList[BSSIndex]->interfaceInfo->MACaddr, avlTree);
+		tmpRoot = AVLinsert(BSSIndex, WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address, WTPGlobalBSSList[BSSIndex]->interfaceInfo->MACaddr, WTPGlobalBSSList[BSSIndex]->phyInfo->radioID,avlTree);
 		if(tmpRoot != NULL)
 			avlTree = tmpRoot;
 		CWThreadMutexUnlock(&mutexAvlTree);
@@ -349,6 +350,7 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 			return CW_FALSE;
 		}
 		//----
+#endif
 	}
 	else
 	{
@@ -375,20 +377,21 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	
 	staInfo->radioAdd=CW_FALSE;
 	
+#ifdef SPLIT_MAC
 	//---- Delete AVL node
 	CWThreadMutexLock(&mutexAvlTree);
-	heightAVL = AVLheight(avlTree);
-	tmpRoot = AVLdeleteNode(avlTree, staInfo->address);
-	if(tmpRoot != NULL && heightAVL > 1)
-		avlTree = tmpRoot;
+//	heightAVL = AVLheight(avlTree);
+	avlTree = AVLdeleteNode(avlTree, staInfo->address, BSSInfo->phyInfo->radioID);
 	CWThreadMutexUnlock(&mutexAvlTree);
-	if(tmpRoot == NULL && heightAVL > 1)
-	{
-		CWLog("Non era nel AVL");
-		return CW_FALSE;
-	}
+	/*if(
+		tmpRoot != NULL && heightAVL > 1 ||
+		tmpRoot == NULL && heightAVL == 1
+	 )
+		avlTree = tmpRoot;
+	*/
 	//----
-	
+#endif
+
 	if(!delSTABySA(BSSInfo, staInfo->address))
 	{
 		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);

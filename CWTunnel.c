@@ -5,6 +5,8 @@ u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
 /* Ethernet-II snap header (RFC1042 for most EtherTypes) */
 u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
+#ifdef SPLIT_MAC
+
 int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer){
 
 	int offset=0;
@@ -55,6 +57,7 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 	
 	return (frameLen-ETH_HLEN+HLEN_80211+sizeEncapsHdr);
 }
+#endif
 
 CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameLen, unsigned char *frame8023, int * frame8023Len){
 	

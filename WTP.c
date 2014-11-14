@@ -685,29 +685,16 @@ int main (int argc, const char * argv[]) {
 		CWLog("Error Init Configuration");
 		exit(1);
 	}
-	
+
+#ifdef SPLIT_MAC
+	//We need monitor interface only in SPLIT_MAC mode with tunnel
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
 		CWLog("Error starting Thread that receive binding frame");
-		exit(1);
-	}
-	
-/*
-#ifdef SOFTMAC
-	CWThread thread_ipc_with_wtp_hostapd;
-	if(!CWErr(CWCreateThread(&thread_ipc_with_wtp_hostapd, CWWTPThread_read_data_from_hostapd, NULL))) {
-		CWLog("Error starting Thread that receive command and 802.11 frame from hostapd (WTP side)");
 		exit(1);
 	}
 #endif
 
-
-	CWThread thread_receiveFrame;
-	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
-		CWLog("Error starting Thread that receive binding frame");
-		exit(1);
-	}
-*/
 /*
 	CWThread thread_receiveStats;
 	if(!CWErr(CWCreateThread(&thread_receiveStats, CWWTPReceiveStats, NULL))) {

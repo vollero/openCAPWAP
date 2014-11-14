@@ -645,9 +645,12 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				get_mac_addr(macAddrTap, gWTPs[i].tap_name);
 				unsigned char buf80211[CW_BUFFER_SIZE + 24];
 				
-//				unsigned char BSSID[ETH_ALEN]={0x2, 0x0, 0x0, 0x0, 0x0, 0x0};
+				//Elena Agostini - 11/2014: SplitMAC tunnel mode
+#ifdef SPLIT_MAC
 				int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211);
-			//	int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
+#else
+				int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
+#endif
 				if(readByest80211 == -1)
 					continue;
 				CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);

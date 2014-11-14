@@ -164,7 +164,7 @@ nodeAVL* AVLdouble_rotate_with_right( nodeAVL* k1 )
 /*
     insert a new nodeAVL into the tree
 */
-nodeAVL* AVLinsert(int index, unsigned char * staAddr, unsigned char * BSSID, nodeAVL* t )
+nodeAVL* AVLinsert(int index, unsigned char * staAddr, unsigned char * BSSID, int radioID, nodeAVL* t )
 {
 	if(staAddr == NULL)
 		return NULL;
@@ -180,6 +180,7 @@ nodeAVL* AVLinsert(int index, unsigned char * staAddr, unsigned char * BSSID, no
         }
         
         t->index = index;
+        t->radioID = radioID;
         CW_COPY_MEMORY(t->staAddr, staAddr,ETH_ALEN);
         if(BSSID != NULL)
 			 CW_COPY_MEMORY(t->BSSID, BSSID,ETH_ALEN);
@@ -189,7 +190,7 @@ nodeAVL* AVLinsert(int index, unsigned char * staAddr, unsigned char * BSSID, no
     }
     else if(compareEthAddr(staAddr, t->staAddr) < 0)
     {
-        t->left = AVLinsert(index, staAddr, BSSID, t->left );
+        t->left = AVLinsert(index, staAddr, BSSID, radioID, t->left );
         if( AVLheight( t->left ) - AVLheight( t->right ) == 2 )
             if( compareEthAddr(staAddr, t->left->staAddr) < 0 )
                 t = AVLsingle_rotate_with_left( t );
@@ -198,7 +199,7 @@ nodeAVL* AVLinsert(int index, unsigned char * staAddr, unsigned char * BSSID, no
     }
     else if(compareEthAddr(staAddr, t->staAddr) > 0)
     {
-        t->right = AVLinsert(index, staAddr, BSSID, t->right );
+        t->right = AVLinsert(index, staAddr, BSSID, radioID, t->right );
         if( AVLheight( t->right ) - AVLheight( t->left ) == 2 )
             if( compareEthAddr(staAddr, t->right->staAddr) > 0)
                 t = AVLsingle_rotate_with_right( t );
@@ -225,7 +226,7 @@ struct nodeAVL * AVLminValueNode(struct nodeAVL* node)
     return current;
 }
 
-struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr)
+struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr, int radioID)
 {
 	if(staAddr == NULL)
 		return NULL;
@@ -237,49 +238,63 @@ struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr)
     // If the key to be deleted is smaller than the root's key,
     // then it lies in left subtree
     if ( compareEthAddr(staAddr, root->staAddr) < 0 )
-        root->left = AVLdeleteNode(root->left, staAddr);
+        root->left = AVLdeleteNode(root->left, staAddr, radioID);
  
     // If the key to be deleted is greater than the root's key,
     // then it lies in right subtree
     else if( compareEthAddr(staAddr, root->staAddr) > 0 )
-        root->right = AVLdeleteNode(root->right, staAddr);
+        root->right = AVLdeleteNode(root->right, staAddr, radioID);
  
     // if key is same as root's key, then This is the node
-    // to be deleted
+    // to be deleted. If radioID is the same
     else
     {
-        // node with only one child or no child
-        if( (root->left == NULL) || (root->right == NULL) )
-        {
-            struct nodeAVL *temp = root->left ? root->left : root->right;
- 
-            // No child case
-            if(temp == NULL)
-            {
-                temp = root;
-                root = NULL;
-            }
-            else // One child case
-             *root = *temp; // Copy the contents of the non-empty child
- 
-            free(temp);
+		 if(root->radioID == radioID)
+		 {
+			// node with only one child or no child
+			if(
+				((root->left == NULL) || (root->right == NULL)) &&
+				(root->radioID == radioID)
+			)
+			{
+				struct nodeAVL *temp = root->left ? root->left : root->right;
+	 
+				// No child case
+				if(temp == NULL)
+				{
+					temp = root;
+					root = NULL;
+				}
+				else // One child case
+				 *root = *temp; // Copy the contents of the non-empty child
+	 
+				free(temp);
+				
+				CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d] deleted from AVL STA", (int)staAddr[0], (int)staAddr[1], (int)staAddr[2], (int)staAddr[3], (int)staAddr[4], (int)staAddr[5], radioID);
+			}
+			else 
+			{
+				// node with two children: Get the inorder successor (smallest
+				// in the right subtree)
+				struct nodeAVL* temp = AVLminValueNode(root->right);
+							
+				// Copy the inorder successor's data to this node
+				root->index = temp->index;
+				root->radioID = temp->radioID;
+				CW_COPY_MEMORY(root->staAddr, temp->staAddr, ETH_ALEN);
+				CW_COPY_MEMORY(root->BSSID, temp->BSSID, ETH_ALEN);
+				
+				// Delete the inorder successor
+				root->right = AVLdeleteNode(root->right, temp->staAddr, temp->radioID);
+			}
         }
         else
-        {
-            // node with two children: Get the inorder successor (smallest
-            // in the right subtree)
-            struct nodeAVL* temp = AVLminValueNode(root->right);
- 
-            // Copy the inorder successor's data to this node
-            root->index = temp->index;
-            CW_COPY_MEMORY(root->staAddr, temp->staAddr, ETH_ALEN);
-            CW_COPY_MEMORY(root->BSSID, temp->BSSID, ETH_ALEN);
-            
-            // Delete the inorder successor
-            root->right = AVLdeleteNode(root->right, temp->staAddr);
-        }
+		{
+			CWLog("AVL find STA[%02x:%02x:%02x:%02x:%02x:%02x] node to delete, but radioID value (%d) is different from input radioID(%d). So AVL doesn't delete node", (int)staAddr[0], (int)staAddr[1], (int)staAddr[2], (int)staAddr[3], (int)staAddr[4], (int)staAddr[5],
+																																										root->radioID, radioID);
+		}
     }
- 
+    
     // If the tree had only one node then return
     if (root == NULL)
       return root;

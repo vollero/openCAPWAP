@@ -503,11 +503,13 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					}	
 					CW_FREE_OBJECT(completeMsgPtr);
 					
-					
 					CWFrameAssociationResponse assocResponse;
 					if(!CW80211ParseAssociationResponse(frameResponse, &(assocResponse)))
 						return CW_FALSE;
 						
+					nodeAVL * tmpNodeSta=NULL;
+					CWBool toSendEventRequestDelete=CW_FALSE;
+					
 					/* ... e poi inviare il Station Request ed inviarlo */
 					int seqNum = CWGetSeqNum();
 
@@ -523,17 +525,48 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									  seqNum)) 
 						{
 							//---- Elena : Insert new AVL node
-							nodeAVL * tmpRoot;
 							CWThreadMutexLock(&mutexAvlTree);
-							tmpRoot = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, avlTree);
-							if(tmpRoot != NULL)
-								avlTree = tmpRoot;
+							
+							//Se la STA era gia registrata ma con un altro radioID o WTPIndex, AC elimina dal suo AVL
+							// e manda subito un event request
+							tmpNodeSta = AVLfind(assocResponse.DA, avlTree);
+							if(
+								tmpNodeSta->radioID != gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID ||
+								tmpNodeSta->index != WTPIndex
+							)
+							{
+								toSendEventRequestDelete=CW_TRUE;
+								avlTree = AVLdeleteNode(avlTree, assocResponse.DA, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+							}
+							avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
 							CWThreadMutexUnlock(&mutexAvlTree);
-							if(tmpRoot == NULL)
-								CWLog("NON aggiunto nell'AVL");
 							//----
 							
-							return CW_TRUE;
+							if(tmpNodeSta != NULL && toSendEventRequestDelete == CW_TRUE)
+							{
+								CWFrameAssociationResponse assocResponseFake;
+								CW_COPY_MEMORY(assocResponseFake.DA, tmpNodeSta->staAddr, ETH_ALEN);
+								CW_COPY_MEMORY(assocResponseFake.BSSID, tmpNodeSta->BSSID, ETH_ALEN);
+
+								//Send a Station Configuration Request DELETE STA
+								if (CWAssembleStationConfigurationRequest(&(gWTPs[tmpNodeSta->index].messages),
+												  &(gWTPs[tmpNodeSta->index].messagesCount),
+												  gWTPs[tmpNodeSta->index].pathMTU,
+												  seqNum, assocResponse, tmpNodeSta->index,
+												  CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE)) {
+
+									if(CWACSendAcknowledgedPacket(tmpNodeSta->index, 
+												  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
+												  seqNum)) 
+										CWLog("AC send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+									else
+									{	
+										CWLog("AC couldn't send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+										CWACStopRetransmission(tmpNodeSta->index);
+									}
+								}
+								return CW_TRUE;
+							}
 						}
 						else
 							CWACStopRetransmission(WTPIndex);
@@ -1552,30 +1585,21 @@ CWBool CWSaveWTPEventRequestMessage(CWProtocolWTPEventRequestValues *WTPEventReq
 	/*CW_FREE_OBJECT(WTPEventRequest);*/
 	
 	//Elena Agostini - 11/2014: Delete Station MsgElem
-	/*
-	 * NB. Il radioID devo introdurlo in AVL: WTP - STA?
-	 */
 	if(WTPEventRequest->WTPStaDeleteInfo != NULL)
 	{
 		int heightAVL = -1;
-		nodeAVL * tmpRoot;
 				
 		if(WTPEventRequest->WTPStaDeleteInfo->staAddr == NULL)
 			return CW_FALSE;
-		
+
+#ifdef SPLIT_MAC
+		nodeAVL * tmpRoot;
 		//---- Delete AVL node (per ora solo per STA addr)
 		CWThreadMutexLock(&mutexAvlTree);
-		heightAVL = AVLheight(avlTree);
-		tmpRoot = AVLdeleteNode(avlTree, WTPEventRequest->WTPStaDeleteInfo->staAddr);
-		if(tmpRoot != NULL && heightAVL > 1)
-			avlTree = tmpRoot;
+		avlTree = AVLdeleteNode(avlTree, WTPEventRequest->WTPStaDeleteInfo->staAddr, WTPEventRequest->WTPStaDeleteInfo->radioID);
 		CWThreadMutexUnlock(&mutexAvlTree);
-		if(tmpRoot == NULL && heightAVL > 1)
-			CWLog("Non era nel AVL");
-		else
-			CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] deleted from AVL STA", (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[0], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[1], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[2], 
-																			(int)WTPEventRequest->WTPStaDeleteInfo->staAddr[3], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[4], (int)WTPEventRequest->WTPStaDeleteInfo->staAddr[5]);
 		//----
+#endif
 	}
 
 	return CW_TRUE;
@@ -1992,7 +2016,7 @@ CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, in
 		}
 		
 	}else if( Operation==CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE ){
-		if (!(CWAssembleMsgElemDeleteStation(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID,&(msgElems[++k]),associationResponse.DA)))
+		if (!(CWAssembleMsgElemDeleteStation(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, &(msgElems[++k]),associationResponse.DA)))
 		{
 			CWErrorHandleLast();
 			int i;
