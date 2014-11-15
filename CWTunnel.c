@@ -11,18 +11,19 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 
 	int offset=0;
 	unsigned char * hdr80211;
-	unsigned char * SA[ETH_ALEN];
-	unsigned char * DA[ETH_ALEN];
-	unsigned char * BSSID[ETH_ALEN];
+	unsigned char SA[ETH_ALEN];
+	unsigned char DA[ETH_ALEN];
+	unsigned char BSSID[ETH_ALEN];
 	int sizeEncapsHdr = ENCAPS_HDR_LEN;
 	nodeAVL* tmpNode=NULL;
-	
+
 	CW_COPY_MEMORY(DA, frameReceived, ETH_ALEN);
-	CW_COPY_MEMORY(SA, frameReceived+ETH_ALEN+ETH_ALEN, ETH_ALEN);
+	CW_COPY_MEMORY(SA, frameReceived+ETH_ALEN, ETH_ALEN);
 	
 	//---- Search AVL node
 	CWThreadMutexLock(&mutexAvlTree);
 	tmpNode = AVLfind(DA, avlTree);
+	//AVLdisplay_avl(avlTree);
 	CWThreadMutexUnlock(&mutexAvlTree);
 	if(tmpNode == NULL)
 	{

@@ -530,20 +530,27 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							//Se la STA era gia registrata ma con un altro radioID o WTPIndex, AC elimina dal suo AVL
 							// e manda subito un event request
 							tmpNodeSta = AVLfind(assocResponse.DA, avlTree);
-							if(
-								tmpNodeSta->radioID != gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID ||
-								tmpNodeSta->index != WTPIndex
-							)
+							if(tmpNodeSta != NULL)
 							{
-								toSendEventRequestDelete=CW_TRUE;
-								avlTree = AVLdeleteNode(avlTree, assocResponse.DA, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+								if(
+									tmpNodeSta->radioID != gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID ||
+									tmpNodeSta->index != WTPIndex
+								)
+								{
+									toSendEventRequestDelete=CW_TRUE;
+									avlTree = AVLdeleteNode(avlTree, assocResponse.DA, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+									avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
+								}
+								//Qui non faccio insert se la STA era gia presente in AVl e
+								//WTPIndex e radioID coincidono
 							}
-							avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
+							else
+								avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
 							CWThreadMutexUnlock(&mutexAvlTree);
 							//----
 							
 							if(tmpNodeSta != NULL && toSendEventRequestDelete == CW_TRUE)
-							{
+							{								
 								CWFrameAssociationResponse assocResponseFake;
 								CW_COPY_MEMORY(assocResponseFake.DA, tmpNodeSta->staAddr, ETH_ALEN);
 								CW_COPY_MEMORY(assocResponseFake.BSSID, tmpNodeSta->BSSID, ETH_ALEN);
