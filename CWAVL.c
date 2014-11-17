@@ -32,11 +32,9 @@ void AVLdispose(nodeAVL* t)
 */
 nodeAVL* AVLfind(unsigned char * staAddr, nodeAVL* t )
 {
-	if(staAddr == NULL)
-		return NULL;
-		
-    if( t == NULL )
+	if(staAddr == NULL || t == NULL )
         return NULL;
+        
     if(compareEthAddr(staAddr, t->staAddr) < 0)
         return AVLfind(staAddr, t->left );
     else if(compareEthAddr(staAddr, t->staAddr) > 0)
