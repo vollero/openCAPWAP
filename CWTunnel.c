@@ -5,9 +5,7 @@ u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
 /* Ethernet-II snap header (RFC1042 for most EtherTypes) */
 u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
-#ifdef SPLIT_MAC
-
-int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer){
+int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer, int * WTPIndex){
 
 	int offset=0;
 	unsigned char * hdr80211;
@@ -19,6 +17,7 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 	
 	CW_COPY_MEMORY(DA, frameReceived, ETH_ALEN);
 	CW_COPY_MEMORY(SA, frameReceived+ETH_ALEN+ETH_ALEN, ETH_ALEN);
+	
 	
 	//---- Search AVL node
 	CWThreadMutexLock(&mutexAvlTree);
@@ -34,6 +33,7 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 		CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 		CW_COPY_MEMORY(BSSID, tmpNode->BSSID, ETH_ALEN);
 		CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
+		*(WTPIndex) = tmpNode->index;
 	}
 	//----
 				
@@ -57,7 +57,6 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 	
 	return (frameLen-ETH_HLEN+HLEN_80211+sizeEncapsHdr);
 }
-#endif
 
 CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameLen, unsigned char *frame8023, int * frame8023Len){
 	
@@ -127,4 +126,14 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 		return CW_TRUE;	
 }
 
-
+CWBool checkAddressBroadcast(unsigned char * addr)
+{
+	int i;
+	for(i=0; i<ETH_ALEN; i++)
+	{
+		if((addr[i] & 0xff) != 0xff)
+			return CW_FALSE;
+	}
+	
+	return CW_TRUE;	
+}

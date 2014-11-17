@@ -29,5 +29,6 @@
 #define __AC_TAP_H__
 
 int init_AC_tap_interface(int WTPIndex);
+CWBool CWACTapInterfaceInit();
 
 #endif

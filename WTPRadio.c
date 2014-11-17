@@ -8,10 +8,8 @@
 #include "CWWTP.h"
 
 struct WTPBSSInfo ** WTPGlobalBSSList;
-#ifdef SPLIT_MAC
 nodeAVL * avlTree = NULL;
 CWThreadMutex mutexAvlTree;
-#endif
 
 CWBool CWWTPGetRadioGlobalInfo(void) {
 	
@@ -24,9 +22,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	//Inizializza la variabile globale che conterrà tutte le bss presenti da questo WTP
 	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList, (WTP_MAX_INTERFACES*gRadiosInfo.radioCount), WTPBSSInfo *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-#ifdef SPLIT_MAC
 	CWCreateThreadMutex(&(mutexAvlTree));
-#endif
 	
 	err = nl80211_init_socket(&(globalNLSock));
 	if(err != 0)
@@ -337,7 +333,6 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 			return CW_FALSE;
 		WTPGlobalBSSList[BSSIndex]->staList[STAIndex].radioAdd = CW_TRUE;
 
-#ifdef SPLIT_MAC
 		//---- Insert new AVL node
 		CWThreadMutexLock(&mutexAvlTree);
 		tmpRoot = AVLinsert(BSSIndex, WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address, WTPGlobalBSSList[BSSIndex]->interfaceInfo->MACaddr, WTPGlobalBSSList[BSSIndex]->phyInfo->radioID,avlTree);
@@ -350,7 +345,6 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 			return CW_FALSE;
 		}
 		//----
-#endif
 	}
 	else
 	{
@@ -377,7 +371,6 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	
 	staInfo->radioAdd=CW_FALSE;
 	
-#ifdef SPLIT_MAC
 	//---- Delete AVL node
 	CWThreadMutexLock(&mutexAvlTree);
 //	heightAVL = AVLheight(avlTree);
@@ -390,7 +383,6 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 		avlTree = tmpRoot;
 	*/
 	//----
-#endif
 
 	if(!delSTABySA(BSSInfo, staInfo->address))
 	{

@@ -103,10 +103,12 @@ int gEchoRequestTimer=CW_ECHO_INTERVAL_DEFAULT;
 int gIdleTimeout=10;
 
 //Elena Agostini - 11/2014: avlTree for WTP - STA associated
-#ifdef SPLIT_MAC
 nodeAVL * avlTree = NULL;
 CWThreadMutex mutexAvlTree;
-#endif
+
+int ACTap_FD;
+char * ACTap_name;
+
 
 /*_________________________________________________________*/
 /*  *******************___FUNCTIONS___*******************  */
@@ -231,12 +233,18 @@ void CWACInit() {
 	for(i = 0; i < gMaxWTPs; i++) {
 		gWTPs[i].isNotFree = CW_FALSE;
 		
+		/*
 		if (!gWTPs[i].tap_fd){
 		    init_AC_tap_interface(i);
 		}
-
+		*/
 	}
-
+//Elena Agostini: Unique AC Tap Interface
+	if(!CWACTapInterfaceInit())
+	{
+		CWLog("Error in AC Tap Interface creation");
+		exit(-1);
+	}
 	/* store network interface's addresses */
 	gInterfacesCount = CWNetworkCountInterfaceAddresses(&gACSocket);
 	CWLog("Found %d Network Interface(s)", gInterfacesCount);
@@ -266,9 +274,7 @@ void CWACInit() {
 	}
 
 	//Elena Agostini - 11/2014: AVL WTP - STA mutex
-#ifdef SPLIT_MAC
 	CWCreateThreadMutex(&(mutexAvlTree));
-#endif
 
 	CWLog("AC Started");
 }

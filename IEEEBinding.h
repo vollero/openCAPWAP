@@ -114,9 +114,11 @@ extern struct nl80211SocketUnit globalNLSock;
 
 #define IE_TYPE_LEN 1
 #define IE_SIZE_LEN 1
+
 #define IE_TYPE_SSID 0
 #define IE_TYPE_SUPP_RATES 1
 #define IE_TYPE_DSSS 3
+#define IE_TYPE_BSS_MAX_IDLE_PERIOD 90
 
 #define IE_AUTH_OPEN_SYSTEM 0
 

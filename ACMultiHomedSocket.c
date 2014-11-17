@@ -602,14 +602,12 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 	}
 
-	for(i = 0; i < gMaxWTPs; i++) {
-		if (gWTPs[i].tap_fd!= 0){
-		      FD_SET(gWTPs[i].tap_fd, &fset);
-
-		      if (gWTPs[i].tap_fd > max)
-			      max = gWTPs[i].tap_fd;
-		}
- 	}
+//Elena Agostini: unique AC Tap Interface
+	if(ACTap_FD)
+	{
+		FD_SET(ACTap_FD, &fset);
+		max = ACTap_FD;
+	}
 
 	while(select(max+1, &fset, NULL, NULL, NULL) < 0) {
 		
@@ -618,106 +616,90 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 	}
 	
-	/* calls CWManageIncomingPacket() for each interface 
-	 * that has an incoming packet 
-	 */
 	
-	for(i = 0; i < gMaxWTPs; i++) {
-  
-		if (FD_ISSET(gWTPs[i].tap_fd, &fset)) {
+	if (FD_ISSET(ACTap_FD, &fset)) {
+		readBytes = read(ACTap_FD,buf,CW_BUFFER_SIZE); //Todd: read from TAP then forward to WTP through data channel
+		CWDebugLog("ACTap_FD:%d is set,data(%d bytes)", i, ACTap_FD, readBytes);
 			
-			readBytes = read(gWTPs[i].tap_fd,buf,CW_BUFFER_SIZE);							//Todd: read from TAP then forward to WTP through data channel
-			CWDebugLog("gWTPs[%d].tap_fd:%d is set,data(%d bytes)",i,gWTPs[i].tap_fd, readBytes);
-			
-			if(readBytes < 0) {
-				CWDebugLog("Reading from tap interface");
-				perror("Reading from interface");
-				close(gWTPs[i].tap_fd);
-				gWTPs[i].tap_fd=0;
-			}
-			
-			if (gWTPs[i].currentState != CW_ENTER_RUN){
-			      CWDebugLog("WTP %d is not in RUN State. The packet was dropped.",i);
-			      continue;
-			}else{
-				
-				unsigned char macAddrTap[6];
-				get_mac_addr(macAddrTap, gWTPs[i].tap_name);
-				unsigned char buf80211[CW_BUFFER_SIZE + 24];
-				
-				//Elena Agostini - 11/2014: SplitMAC tunnel mode
-#ifdef SPLIT_MAC
-				int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211);
-#else
-				int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
-#endif
-				if(readByest80211 == -1)
-					continue;
-				CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
-				CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
-				memcpy(frame->msg, buf80211, readByest80211);
-				frame->offset = readByest80211;
-				frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+		if(readBytes < 0) {
+			CWLog("Reading from tap interface");
+			perror("Reading from interface");
+//Elena: Chiudere l'interfaccia per un errore?
+//				close(gWTPs[i].tap_fd);
+//				gWTPs[i].tap_fd=0;
+		}
 
-				if (!CWAssembleDataMessage(&completeMsgPtr, 
+		unsigned char macAddrTap[6];
+		get_mac_addr(macAddrTap, gWTPs[i].tap_name);
+		unsigned char buf80211[CW_BUFFER_SIZE + 24];
+		int WTPIndexFromSta = -1;
+				
+//Elena Agostini - 11/2014: Decode Ethernet to 802.11 with AVL
+		int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211, &(WTPIndexFromSta));
+/*
+ * OLD VERSION
+ * int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
+ */
+		if(readByest80211 == -1)
+			goto after_tap;
+		CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
+		CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
+		memcpy(frame->msg, buf80211, readByest80211);
+		frame->offset = readByest80211;
+		frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+
+		if(!CWAssembleDataMessage(&completeMsgPtr, 
 							  &fragmentsNum, 
-							  gWTPs[i].pathMTU, 
+							  gWTPs[WTPIndexFromSta].pathMTU, 
 							  frame, 
 							  NULL,
 							  CW_PACKET_PLAIN
 							  ,0))
-				{
-					
-					
-					for(k = 0; k < fragmentsNum; k++)
-					{
-						CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-					}
-					CW_FREE_OBJECT(completeMsgPtr);
-					CW_FREE_PROTOCOL_MESSAGE(*frame);
-					CW_FREE_OBJECT(frame);
-					continue;
-				}
+		{
+			for(k = 0; k < fragmentsNum; k++)
+				CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
 				
-				for(k = 0; k < sockPtr->count; k++) {
-				      if (sockPtr->interfaces[k].sock == gWTPs[i].socket){
-					  dataSocket = sockPtr->interfaces[k].dataSock;
-					  //Elena
-					  CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[i].dataaddress));
-					  break;
-				      }
-				}
-		
+			CW_FREE_OBJECT(completeMsgPtr);
+			CW_FREE_PROTOCOL_MESSAGE(*frame);
+			CW_FREE_OBJECT(frame);
+			goto after_tap;
+		}
 				
-				if (dataSocket == 0){
-				      CWDebugLog("data socket of WTP %d isn't ready.");
-				      continue;
-				}
-
-
-				for (k = 0; k < fragmentsNum; k++) 
-				{
-					if(!CWNetworkSendUnsafeUnconnected(	dataSocket, 
-										&(address), 
-										completeMsgPtr[k].msg, 
-										completeMsgPtr[k].offset)	) {
-						CWDebugLog("Failure sending Request");
-						break;
-					}
-				}
-				for (k = 0; k < fragmentsNum; k++)
-				{
-					CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-				}
-				
-				CW_FREE_OBJECT(completeMsgPtr);				
-				CW_FREE_PROTOCOL_MESSAGE(*(frame));
-				CW_FREE_OBJECT(frame);
-				
+		for(k = 0; k < sockPtr->count; k++) {
+			if(sockPtr->interfaces[k].sock == gWTPs[WTPIndexFromSta].socket){
+				dataSocket = sockPtr->interfaces[k].dataSock;
+				//Elena
+				CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[WTPIndexFromSta].dataaddress));
+				break;
 			}
 		}
+		
+		if (dataSocket == 0){
+			CWLog("data socket of WTP isn't ready.");
+			goto after_tap;
+		}
+		
+		for (k = 0; k < fragmentsNum; k++) 
+		{
+			if(!CWNetworkSendUnsafeUnconnected(dataSocket, 
+										&(address), 
+										completeMsgPtr[k].msg, 
+										completeMsgPtr[k].offset)	) 
+					{
+						CWLog("Failure sending Request");
+						break;
+					}
+		}
+		
+		for (k = 0; k < fragmentsNum; k++)
+			CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+	
+		CW_FREE_OBJECT(completeMsgPtr);				
+		CW_FREE_PROTOCOL_MESSAGE(*(frame));
+		CW_FREE_OBJECT(frame);
 	}
 
+after_tap:
 	for(i = 0; i < sockPtr->count; i++) {
 		if(FD_ISSET(sockPtr->interfaces[i].sock, &fset)) {
 			

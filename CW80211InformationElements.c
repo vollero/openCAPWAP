@@ -242,6 +242,42 @@ CWBool CW80211AssembleIEDSSS(char * frame, int * offset, char value) {
 	return CW_TRUE;
 }
 
+CWBool CW80211AssembleIEMaxIdlePeriod(char * frame, int * offset, short int value) {
+	
+	char val=IE_TYPE_BSS_MAX_IDLE_PERIOD;	
+	CW_COPY_MEMORY(frame, &(val), IE_TYPE_LEN);
+	(*offset) += IE_TYPE_LEN;
+	
+	val=300;
+	CW_COPY_MEMORY((frame+IE_TYPE_LEN), &(val), IE_SIZE_LEN);
+	(*offset) += IE_SIZE_LEN;
+	
+/*
+		unsigned int val;
+		*pos++ = WLAN_EID_BSS_MAX_IDLE_PERIOD;
+		*pos++ = 3;
+		val = hapd->conf->ap_max_inactivity;
+		if (val > 68000)
+			val = 68000;
+		val *= 1000;
+		val /= 1024;
+		if (val == 0)
+			val = 1;
+		if (val > 65535)
+			val = 65535;
+		WPA_PUT_LE16(pos, val);
+		pos += 2;
+		*pos++ = 0x00; // TODO: Protected Keep-Alive Required
+ */
+	CW_COPY_MEMORY((frame+IE_TYPE_LEN+IE_SIZE_LEN), &(value), 1);
+	(*offset) += 1;
+
+	return CW_TRUE;
+}
+
+
+
+
 //802.3
 CWBool CW8023AssembleHdrLength(char * frame, int * offset, short int value) {
 
@@ -797,6 +833,11 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 		
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
+	
+	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
+		return NULL;
+		
+	
 	
 	return frameAssociationResponse;
 }

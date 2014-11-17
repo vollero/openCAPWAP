@@ -452,9 +452,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
 	unsigned char rateChar[CW_80211_MAX_SUPP_RATES];
 	int indexRates=0;
-	
-	return CW_TRUE;
-	
+		
 	msg = nlmsg_alloc();
 	if (!msg)
 		return CW_FALSE;
@@ -465,7 +463,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
-		/* SUPPORTED RATES */
+	/* SUPPORTED RATES */
 	int lenRates=0;
 	if(infoBSS->phyInfo->lenSupportedRates < CW_80211_MAX_SUPP_RATES)
 		lenRates = infoBSS->phyInfo->lenSupportedRates;
@@ -474,7 +472,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{
-		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1);
+		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1); // diviso 5?
 		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	}
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
@@ -487,19 +485,18 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	CWLog("listenInterval: %d", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
-	CWLog("listenInterval: %02x", staInfo.capabilityBit);
+	CWLog("capabilityBit: %02x", staInfo.capabilityBit);
 	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
 	
 	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
-//	flags.mask |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
 	flags.set = flags.mask;
 	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
 	
-
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
+	
 	CWLog("ret: %d", ret);
 	if( ret != 0)
 		return CW_FALSE;

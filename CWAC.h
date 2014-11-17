@@ -209,6 +209,10 @@ extern genericHandshakeThreadPtr listGenericThreadDTLSData[WTP_MAX_TMP_THREAD_DT
 /*________________________________________________________________*/
 /*  *******************___EXTERN VARIABLES___*******************  */
 extern CWWTPManager gWTPs[CW_MAX_WTP];
+//Elena Agostini: Unique TAP interface
+extern int ACTap_FD;
+extern char * ACTap_name;
+
 extern CWThreadMutex gWTPsMutex;
 extern CWSecurityContext gACSecurityContext;
 extern int gACHWVersion;
