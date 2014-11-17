@@ -286,7 +286,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				int write_bytes;
 				int indexWTP;
 				CWProtocolMessage * msgFrame;
-
+				int indexRadio=0, indexWlan=0, stop=0;
+					
 				if(!CW80211ParseDataFrameFromDS(msgPtr->msg, &(dataFrame)))
 				{
 					CWLog("CW80211: Error parsing data frame");
@@ -298,72 +299,86 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4])
 				
+				
 				//Broadcast
 				if(checkAddressBroadcast(dataFrame.DA))
 				{
 					for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 					{
-						//da qui
-						CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
-						CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
-						
-						memcpy(msgFrame->msg, msgPtr->msg, msglen);
-						msgFrame->offset=msglen;
-						msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
-							
-						if (!CWAssembleDataMessage(&completeMsgPtr, &fragmentsNum, gWTPs[WTPIndex].pathMTU, msgFrame, NULL,
-					#ifdef CW_DTLS_DATA_CHANNEL
-							CW_PACKET_CRYPT,
-					#else
-							CW_PACKET_PLAIN,
-					#endif	
-							0)){
-								for(k = 0; k < fragmentsNum; k++){
-									CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-								}
-								CW_FREE_OBJECT(completeMsgPtr);
-								CW_FREE_PROTOCOL_MESSAGE(*msgFrame);
-								CW_FREE_OBJECT(msgFrame);
-						}
+						for(indexRadio=0; indexRadio<gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
+						{
+							for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
+							{
+								if(
+									gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
+									gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL)
+								)
+								{
+									CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
+									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
+									
+									//DA QUI ricambiare il frame control e l'ordine degli indirizzi da fromDS a toDS
+									CW_COPY_MEMORY();
+									memcpy(msgFrame->msg, msgPtr->msg, msglen);
+									msgFrame->offset=msglen;
+									msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+										
+									if (!CWAssembleDataMessage(&completeMsgPtr, &fragmentsNum, gWTPs[WTPIndex].pathMTU, msgFrame, NULL,
+								#ifdef CW_DTLS_DATA_CHANNEL
+										CW_PACKET_CRYPT,
+								#else
+										CW_PACKET_PLAIN,
+								#endif	
+										0)){
+											for(k = 0; k < fragmentsNum; k++){
+												CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+											}
+											CW_FREE_OBJECT(completeMsgPtr);
+											CW_FREE_PROTOCOL_MESSAGE(*msgFrame);
+											CW_FREE_OBJECT(msgFrame);
+									}
 
 
-						#ifndef CW_DTLS_DATA_CHANNEL
-							for(i = 0; i < gACSocket.count; i++) {
-								if (gACSocket.interfaces[i].sock == gWTPs[indexWTP].socket){
-								dataSocket = gACSocket.interfaces[i].dataSock;
-								CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[indexWTP].dataaddress));
-								break;
-								}
+									#ifndef CW_DTLS_DATA_CHANNEL
+										for(i = 0; i < gACSocket.count; i++) {
+											if (gACSocket.interfaces[i].sock == gWTPs[indexWTP].socket){
+											dataSocket = gACSocket.interfaces[i].dataSock;
+											CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[indexWTP].dataaddress));
+											break;
+											}
+										}
+
+										if (dataSocket == 0){
+											  CWLog("data socket of WTP %d isn't ready.");
+											  return CW_FALSE;
+										}
+									#endif
+										for(i = 0; i < fragmentsNum; i++) {
+										#ifdef CW_DTLS_DATA_CHANNEL
+											if(!(CWSecuritySend(gWTPs[indexWTP].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset))) {
+										#else
+											if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset)) {
+										#endif
+												CWLog("Failure sending  KeepAlive Request");
+												int k;
+												for(k = 0; k < fragmentsNum; k++) {
+													CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+												}	
+												CW_FREE_OBJECT(completeMsgPtr);
+												break;
+											}
+										}
+
+										CWLog("Inviato Frame 80211 a WTP");
+
+										int k;
+										for(k = 0; messages && k < fragmentsNum; k++) {
+											CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+										}	
+										CW_FREE_OBJECT(completeMsgPtr);
+									}
+								}	
 							}
-
-							if (dataSocket == 0){
-								  CWLog("data socket of WTP %d isn't ready.");
-								  return CW_FALSE;
-							}
-						#endif
-							for(i = 0; i < fragmentsNum; i++) {
-							#ifdef CW_DTLS_DATA_CHANNEL
-								if(!(CWSecuritySend(gWTPs[indexWTP].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset))) {
-							#else
-								if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset)) {
-							#endif
-									CWLog("Failure sending  KeepAlive Request");
-									int k;
-									for(k = 0; k < fragmentsNum; k++) {
-										CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-									}	
-									CW_FREE_OBJECT(completeMsgPtr);
-									break;
-								}
-							}
-
-							CWLog("Inviato Frame 80211 a WTP");
-
-							int k;
-							for(k = 0; messages && k < fragmentsNum; k++) {
-								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-							}	
-							CW_FREE_OBJECT(completeMsgPtr);
 						}
 					}
 				}
