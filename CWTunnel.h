@@ -42,3 +42,4 @@ extern u8 rfc1042_header[];
 
 int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer, int * WTPIndex);
 CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameLen, unsigned char *frame8023, int * frame8023Len);
+CWBool checkAddressBroadcast(unsigned char * addr);

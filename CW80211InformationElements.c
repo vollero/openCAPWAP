@@ -924,7 +924,7 @@ char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset) {
 }
 
 unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, int *offset, int toDS, int fromDS) {
-	if(DA == NULL || SA == NULL || BSSID == NULL)
+	if(DA == NULL || SA == NULL)
 		return NULL;
 	
 	CWLog("****** 802.11 FRAME HDR ******");
@@ -941,22 +941,42 @@ unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char *
 	if(!CW80211AssembleIEDuration(&(frameACK[(*offset)]), offset, 0))
 		return NULL;
 	
-	//DA: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, DA))
-		return NULL;
-	
-	CWLog("** DA: %02x:%02x:%02x:%02x:%02x", (int)DA[0], (int)DA[1], (int)DA[2], (int)DA[3], (int)DA[4], (int)DA[5]);
+	if(toDS == 1 && fromDS == 0)
+	{
+		//BSSID: 6 byte
+		if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, BSSID))
+			return NULL;
+		CWLog("** BSSID: %02x:%02x:%02x:%02x:%02x", (int)BSSID[0], (int)BSSID[1], (int)BSSID[2], (int)BSSID[3], (int)BSSID[4], (int)BSSID[5]);
 
-	//BSSID: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, BSSID))
-		return NULL;
+		//SA: 6 byte
+		if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, SA))
+			return NULL;
+		CWLog("** SA: %02x:%02x:%02x:%02x:%02x", (int)SA[0], (int)SA[1], (int)SA[2], (int)SA[3], (int)SA[4], (int)SA[5]);
 		
-	CWLog("** BSSID: %02x:%02x:%02x:%02x:%02x", (int)BSSID[0], (int)BSSID[1], (int)BSSID[2], (int)BSSID[3], (int)BSSID[4], (int)BSSID[5]);
+		//DA: 6 byte
+		if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, DA))
+			return NULL;
+		CWLog("** DA: %02x:%02x:%02x:%02x:%02x", (int)DA[0], (int)DA[1], (int)DA[2], (int)DA[3], (int)DA[4], (int)DA[5]);
+	}
+	
+	if(fromDS == 1 && toDS == 0)
+	{
+		//DA: 6 byte
+		if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, DA))
+			return NULL;
+		CWLog("** DA: %02x:%02x:%02x:%02x:%02x", (int)DA[0], (int)DA[1], (int)DA[2], (int)DA[3], (int)DA[4], (int)DA[5]);
+		
+		//BSSID: 6 byte
+		if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, BSSID))
+			return NULL;
+		CWLog("** BSSID: %02x:%02x:%02x:%02x:%02x", (int)BSSID[0], (int)BSSID[1], (int)BSSID[2], (int)BSSID[3], (int)BSSID[4], (int)BSSID[5]);
 
-	//SA: 6 byte
-	if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, SA))
-		return NULL;
-	CWLog("** SA: %02x:%02x:%02x:%02x:%02x", (int)SA[0], (int)SA[1], (int)SA[2], (int)SA[3], (int)SA[4], (int)SA[5]);
+		//SA: 6 byte
+		if(!CW80211AssembleIEAddr(&(frameACK[(*offset)]), offset, SA))
+			return NULL;
+		CWLog("** SA: %02x:%02x:%02x:%02x:%02x", (int)SA[0], (int)SA[1], (int)SA[2], (int)SA[3], (int)SA[4], (int)SA[5]);
+	}
+	else return NULL;
 	
 	//2 (sequence ctl)
 	(*offset) += LEN_IE_SEQ_CTRL;
