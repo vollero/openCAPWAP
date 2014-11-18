@@ -633,7 +633,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		get_mac_addr(macAddrTap, gWTPs[i].tap_name);
 		unsigned char buf80211[CW_BUFFER_SIZE + 24];
 		int WTPIndexFromSta = -1;
-				
+		int indexWTP, indexRadio, indexWlan;
 //Elena Agostini - 11/2014: Decode Ethernet to 802.11 with AVL
 		int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211, &(WTPIndexFromSta));
 /*
@@ -642,61 +642,143 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
  */
 		if(readByest80211 == -1)
 			goto after_tap;
-		CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
-		CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
-		memcpy(frame->msg, buf80211, readByest80211);
-		frame->offset = readByest80211;
-		frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
-
-		if(!CWAssembleDataMessage(&completeMsgPtr, 
-							  &fragmentsNum, 
-							  gWTPs[WTPIndexFromSta].pathMTU, 
-							  frame, 
-							  NULL,
-							  CW_PACKET_PLAIN
-							  ,0))
+		if(WTPIndexFromSta == -1)
 		{
-			for(k = 0; k < fragmentsNum; k++)
-				CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-				
-			CW_FREE_OBJECT(completeMsgPtr);
-			CW_FREE_PROTOCOL_MESSAGE(*frame);
-			CW_FREE_OBJECT(frame);
-			goto after_tap;
-		}
-				
-		for(k = 0; k < sockPtr->count; k++) {
-			if(sockPtr->interfaces[k].sock == gWTPs[WTPIndexFromSta].socket){
-				dataSocket = sockPtr->interfaces[k].dataSock;
-				//Elena
-				CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[WTPIndexFromSta].dataaddress));
-				break;
+			for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
+			{
+				for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
+				{
+					for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
+					{
+						if(
+							gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
+							gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL
+						)
+						{
+							CW_COPY_MEMORY(
+										(buf80211+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
+										gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, 
+										ETH_ALEN);
+							
+										CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
+							CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
+							memcpy(frame->msg, buf80211, readByest80211);
+							frame->offset = readByest80211;
+							frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+
+							if(!CWAssembleDataMessage(&completeMsgPtr, 
+												  &fragmentsNum, 
+												  gWTPs[WTPIndexFromSta].pathMTU, 
+												  frame, 
+												  NULL,
+												  CW_PACKET_PLAIN
+												  ,0))
+							{
+								for(k = 0; k < fragmentsNum; k++)
+									CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+									
+								CW_FREE_OBJECT(completeMsgPtr);
+								CW_FREE_PROTOCOL_MESSAGE(*frame);
+								CW_FREE_OBJECT(frame);
+								goto after_tap;
+							}
+									
+							for(k = 0; k < sockPtr->count; k++) {
+								if(sockPtr->interfaces[k].sock == gWTPs[WTPIndexFromSta].socket){
+									dataSocket = sockPtr->interfaces[k].dataSock;
+									//Elena
+									CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[WTPIndexFromSta].dataaddress));
+									break;
+								}
+							}
+							
+							if (dataSocket == 0){
+								CWLog("data socket of WTP isn't ready.");
+								goto after_tap;
+							}
+							
+							for (k = 0; k < fragmentsNum; k++) 
+							{
+								if(!CWNetworkSendUnsafeUnconnected(dataSocket, 
+															&(address), 
+															completeMsgPtr[k].msg, 
+															completeMsgPtr[k].offset)	) 
+										{
+											CWLog("Failure sending Request");
+											break;
+										}
+							}
+							
+							for (k = 0; k < fragmentsNum; k++)
+								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+						
+							CW_FREE_OBJECT(completeMsgPtr);				
+							CW_FREE_PROTOCOL_MESSAGE(*(frame));
+							CW_FREE_OBJECT(frame);
+							
+						}
+					}
+				}
 			}
 		}
-		
-		if (dataSocket == 0){
-			CWLog("data socket of WTP isn't ready.");
-			goto after_tap;
-		}
-		
-		for (k = 0; k < fragmentsNum; k++) 
+		else
 		{
-			if(!CWNetworkSendUnsafeUnconnected(dataSocket, 
-										&(address), 
-										completeMsgPtr[k].msg, 
-										completeMsgPtr[k].offset)	) 
-					{
-						CWLog("Failure sending Request");
-						break;
-					}
-		}
+			CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
+			CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
+			memcpy(frame->msg, buf80211, readByest80211);
+			frame->offset = readByest80211;
+			frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+
+			if(!CWAssembleDataMessage(&completeMsgPtr, 
+								  &fragmentsNum, 
+								  gWTPs[WTPIndexFromSta].pathMTU, 
+								  frame, 
+								  NULL,
+								  CW_PACKET_PLAIN
+								  ,0))
+			{
+				for(k = 0; k < fragmentsNum; k++)
+					CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+					
+				CW_FREE_OBJECT(completeMsgPtr);
+				CW_FREE_PROTOCOL_MESSAGE(*frame);
+				CW_FREE_OBJECT(frame);
+				goto after_tap;
+			}
+					
+			for(k = 0; k < sockPtr->count; k++) {
+				if(sockPtr->interfaces[k].sock == gWTPs[WTPIndexFromSta].socket){
+					dataSocket = sockPtr->interfaces[k].dataSock;
+					//Elena
+					CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[WTPIndexFromSta].dataaddress));
+					break;
+				}
+			}
+			
+			if (dataSocket == 0){
+				CWLog("data socket of WTP isn't ready.");
+				goto after_tap;
+			}
+			
+			for (k = 0; k < fragmentsNum; k++) 
+			{
+				if(!CWNetworkSendUnsafeUnconnected(dataSocket, 
+											&(address), 
+											completeMsgPtr[k].msg, 
+											completeMsgPtr[k].offset)	) 
+						{
+							CWLog("Failure sending Request");
+							break;
+						}
+			}
+			
+			for (k = 0; k < fragmentsNum; k++)
+				CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
 		
-		for (k = 0; k < fragmentsNum; k++)
-			CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-	
-		CW_FREE_OBJECT(completeMsgPtr);				
-		CW_FREE_PROTOCOL_MESSAGE(*(frame));
-		CW_FREE_OBJECT(frame);
+			CW_FREE_OBJECT(completeMsgPtr);				
+			CW_FREE_PROTOCOL_MESSAGE(*(frame));
+			CW_FREE_OBJECT(frame);
+		}
 	}
 
 after_tap:

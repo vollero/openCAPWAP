@@ -302,7 +302,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
 				
 				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, NULL, &(offsetDataFrame), 1, 0);
-				CW_CREATE_ARRAY_CALLOC_ERR(dataFrameBuffer, msglen, unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				CW_CREATE_ARRAY_CALLOC_ERR(dataFrameBuffer, msglen, char, { return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); });
 				CW_COPY_MEMORY(dataFrameBuffer, dataHdr, HLEN_80211);
 				CW_COPY_MEMORY(dataFrameBuffer+HLEN_80211, msgPtr->msg+HLEN_80211, msglen-HLEN_80211);
 				
@@ -311,7 +311,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				{
 					for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 					{
-						for(indexRadio=0; indexRadio<gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
+						for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
 						{
 							for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
 							{
@@ -320,8 +320,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL
 								)
 								{
-									CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
-									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
+									CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, {return CW_FALSE;} );
+									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, {return CW_FALSE;} );
 									
 									/*
 									 * FromDS per le stazioni riceventi
@@ -330,9 +330,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									 * SA: STAx
 									 */
 									
-									CW_COPY_MEMORY((dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, ETH_ALEN);									
+									CW_COPY_MEMORY(
+										(dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
+										gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, 
+										ETH_ALEN);									
 																			
-									memcpy(msgFrame->msg, dataFrameBuffer, msglen);
+									CW_COPY_MEMORY(msgFrame->msg, dataFrameBuffer, msglen);
 									msgFrame->offset=msglen;
 									msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
 										
@@ -342,7 +345,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 								#else
 										CW_PACKET_PLAIN,
 								#endif	
-										0)){
+										0))
+									{
 											for(k = 0; k < fragmentsNum; k++){
 												CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
 											}
@@ -368,10 +372,11 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									#endif
 										for(i = 0; i < fragmentsNum; i++) {
 										#ifdef CW_DTLS_DATA_CHANNEL
-											if(!(CWSecuritySend(gWTPs[indexWTP].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset))) {
+											if(!(CWSecuritySend(gWTPs[indexWTP].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset)))
 										#else
-											if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset)) {
+											if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset))
 										#endif
+											{
 												CWLog("Failure sending  KeepAlive Request");
 												int k;
 												for(k = 0; k < fragmentsNum; k++) {
@@ -387,9 +392,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 										int k;
 										for(k = 0; messages && k < fragmentsNum; k++) {
 											CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-										}	
+										}
 										CW_FREE_OBJECT(completeMsgPtr);
-									}
 								}	
 							}
 						}
