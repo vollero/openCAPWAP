@@ -302,6 +302,8 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
 				
 				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, NULL, &(offsetDataFrame), 1, 0);
+				if(dataHdr == NULL)
+					return CW_FALSE;
 				CW_CREATE_ARRAY_CALLOC_ERR(dataFrameBuffer, msglen, char, { return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); });
 				CW_COPY_MEMORY(dataFrameBuffer, dataHdr, HLEN_80211);
 				CW_COPY_MEMORY(dataFrameBuffer+HLEN_80211, msgPtr->msg+HLEN_80211, msglen-HLEN_80211);
@@ -309,6 +311,18 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				//Broadcast
 				if(checkAddressBroadcast(dataFrame.DA))
 				{
+					CWLog("BROADCAST");
+					if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
+							return CW_FALSE;
+						
+					write_bytes = write(ACTap_FD, frame8023, frame8023len);
+					if(write_bytes != frame8023len){
+							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
+							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
+					}
+					
+					
+					
 					for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 					{
 						for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
@@ -398,6 +412,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							}
 						}
 					}
+					
 				}
 				else 
 				{
