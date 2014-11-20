@@ -211,6 +211,57 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 #endif
 	}
 	
+	/* +++ Reassociation Response +++ */
+	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_ASSOC_REQ)
+	{
+		CWLog("[80211] Reassociation Request Received");
+		struct CWFrameAssociationRequest assocRequest;
+		if(!CW80211ParseAssociationRequest(frameReceived, &assocRequest))
+		{
+			CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+			return;
+		}
+		
+		thisSTA = findSTABySA(WTPBSSInfoPtr, assocRequest.SA);
+		if(thisSTA)
+		{
+			if(thisSTA->state == CW_80211_STA_AUTH || thisSTA->state == CW_80211_STA_ASSOCIATION)
+				thisSTA->state = CW_80211_STA_ASSOCIATION;
+			else
+			{
+				CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x hasn't send an Auth or Assoc Request before sending Association Request.", (int) assocRequest.SA[0], (int) assocRequest.SA[1], (int) assocRequest.SA[2], (int) assocRequest.SA[3], (int) assocRequest.SA[4], (int) assocRequest.SA[5]);
+				return;
+			}
+		}
+		else
+		{
+			CWLog("[CW80211] Problem adding STA %02x:%02x:%02x:%02x:%02x:%02x", (int) assocRequest.SA[0], (int) assocRequest.SA[1], (int) assocRequest.SA[2], (int) assocRequest.SA[3], (int) assocRequest.SA[4], (int) assocRequest.SA[5]);
+			return CW_FALSE;
+		}
+		thisSTA->capabilityBit = assocRequest.capabilityBit;
+		thisSTA->listenInterval = assocRequest.listenInterval;
+		thisSTA->lenSupportedRates = assocRequest.supportedRatesLen;
+		
+		CW_CREATE_ARRAY_CALLOC_ERR(thisSTA->supportedRates, thisSTA->lenSupportedRates+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+		CW_COPY_MEMORY(thisSTA->supportedRates, assocRequest.supportedRates, thisSTA->lenSupportedRates);
+
+		//Send Association Frame
+		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
+			return;
+		
+		//Local MAC
+#ifndef SPLIT_MAC
+		//Ass ID is a random number
+		CW80211SetAssociationID(&(thisSTA->staAID));
+		frameResponse = CW80211AssembleReassociationResponse(WTPBSSInfoPtr, thisSTA, &assocRequest, &frameRespLen);
+		//Send Ressociation Frame Response
+		if(!CWSendFrameMgmtFromWTPtoAC(frameResponse, frameRespLen))
+			return;
+#else
+		frameResponse = NULL;
+#endif
+	}
+	
 	if(frameResponse)
 	{
 		if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))

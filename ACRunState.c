@@ -569,7 +569,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 				}
 #endif
-				if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_REQ)
+				if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_REQ || WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_REASSOC_REQ)
 				{
 					CWLog("CW80211: Management Association request received");
 					
@@ -609,14 +609,24 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 					short int staAID;
 					CW80211SetAssociationID(&staAID);
-					frameResponse = CW80211AssembleAssociationResponseAC(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, 
+					
+					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_REQ)
+						frameResponse = CW80211AssembleAssociationResponseAC(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, 
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID,
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit,
 																		staAID,
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.supportedRates,
 																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.lenSupportedRates,
 																		&(assRequest), &(frameRespLen));
-					
+					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_REASSOC_REQ)
+						frameResponse = CW80211AssembleReassociationResponseAC(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, 
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit,
+																		staAID,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.supportedRates,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.lenSupportedRates,
+																		&(assRequest), &(frameRespLen));
+																		
 					if(frameResponse == NULL)
 						return CW_TRUE;
 					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );

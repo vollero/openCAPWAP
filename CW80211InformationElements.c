@@ -275,9 +275,6 @@ CWBool CW80211AssembleIEMaxIdlePeriod(char * frame, int * offset, short int valu
 	return CW_TRUE;
 }
 
-
-
-
 //802.3
 CWBool CW8023AssembleHdrLength(char * frame, int * offset, short int value) {
 
@@ -834,10 +831,84 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
 	
+	/*
+	 * idle timeout
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
+	*/
+
+	return frameAssociationResponse;
+}
+
+//Genera reassociation response
+char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * thisSTA, struct CWFrameAssociationRequest *request, int *offset)
+{
+	if(request == NULL)
+		return NULL;
 		
+	CWLog("Association response");
 	
+	(*offset)=0;
+	
+	/* ***************** FRAME FIXED ******************** */
+	char * frameAssociationResponse;
+	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN*3+CW_80211_MAX_SUPP_RATES+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	
+	//frame control: 2 byte
+	if(!CW80211AssembleIEFrameControl(&(frameAssociationResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_REASSOC_RESP))
+		return NULL;
+	
+	//duration: 2 byte
+	if(!CW80211AssembleIEDuration(&(frameAssociationResponse[(*offset)]), offset, 0))
+		return NULL;
+	
+	//da: 6 byte
+	if(request)
+	{
+		if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, request->SA))
+			return NULL;
+	}
+	else
+	{
+		if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, NULL))
+			return NULL;
+	}
+	
+	//sa: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->MACaddr))
+			return NULL;
+	
+	//bssid: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->BSSID))
+			return NULL;
+	
+	//2 (sequence ctl)
+	(*offset) += LEN_IE_SEQ_CTRL;
+	
+	//capability: 2 byte
+	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
+			return NULL;
+	/* ************************************************* */
+
+	//Status Code: 2 byte (valore: 0 status code success)
+	if(!CW80211AssembleIEStatusCode(&(frameAssociationResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
+		return NULL;
+	
+	//Association ID: 2 byte
+	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, thisSTA->staAID))
+		return NULL;
+	
+	//Supported Rates
+	//TODO: Capability Re-set? Use STA capability value?
+	int indexRates=0;
+	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
+		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+		
+	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
+		return NULL;
+	
+	//idle timeout
 	
 	return frameAssociationResponse;
 }
@@ -897,6 +968,63 @@ char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short
 	
 	return frameAssociationResponse;
 }
+
+char * CW80211AssembleReassociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset)
+{
+	if(request == NULL || BSSID == NULL || MACAddr == NULL || suppRate == NULL)
+		return NULL;
+		
+	CWLog("Association response AC side");
+	
+	(*offset)=0;
+	
+	/* ***************** FRAME FIXED ******************** */
+	char * frameAssociationResponse;
+	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN+CW_80211_MAX_SUPP_RATES+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	
+	//frame control: 2 byte
+	if(!CW80211AssembleIEFrameControl(&(frameAssociationResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_REASSOC_RESP))
+		return NULL;
+	
+	//duration: 2 byte
+	if(!CW80211AssembleIEDuration(&(frameAssociationResponse[(*offset)]), offset, 0))
+		return NULL;
+	
+	//da: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, request->SA))
+		return NULL;
+	
+	//sa: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, MACAddr))
+			return NULL;
+
+	//bssid: 6 byte
+	if(!CW80211AssembleIEAddr(&(frameAssociationResponse[(*offset)]), offset, BSSID))
+			return NULL;
+
+	//2 (sequence ctl)
+	(*offset) += LEN_IE_SEQ_CTRL;
+	
+	//capability: 2 byte
+	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, capabilityBit))
+			return NULL;
+	/* ************************************************* */
+
+	//Status Code: 2 byte (valore: 0 status code success)
+	if(!CW80211AssembleIEStatusCode(&(frameAssociationResponse[(*offset)]), offset, IE_STATUS_CODE_SUCCESS))
+		return NULL;
+	
+	//Association ID: 2 byte
+	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, staAID))
+		return NULL;
+	
+	//Supported Rates
+	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, suppRatesLen))
+		return NULL;
+	
+	return frameAssociationResponse;
+}
+
 
 char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset) {
 	if(DA == NULL)
