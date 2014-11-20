@@ -394,3 +394,29 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	CWLog("STA eliminata da WTP");
 	return CW_TRUE;
 }
+
+CWBool CWWTPDisassociateStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
+{	
+	nodeAVL * tmpRoot;
+	int heightAVL=-1;
+	
+	if(staInfo->radioAdd == CW_FALSE)
+		return CW_FALSE;
+		
+	if(!nl80211CmdDelStation(BSSInfo, staInfo->address))
+	{
+		CWLog("[CW80211] Problem deleting STA:%02x:%02x:%02x:%02x:%02x:%02x mac80211", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		return CW_FALSE;
+	}
+	
+	staInfo->radioAdd=CW_FALSE;
+	
+	//---- Delete AVL node
+	CWThreadMutexLock(&mutexAvlTree);
+	avlTree = AVLdeleteNode(avlTree, staInfo->address, BSSInfo->phyInfo->radioID);
+	CWThreadMutexUnlock(&mutexAvlTree);
+	//----
+
+	CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x is disassociated. It's in Authenticate state", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+	return CW_TRUE;
+}

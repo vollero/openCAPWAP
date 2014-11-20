@@ -306,6 +306,15 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 				{
 					if(thisSTA->state == CW_80211_STA_ASSOCIATION)
 						thisSTA->state = CW_80211_STA_AUTH;
+					
+					if(CWWTPDisassociateStation(WTPBSSInfoPtr, thisSTA))
+					{
+						CWLog("[CW80211] STA disassociated");
+						if(!CWStartAssociationRequestTimer(thisSTA, WTPBSSInfoPtr))
+							CWLog("[CW80211] Problem starting timer association request");
+					}
+					else
+						CWLog("[CW80211] STA NOT disassociated");
 				}
 			}
 		}
