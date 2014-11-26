@@ -70,7 +70,7 @@ extern int gCWACCount;
 //Elena Agostini - 07/2014: nl80211 support
 extern int gPhyInterfaceCount;
 extern char ** gPhyInterfaceName;
-
+extern int * gPhyInterfaceIndex;
 
 /*
  * Elena Agostini - 02/2014
