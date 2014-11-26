@@ -125,8 +125,6 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			}			
 		}
 	}
-	
-	CWLog("[80211 ERROR] bridge iface %s eth ifface: %s", gBridgeInterfaceName, gEthInterfaceName);
 
 	int frameTunnelWTP = CWWTPGetFrameTunnelMode();
 	//Local MAC impongo il bridgind locale: il WTP inoltra direttamente i pacchetti delle STA tramite un bridge
@@ -139,6 +137,10 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			CWLog("[80211 ERROR] Cannot create bridge interface %s", gBridgeInterfaceName);
 			return CW_FALSE;
 		}
+		
+		CWLog("Local Bridging tunnel mode. Adding %s to %s", gEthInterfaceName, gBridgeInterfaceName);
+		if(!CWAddNewBridgeInterface(globalNLSock.ioctl_sock, gBridgeInterfaceName, if_nametoindex(gEthInterfaceName)))
+			return CW_FALSE;
 		
 		ioctlActivateInterface(gBridgeInterfaceName);
 	}
