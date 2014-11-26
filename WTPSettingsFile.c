@@ -45,6 +45,8 @@ char  gBoardReversionNo;
 //Elena Agostini - 07/2014: nl80211 support
 int gPhyInterfaceCount;
 char ** gPhyInterfaceName=NULL;
+int * gPhyInterfaceIndex=NULL;
+
 
 /*
  * Elena Agostini - 02/2014
@@ -77,7 +79,8 @@ void CWExtractValue(char* start, char** startValue, char** endValue, int* offset
 CWBool CWParseSettingsFile()
 {
 	char *line = NULL;
-		
+	int indexPhy=0;
+	
 	gSettingsFile = fopen (CW_SETTINGS_FILE, "rb");
 	if (gSettingsFile == NULL) {
 		CWErrorRaiseSystemError(CW_ERROR_GENERAL);
@@ -131,8 +134,10 @@ CWBool CWParseSettingsFile()
 			port_str[offset] ='\0';
 			gPhyInterfaceCount = atoi(port_str);
 			if(gPhyInterfaceCount > 0)
+			{
 				CW_CREATE_ARRAY_ERR(gPhyInterfaceName, gPhyInterfaceCount, char *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL);)
-				
+				CW_CREATE_ARRAY_ERR(gPhyInterfaceIndex, gPhyInterfaceCount, int, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL);)
+			}	
 			CW_FREE_OBJECT(line);
 			continue;
 		}
@@ -143,20 +148,20 @@ CWBool CWParseSettingsFile()
 			char* startValue=NULL;
 			char* endValue=NULL;
 			int offset = 0;
-			int indexPhy;
 			
 			CWExtractValue(endTag, &startValue, &endValue, &offset);
 			
 			int endValueInt = atoi(endValue);
-			for(indexPhy=0; indexPhy<gPhyInterfaceCount; indexPhy++)
+			if(indexPhy < gPhyInterfaceCount && gPhyInterfaceName != NULL)
 			{
-				if(indexPhy == endValueInt && gPhyInterfaceName != NULL)
-				{
-					CW_CREATE_STRING_ERR(gPhyInterfaceName[indexPhy], offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
-					strncpy(gPhyInterfaceName[indexPhy], startValue, offset);
-					gPhyInterfaceName[indexPhy][offset] ='\0';
-					CW_FREE_OBJECT(line);
-				}
+				//phy1 -> endvalue 1
+				fprintf(stderr, "SU %d metto interfaccia %d", indexPhy, endValueInt);
+				gPhyInterfaceIndex[indexPhy] = endValueInt;
+				CW_CREATE_STRING_ERR(gPhyInterfaceName[indexPhy], offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
+				strncpy(gPhyInterfaceName[indexPhy], startValue, offset);
+				gPhyInterfaceName[indexPhy][offset] ='\0';
+				CW_FREE_OBJECT(line);
+				indexPhy++;
 			}
 			
 			continue;
