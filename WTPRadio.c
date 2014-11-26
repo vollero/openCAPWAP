@@ -78,7 +78,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		 * Retrocompatibilita. Da eliminare questo radioID in tutto il codice.
 		 * il vero radioID sta nelle phyInfo
 		 */
-		gRadiosInfo.radiosInfo[indexPhy].radioID = CWIEEEBindingGetIndexFromDevID(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID);
+		gRadiosInfo.radiosInfo[indexPhy].radioID = gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID; //CWIEEEBindingGetIndexFromDevID(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID);
 		/* gRadiosInfo.radiosInfo[i].numEntries = 0; */
 		gRadiosInfo.radiosInfo[indexPhy].decryptErrorMACAddressList = NULL;
 		gRadiosInfo.radiosInfo[indexPhy].reportInterval= CW_REPORT_INTERVAL_DEFAULT;
