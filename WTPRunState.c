@@ -208,7 +208,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 
 				if (CWErrorGetLastErrorCode() == CW_ERROR_INTERRUPTED)
 					continue;
-				
+				CWLog("CWErrorGetLastErrorCode(): %d",CWErrorGetLastErrorCode());
 				break;
 		}
 		

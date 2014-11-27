@@ -141,7 +141,6 @@ CWBool CWWTPInitBinding(int radioIndex)
 
 	}
 
-	CWLog("return after wtpbindig");
 	return CW_TRUE;
 }
 

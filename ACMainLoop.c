@@ -1151,6 +1151,29 @@ void _CWCloseThread(int i) {
 	gWTPs[i].isNotFree = CW_FALSE;
 	CWThreadMutexUnlock(&gWTPsMutex);
 	
+//-- Elena Agostini: fake method to delete all node about that WTP
+	nodeAVL * tmp;
+	unsigned char * fakeMACMax = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	unsigned char * fakeMACMin = {0x0,0x0,0x0,0x0,0x0,0x0};
+
+	CWThreadMutexLock(&(mutexAvlTree));
+	tmp=NULL;
+	do {
+		tmp = AVLfindWTPNode(fakeMACMax, avlTree, i);
+		if(tmp != NULL)
+			AVLdeleteNodeWithoutRadioID(avlTree, tmp);
+	}while(tmp != NULL);
+	
+	tmp=NULL;
+	do {
+		tmp = AVLfindWTPNode(fakeMACMin, avlTree, i);
+		if(tmp != NULL)
+			AVLdeleteNodeWithoutRadioID(avlTree, tmp);
+	}while(tmp != NULL);
+	
+	CWThreadMutexUnlock(&(mutexAvlTree));
+//--
+	
 	CWExitThread();
 }
 

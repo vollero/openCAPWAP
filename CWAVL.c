@@ -43,6 +43,21 @@ nodeAVL* AVLfind(unsigned char * staAddr, nodeAVL* t )
         return t;
 }
 
+nodeAVL* AVLfindWTPNode(unsigned char * staAddr, nodeAVL* t, int index)
+{
+	if(staAddr == NULL || t == NULL )
+        return NULL;
+        
+    if(t->index == index)
+		return t;
+	else if(compareEthAddr(staAddr, t->staAddr) < 0)
+        return AVLfindWTPNode(staAddr, t->left, index);
+    else if(compareEthAddr(staAddr, t->staAddr) > 0)
+        return AVLfindWTPNode(staAddr,  t->right, index);
+    else
+        return NULL;
+}
+
 /*
     find minimum nodeAVL's key
 */
@@ -331,6 +346,105 @@ struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr, int
     return root;
 }
 
+struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL* nodeToDelete)
+{
+	if(nodeToDelete->staAddr == NULL)
+		return NULL;
+    // STEP 1: PERFORM STANDARD BST DELETE
+	
+    if (root == NULL)
+        return root;
+ 
+    // If the key to be deleted is smaller than the root's key,
+    // then it lies in left subtree
+    if ( compareEthAddr(nodeToDelete->staAddr, root->staAddr) < 0 )
+        root->left = AVLdeleteNodeWithoutRadioID(root->left, nodeToDelete->staAddr);
+ 
+    // If the key to be deleted is greater than the root's key,
+    // then it lies in right subtree
+    else if( compareEthAddr(nodeToDelete->staAddr, root->staAddr) > 0 )
+        root->right = AVLdeleteNodeWithoutRadioID(root->right, nodeToDelete->staAddr);
+ 
+    // if key is same as root's key, then This is the node
+    // to be deleted. If radioID is the same
+    else
+    {
+		// node with only one child or no child
+		if((root->left == NULL) || (root->right == NULL))
+		{
+				struct nodeAVL *temp = root->left ? root->left : root->right;
+	 
+				// No child case
+				if(temp == NULL)
+				{
+					temp = root;
+					root = NULL;
+				}
+				else // One child case
+				 *root = *temp; // Copy the contents of the non-empty child
+				
+				CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] WTP[%d] deleted from AVL STA", (int)temp->staAddr[0], (int)temp->staAddr[1], (int)temp->staAddr[2],
+				 (int)temp->staAddr[3], (int)temp->staAddr[4], (int)temp->staAddr[5], temp->index);
+				 
+				free(temp);
+				
+				
+		}
+		else 
+		{
+				// node with two children: Get the inorder successor (smallest
+				// in the right subtree)
+				struct nodeAVL* temp = AVLminValueNode(root->right);
+							
+				// Copy the inorder successor's data to this node
+				root->index = temp->index;
+				root->radioID = temp->radioID;
+				CW_COPY_MEMORY(root->staAddr, temp->staAddr, ETH_ALEN);
+				CW_COPY_MEMORY(root->BSSID, temp->BSSID, ETH_ALEN);
+				
+				// Delete the inorder successor
+				root->right = AVLdeleteNode(root->right, temp->staAddr, temp->radioID);
+		}
+    }
+    
+    // If the tree had only one node then return
+    if (root == NULL)
+      return root;
+ 
+    // STEP 2: UPDATE HEIGHT OF THE CURRENT NODE
+    root->height = AVLmax(AVLheight(root->left), AVLheight(root->right)) + 1;
+ 
+    // STEP 3: GET THE BALANCE FACTOR OF THIS NODE (to check whether
+    //  this node became unbalanced)
+    int balance = AVLgetBalance(root);
+ 
+    // If this node becomes unbalanced, then there are 4 cases
+ 
+    // Left Left Case
+    if (balance > 1 && AVLgetBalance(root->left) >= 0)
+        return AVLsingle_rotate_with_right(root);
+ 
+    // Left Right Case
+    if (balance > 1 && AVLgetBalance(root->left) < 0)
+    {
+        root->left =  AVLsingle_rotate_with_left(root->left);
+        return AVLsingle_rotate_with_right(root);
+    }
+ 
+    // Right Right Case
+    if (balance < -1 && AVLgetBalance(root->right) <= 0)
+        return AVLsingle_rotate_with_left(root);
+ 
+    // Right Left Case
+    if (balance < -1 && AVLgetBalance(root->right) > 0)
+    {
+        root->right = AVLsingle_rotate_with_right(root->right);
+        return AVLsingle_rotate_with_left(root);
+    }
+ 
+    return root;
+}
+
 /*
     data data of a nodeAVL
 */
@@ -368,3 +482,29 @@ void AVLdisplay_avl(nodeAVL* t)
     AVLdisplay_avl(t->left);
     AVLdisplay_avl(t->right);
 }
+
+/*
+nodeAVL * AVLremoveWTP(nodeAVL* root, int WTPIndex)
+{
+    if (root == NULL)
+        return NULL;
+    
+    while(root != NULL)
+    {
+		if(root->index == WTPIndex)
+		AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr, int radioID)
+			
+	}
+    CWLog("[%d] - %02x:%02x:%02x:%02x:%02x:%02x",t->index, (int)t->staAddr[0], (int)t->staAddr[1], (int)t->staAddr[2], (int)t->staAddr[3], (int)t->staAddr[4], (int)t->staAddr[5]);
+
+    if(t->left != NULL)
+		CWLog("[L: %d] - %02x:%02x:%02x:%02x:%02x:%02x",t->left->index, (int)t->left->staAddr[0], (int)t->left->staAddr[1], (int)t->left->staAddr[2], (int)t->left->staAddr[3], (int)t->left->staAddr[4], (int)t->left->staAddr[5]);
+    if(t->right != NULL)
+		CWLog("[R: %d] - %02x:%02x:%02x:%02x:%02x:%02x",t->right->index, (int)t->right->staAddr[0], (int)t->right->staAddr[1], (int)t->right->staAddr[2], (int)t->right->staAddr[3], (int)t->right->staAddr[4], (int)t->right->staAddr[5]);
+
+    CWLog("\n");
+
+    AVLdisplay_avl(t->left);
+    AVLdisplay_avl(t->right);
+}
+*/

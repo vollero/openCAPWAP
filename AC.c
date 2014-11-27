@@ -275,7 +275,7 @@ void CWACInit() {
 
 	//Elena Agostini - 11/2014: AVL WTP - STA mutex
 	CWCreateThreadMutex(&(mutexAvlTree));
-
+	
 	CWLog("AC Started");
 }
 

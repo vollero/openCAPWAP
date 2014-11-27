@@ -544,7 +544,7 @@ CWBool ioctlActivateInterface(char * interface);
 int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack);
 const char * nl80211_command_to_string(enum nl80211_commands cmd);
 
-int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID, WTPBSSInfo * WTPBSSInfoPtr);
+int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, WTPBSSInfo * WTPBSSInfoPtr);
 int nl80211_alloc_mgmt_handle(WTPInterfaceInfo * interfaceInfo);
 int nl80211_register_frame(WTPInterfaceInfo * interfaceInfo,
 				  struct nl_handle *nl_handle,

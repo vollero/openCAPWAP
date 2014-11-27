@@ -1,12 +1,11 @@
 # Settings File for WTP. Lines beginning with # and blank lines will be ignored
-#
 
 <LOG_FILE_WTP>/var/log/wtp1.txt
-#
+
 #Elena Agostini 07-2014: nl80211 support
 <RADIO_PHY_TOT>1
 <RADIO_PHY_NAME_0>phy0
-#<RADIO_PHY_NAME_1>phy1
+#<RADIO_PHY_NAME_1>phyX
 
 #Elena Agostini 11/2014: Local Bridgind Support with mac80211
 <WTP_ETH_IF_NAME> eth0

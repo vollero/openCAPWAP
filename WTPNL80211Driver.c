@@ -20,7 +20,7 @@ CWBool nl80211CmdGetPhyInfo(int indexPhy, struct WTPSinglePhyInfo * singlePhyInf
 //	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_GET_WIPHY, 0);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
-//	NLA_PUT_FLAG(msg, NL80211_ATTR_SPLIT_WIPHY_DUMP);
+//	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, "phy1");
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_getPhyInfo, singlePhyInfo);
 	if( ret != 0)
@@ -172,20 +172,19 @@ CWBool nl80211CmdDelInterface(int indexPhy, char * ifName){
 }
 
 CWBool nl80211CmdSetInterfaceAPType(char * interface){
-		struct nl_msg *msg;
+	struct nl_msg *msg;
 	
 	msg = nlmsg_alloc();
 	if (!msg)
 		return CW_FALSE;
-
 	int index = if_nametoindex(interface);
+	CWLog("interface: %s, index: %d", interface, index);
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_INTERFACE, 0);
-
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, index);
 	enum nl80211_iftype typeIf = NL80211_IFTYPE_AP;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
-	CWLog("ret: %d", ret);
+	CWLog("ret nl80211CmdSetInterfaceAPType: %d", ret);
 	if( ret != 0)
 		return CW_FALSE;
 		
@@ -363,13 +362,14 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	NLA_PUT_U32(msg, NL80211_ATTR_BEACON_INTERVAL, 1);
 	NLA_PUT_U32(msg, NL80211_ATTR_DTIM_PERIOD, 1);
 	
+	CWLog("SSID: %s ifIndex: %d", interfaceInfo->SSID, ifIndex);
 	NLA_PUT(msg, NL80211_ATTR_SSID, strlen(interfaceInfo->SSID), interfaceInfo->SSID);
 	if(interfaceInfo->authType == NL80211_AUTHTYPE_OPEN_SYSTEM)
 		NLA_PUT_U32(msg, NL80211_ATTR_AUTH_TYPE, NL80211_AUTHTYPE_OPEN_SYSTEM);
 	//TODO: else
 			
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
-	CWLog("ret: %d", ret);
+	CWLog("ret beacon: %d", ret);
 	if( ret != 0)
 		return CW_FALSE;
 		
@@ -575,6 +575,7 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble)
 	}
 */
 
+CWLog("interfaceInfo->realWlanID: %d", interfaceInfo->realWlanID);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, interfaceInfo->realWlanID);
 
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
@@ -663,8 +664,11 @@ int nl80211GetTxqParams(struct nl80211SocketUnit *nlSockUnit, WTPQosValues * qos
  * AP: Registra ricezione mgmt frame
  ***********************************/
  
-int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID, WTPBSSInfo * WTPBSSInfoPtr)
+int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, WTPBSSInfo * WTPBSSInfoPtr)
 {
+	if(interfaceInfo == NULL || WTPBSSInfoPtr == NULL)
+		return -1;
+		
 	static const int stypes[] = {
 		WLAN_FC_STYPE_AUTH,
 		WLAN_FC_STYPE_ASSOC_REQ,
@@ -682,14 +686,19 @@ int CW80211SetAPTypeFrame(WTPInterfaceInfo * interfaceInfo, int radioID, WTPBSSI
 	};
 	unsigned int i;
 
+CWLog("dentro CW80211SetAPTypeFrame");
 	//Creo callback specifica per interfaccia e poi la assegno al nl_mgmt
 	if(CW80211InitNlCb(WTPBSSInfoPtr) == -1)
 		return -1;
 
+CWLog("CW80211InitNlCb ok");
+
+
 	interfaceInfo->nl_mgmt = NULL;
 	if (nl80211_alloc_mgmt_handle(interfaceInfo) != 0)
 		return -1;
-	
+	CWLog("nl80211_alloc_mgmt_handle ok");
+
 	CWLog("nl80211: Subscribe to mgmt frames with AP handle %p", interfaceInfo->nl_mgmt);
 
 	for (i = 0; i < ARRAY_SIZE(stypes); i++) {

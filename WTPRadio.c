@@ -22,6 +22,8 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	//Inizializza la variabile globale che conterrà tutte le bss presenti da questo WTP
 	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList, (WTP_MAX_INTERFACES*gRadiosInfo.radioCount), WTPBSSInfo *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
+	CWLog("(WTP_MAX_INTERFACES*gRadiosInfo.radioCount): %d", (WTP_MAX_INTERFACES*gRadiosInfo.radioCount));
+
 	CWCreateThreadMutex(&(mutexAvlTree));
 	
 	err = nl80211_init_socket(&(globalNLSock));
@@ -46,8 +48,8 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	for(indexPhy=0; indexPhy < gRadiosInfo.radioCount; indexPhy++)
 	{
-		CWLog("[NL80211] Retrieving info for phy interface %d name: %s ...", indexPhy, gPhyInterfaceName[indexPhy]);
-		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = CWIEEEBindingGetDevFromIndexID(indexPhy);
+		CWLog("[NL80211] Retrieving info for phy interface %d name: %s ...", gPhyInterfaceIndex[indexPhy], gPhyInterfaceName[indexPhy]);
+		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = gPhyInterfaceIndex[indexPhy];
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.realRadioID = -1;
 		//Not best practice with define
 		//Frequencies array
@@ -58,7 +60,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		
 
 		//Info about all phy info
-		if(nl80211CmdGetPhyInfo(indexPhy, &(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo)) == CW_FALSE)
+		if(nl80211CmdGetPhyInfo(gPhyInterfaceIndex[indexPhy], &(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo)) == CW_FALSE)
 		{
 			CWLog("[NL80211 ERROR] Phy interface %d name: %s has some problems. WTP will stop.", indexPhy, gPhyInterfaceName[indexPhy]);
 			return CW_FALSE;
@@ -76,7 +78,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		 * Retrocompatibilita. Da eliminare questo radioID in tutto il codice.
 		 * il vero radioID sta nelle phyInfo
 		 */
-		gRadiosInfo.radiosInfo[indexPhy].radioID = CWIEEEBindingGetIndexFromDevID(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID);
+		gRadiosInfo.radiosInfo[indexPhy].radioID = gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID; //CWIEEEBindingGetIndexFromDevID(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID);
 		/* gRadiosInfo.radiosInfo[i].numEntries = 0; */
 		gRadiosInfo.radiosInfo[indexPhy].decryptErrorMACAddressList = NULL;
 		gRadiosInfo.radiosInfo[indexPhy].reportInterval= CW_REPORT_INTERVAL_DEFAULT;
@@ -114,19 +116,17 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		{
 			if(!CWWTPCreateNewWlanInterface(indexPhy,  indexWlan))
 			{
-				CWLog("NL80211: Error creating new interface. RadioID: %d, WLAN ID: %d", indexPhy, indexWlan);
+				CWLog("NL80211: Error creating new interface. RadioID: %d, WLAN ID: %d", gPhyInterfaceIndex[indexPhy], indexWlan);
 				return CW_FALSE;
 			}	
 			
 			if(!CWWTPCreateNewBSS(indexPhy, indexWlan))
 			{
-				CWLog("NL80211: Error creating new bss. RadioID: %d, WLAN ID: %d", indexPhy, indexWlan);
+				CWLog("NL80211: Error creating new bss. radioIndex: %d, wlanIndex: %d", gPhyInterfaceIndex[indexPhy], indexWlan);
 				return CW_FALSE;
 			}			
 		}
 	}
-	
-	CWLog("[80211 ERROR] bridge iface %s eth ifface: %s", gBridgeInterfaceName, gEthInterfaceName);
 
 	int frameTunnelWTP = CWWTPGetFrameTunnelMode();
 	//Local MAC impongo il bridgind locale: il WTP inoltra direttamente i pacchetti delle STA tramite un bridge
@@ -140,6 +140,10 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			return CW_FALSE;
 		}
 		
+		CWLog("Local Bridging tunnel mode. Adding %s to %s", gEthInterfaceName, gBridgeInterfaceName);
+		if(!CWAddNewBridgeInterface(globalNLSock.ioctl_sock, gBridgeInterfaceName, if_nametoindex(gEthInterfaceName)))
+			return CW_FALSE;
+		
 		ioctlActivateInterface(gBridgeInterfaceName);
 	}
 	//elena test now
@@ -148,7 +152,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		snprintf(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName, 9, "monitor0");	
 		
 		CWLog("CW_NATIVE_BRIDGING");
-		if(!nl80211CmdSetNewMonitorInterface(0, &(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface)))
+		if(!nl80211CmdSetNewMonitorInterface(gPhyInterfaceIndex[0], &(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface)))
 			return CW_FALSE;
 		
 		if(!ioctlActivateInterface(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName))
@@ -158,20 +162,21 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	return CW_TRUE;
 }
 
-CWBool CWWTPCreateNewWlanInterface(int radioID, int wlanID)//WTPInterfaceInfo * interfaceInfo)
+CWBool CWWTPCreateNewWlanInterface(int radioIndex, int wlanIndex)//WTPInterfaceInfo * interfaceInfo)
 {
 	//pid_t wtpPid = getpid();
 	
-	//Create ifname: WTPWlan+radioID+wlanID+WTPpid
-	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	snprintf(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, radioID, wlanID);
+	//Create ifname: WTPWlan+radioIndex+wlanIndex+WTPpid
+	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	snprintf(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, gPhyInterfaceIndex[radioIndex], wlanIndex);
 	
-	if(!nl80211CmdSetNewInterface(radioID, &(gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID])))
+	CWLog("radioIndex: %d, wlanIndex: %d name: %s", gPhyInterfaceIndex[radioIndex], wlanIndex, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
+	if(!nl80211CmdSetNewInterface(gPhyInterfaceIndex[radioIndex], &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex])))
 		return CW_FALSE;
 	   
-	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].typeInterface = CW_STA_MODE;
-	//RFC wlanID > 0
-	gRadiosInfo.radiosInfo[radioID].gWTPPhyInfo.interfaces[wlanID].wlanID = CWIEEEBindingGetDevFromIndexID(wlanID);
+	gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].typeInterface = CW_STA_MODE;
+	//RFC wlanIndex > 0
+	gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].wlanID = CWIEEEBindingGetDevFromIndexID(wlanIndex);
 	
 	return CW_TRUE;
 }
@@ -225,7 +230,6 @@ CWBool CWWTPDeleteBSS(int radioIndex, int wlanIndex)
 {
 	int indexSTA, BSSId = getBSSIndex(radioIndex, wlanIndex);
 	
-	CWLog("radioIndex: %d, wlanIndex; %d BSSId: %d", radioIndex, wlanIndex, BSSId);
 	if(WTPGlobalBSSList[BSSId] == NULL)
 		return CW_TRUE;
 	
@@ -246,13 +250,15 @@ CWBool CWWTPDeleteBSS(int radioIndex, int wlanIndex)
 
 CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * interfaceInfo)
 {   
-	CWLog("Interfaccia mode: %d", interfaceInfo->typeInterface);
 	if(interfaceInfo->typeInterface == CW_AP_MODE)
 		return CW_TRUE;
 	
+	if(interfaceInfo == NULL)
+		return CW_FALSE;
+				
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
-	
+
 	//BSSID == AP Address
 	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(interfaceInfo->BSSID, interfaceInfo->MACaddr, ETH_ALEN);
@@ -262,14 +268,15 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	
 	if(!nl80211CmdSetChannelInterface(interfaceInfo->ifName, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency))
 		return CW_FALSE;
-	
+		
 	if(!nl80211CmdStartAP(interfaceInfo))
 		return CW_FALSE;
-	  
+
 	int tmpIndexif = if_nametoindex(interfaceInfo->ifName);
+	CWLog("Attivo interfaccia %d name %s", tmpIndexif, interfaceInfo->ifName);
 	if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, IF_OPER_UP))
 		return CW_FALSE;
-	
+			
 	interfaceInfo->typeInterface = CW_AP_MODE;
 	  
 	if(!nl80211_set_bss(interfaceInfo, 1, 1))
@@ -277,12 +284,15 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	 
 	//Setta nuova BSS
 	int BSSId = getBSSIndex(radioIndex, wlanIndex);
+	CWLog("radio %d wlan %d bss %d", radioIndex, wlanIndex, BSSId);
 	WTPGlobalBSSList[BSSId]->active = CW_TRUE;
-
+	
 	//Register mgmt functions
-	if(CW80211SetAPTypeFrame(interfaceInfo, radioIndex, WTPGlobalBSSList[BSSId]) < 0)
+	if(CW80211SetAPTypeFrame(interfaceInfo, WTPGlobalBSSList[BSSId]) < 0)
 		return CW_FALSE;
-
+	
+	CWLog("CW80211SetAPTypeFrame ok");
+	
 	if(!CWErr(CWCreateThread(&(WTPGlobalBSSList[BSSId]->threadBSS), CWWTPBSSManagement, WTPGlobalBSSList[BSSId]))) {
 		CWLog("Error starting Thread that receive binding frame");
 		exit(1);
