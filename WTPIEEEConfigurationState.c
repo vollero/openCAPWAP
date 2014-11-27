@@ -205,9 +205,9 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	//RFC radioID > 0 wlanID > 0
-	if(interfaceACInfo->radioID <= 0 || interfaceACInfo->wlanID <= 0)
+	/*if(interfaceACInfo->radioID <= 0 || interfaceACInfo->wlanID <= 0)
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-		
+		*/
 	int indexRadio = CWIEEEBindingGetIndexFromDevID(interfaceACInfo->radioID);
 	int indexWlan = CWIEEEBindingGetIndexFromDevID(interfaceACInfo->wlanID);
 	

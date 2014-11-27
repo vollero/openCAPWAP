@@ -155,7 +155,6 @@ CWBool CWParseSettingsFile()
 			if(indexPhy < gPhyInterfaceCount && gPhyInterfaceName != NULL)
 			{
 				//phy1 -> endvalue 1
-				fprintf(stderr, "SU %d metto interfaccia %d", indexPhy, endValueInt);
 				gPhyInterfaceIndex[indexPhy] = endValueInt;
 				CW_CREATE_STRING_ERR(gPhyInterfaceName[indexPhy], offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
 				strncpy(gPhyInterfaceName[indexPhy], startValue, offset);
