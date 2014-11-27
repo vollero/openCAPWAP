@@ -619,7 +619,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 	
 	if (FD_ISSET(ACTap_FD, &fset)) {
 		readBytes = read(ACTap_FD,buf,CW_BUFFER_SIZE); //Todd: read from TAP then forward to WTP through data channel
-		CWDebugLog("ACTap_FD:%d is set,data(%d bytes)", i, ACTap_FD, readBytes);
+	//	CWLog("ACTap_FD:%d is set,data(%d bytes)", i, ACTap_FD, readBytes);
 			
 		if(readBytes < 0) {
 			CWLog("Reading from tap interface");

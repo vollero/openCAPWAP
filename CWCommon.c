@@ -68,10 +68,13 @@ int CWTimevalSubtract(struct timeval *res, const struct timeval *x, const struct
  */
 int CWIEEEBindingGetIndexFromDevID(int devID)
 {
+	return devID;
+	/*
 	 if(devID <= 0)
 		return -1;
 		
 	return (devID-1);
+	*/
 }
 
 int CWIEEEBindingGetDevFromIndexID(int indexID)
