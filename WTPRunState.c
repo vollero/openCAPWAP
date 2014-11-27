@@ -195,7 +195,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	CWNetworkLev4Address	addr;
 	char* 			pData;
 	
-	CWLog("++++++++++++++++++++++++++ AVVIO THREAD CWWTPReceiveDataPacket");
+	CWLog("++ AVVIO THREAD CWWTPReceiveDataPacket su socket %d", sockDTLS);
 	
 	CW_REPEAT_FOREVER 
 	{
@@ -226,7 +226,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	gWTPDataChannelDeadFlag=CW_TRUE;
 	CWThreadMutexUnlock(&gInterfaceMutex);
 	*/
-	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDataPacket");
+	CWLog("+++++ ESCO THREAD CWWTPReceiveDataPacket");
 	
 	return NULL;
 }
