@@ -228,7 +228,7 @@ CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msg
 
 		for (j=0; j<radioCount; j++)
 		{
-			radioID=radiosInfo.radiosInfo[j].radioID;
+			radioID=radiosInfo.radiosInfo[j].gWTPPhyInfo.radioID;// radiosInfo.radiosInfo[j].radioID;
 			CWLog("radioID_ %d", radioID);
 			// Assemble WTP QoS Message Element for each radio 
 			if (!(CWAssembleWTPQoS(&((*msgElems)[++k]), radioID, tagPackets)))

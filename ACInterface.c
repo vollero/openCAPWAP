@@ -530,12 +530,13 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 							token = strtok(NULL, ":");
 						}
 						//RFC vieta radioID <= 0 e wlanID <= 0
-						if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
+					/*	if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
 						{
 							CWLog("ERROR: radioID or wlanID <= 0");
 							CW_FREE_OBJECT(cmdWLAN);
 							break;
 						}
+						*/
 						/****************************************************
 						 * Two behaviors availables:                        *
 						 *    - One message element For All WTPs Active     *
@@ -623,12 +624,13 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 						}
 					
 						//RFC vieta radioID <= 0 e wlanID <= 0
-						if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
+						/*if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
 						{
 							CWLog("ERROR: radioID or wlanID <= 0");
 							CW_FREE_OBJECT(cmdWLAN);
 							break;
 						}
+						*/
 						/****************************************************
 						 * Two behaviors availables:                        *
 						 *    - One message element For All WTPs Active     *

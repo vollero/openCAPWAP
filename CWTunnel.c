@@ -32,14 +32,14 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 		CWThreadMutexUnlock(&mutexAvlTree);
 		if(tmpNode == NULL)
 		{
-			CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+		//	CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 			return -1;
 		}
 		else
 		{
-			CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+	//		CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 			CW_COPY_MEMORY(BSSID, tmpNode->BSSID, ETH_ALEN);
-			CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
+	//		CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
 			*(WTPIndex) = tmpNode->index;
 		}
 		//----
@@ -121,12 +121,12 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 		}
 		CW_COPY_MEMORY((frame8023+offsetFrame8023), (frameReceived+offsetEthPayload), (frameLen-offsetEthPayload));
 
-		CWLog("****** ETHERNET FRAME ******* ");
+	//	CWLog("****** ETHERNET FRAME ******* ");
 		if(flagEncaps == CW_TRUE)
-			CWLog("** ENCAPS: %d bytes", ENCAPS_HDR_LEN);
-		CWLog("** DA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", (int)dataFrame.DA[0], (int)dataFrame.DA[1], (int)dataFrame.DA[2], (int)dataFrame.DA[3], (int)dataFrame.DA[4], (int)dataFrame.DA[5], ETH_ALEN);
-		CWLog("** SA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", (int)dataFrame.SA[0], (int)dataFrame.SA[1], (int)dataFrame.SA[2], (int)dataFrame.SA[3], (int)dataFrame.SA[4], (int)dataFrame.SA[5], ETH_ALEN);
-		CWLog("** TOT LEN 802.3 Frame: %d", (ETH_HLEN+(frameLen - offsetEthPayload)));
+	//		CWLog("** ENCAPS: %d bytes", ENCAPS_HDR_LEN);
+	//	CWLog("** DA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", (int)dataFrame.DA[0], (int)dataFrame.DA[1], (int)dataFrame.DA[2], (int)dataFrame.DA[3], (int)dataFrame.DA[4], (int)dataFrame.DA[5], ETH_ALEN);
+	//	CWLog("** SA[%02x:%02x:%02x:%02x:%02x:%02x]: %d bytes", (int)dataFrame.SA[0], (int)dataFrame.SA[1], (int)dataFrame.SA[2], (int)dataFrame.SA[3], (int)dataFrame.SA[4], (int)dataFrame.SA[5], ETH_ALEN);
+	//	CWLog("** TOT LEN 802.3 Frame: %d", (ETH_HLEN+(frameLen - offsetEthPayload)));
 		
 		*(frame8023Len) = (ETH_HLEN+(frameLen - offsetEthPayload));
 		
