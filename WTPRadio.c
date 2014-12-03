@@ -255,9 +255,6 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	
 	if(interfaceInfo == NULL)
 		return CW_FALSE;
-
-	if(!nl80211CmdSetChannelInterface(interfaceInfo->ifName, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency))
-		return CW_FALSE;
 				
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
@@ -269,6 +266,10 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	if(!ioctlActivateInterface(interfaceInfo->ifName))
 		return CW_FALSE;
 		
+	if(!nl80211CmdSetChannelInterface(interfaceInfo->ifName, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency))
+		return CW_FALSE;
+
+
 	if(!nl80211CmdStartAP(interfaceInfo))
 		return CW_FALSE;
 
