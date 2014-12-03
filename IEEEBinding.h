@@ -559,11 +559,11 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
 /* CW80211ManagementFrame.c */
 CWBool CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack);
-WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
-WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
-CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa);
+WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa);
+WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa);
+CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa);
 CWBool CWSendFrameMgmtFromWTPtoAC(char * frameReceived, int len);
-void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer);
+void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, unsigned char * frameBuffer);
 
 CW_THREAD_RETURN_TYPE CWWTPBSSManagement(void *arg);
 typedef void (*cw_sock_handler)(void *cb, void *handle);

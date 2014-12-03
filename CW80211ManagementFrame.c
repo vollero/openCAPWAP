@@ -138,6 +138,8 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
+		CWLog("[CW80211] TRY TO STA %02x:%02x:%02x:%02x:%02x:%02x", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
+
 		thisSTA = addSTABySA(WTPBSSInfoPtr, authRequest.SA);
 		if(thisSTA)
 			thisSTA->state = CW_80211_STA_AUTH;
@@ -323,7 +325,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	}
 }
 
-WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
+WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa) {
 	int indexSTA;
 	
 	if(sa == NULL)
@@ -346,6 +348,7 @@ WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
 			CW_CREATE_ARRAY_CALLOC_ERR(WTPBSSInfoPtr->staList[indexSTA].address, ETH_ALEN+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 			CW_COPY_MEMORY(WTPBSSInfoPtr->staList[indexSTA].address, sa, ETH_ALEN);
 			
+			CWLog("AGGIUNTA INDICE %d", indexSTA);
 			return &(WTPBSSInfoPtr->staList[indexSTA]);
 		}
 	}
@@ -354,7 +357,7 @@ WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
 }
 
 
-void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer)
+void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, unsigned char * frameBuffer)
 {
 	char * frameResponse = NULL;
 	WTPSTAInfo * thisSTA;
@@ -368,7 +371,7 @@ void CW80211HandleClass3Frame(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr
 	return;
 }
 
-WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
+WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa) {
 	int indexSTA;
 	
 	if(sa == NULL)
@@ -376,14 +379,15 @@ WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
 		
 	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
 	{
-		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL && !strcmp(WTPBSSInfoPtr->staList[indexSTA].address, sa))
+		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL && 
+		strncmp(WTPBSSInfoPtr->staList[indexSTA].address, sa, ETH_ALEN) == 0)
 			return &(WTPBSSInfoPtr->staList[indexSTA]);
 	}
 	
 	return NULL;
 }
 
-CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, char * sa) {
+CWBool delSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa) {
 	int indexSTA;
 	
 	if(sa == NULL)
