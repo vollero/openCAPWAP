@@ -218,7 +218,7 @@ typedef struct WTPInterfaceInfo {
 
 } WTPInterfaceInfo;
 
-#define CW_WTP_DEFAULT_RADIO_CHANNEL 0
+#define CW_WTP_DEFAULT_RADIO_CHANNEL 4
 
 typedef struct PhyFrequencyInfoList {
 	int frequency;

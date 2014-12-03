@@ -307,7 +307,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	if (!msg)
 		return CW_FALSE;
 	
-	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_BEACON, 0);
+	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_START_AP, 0);
 
 /* ***************** BEACON FRAME: DO IT BETTER ******************** */
 	char * beaconFrame;
@@ -356,14 +356,37 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 		return CW_FALSE;
 /* *************************************************** */
 	
+	
+/*	
+	@NL80211_CMD_START_AP: Start AP operation on an AP interface, parameters
+ *	are like for %NL80211_CMD_SET_BEACON, and additionally parameters that
+ *	do not change are used, these include %NL80211_ATTR_BEACON_INTERVAL,
+ *	%NL80211_ATTR_DTIM_PERIOD, %NL80211_ATTR_SSID,
+ *	%NL80211_ATTR_HIDDEN_SSID, %NL80211_ATTR_CIPHERS_PAIRWISE,
+ *	%NL80211_ATTR_CIPHER_GROUP, %NL80211_ATTR_WPA_VERSIONS,
+ *	%NL80211_ATTR_AKM_SUITES, %NL80211_ATTR_PRIVACY,
+ *	%NL80211_ATTR_AUTH_TYPE, %NL80211_ATTR_INACTIVITY_TIMEOUT,
+ *	%NL80211_ATTR_ACL_POLICY and %NL80211_ATTR_MAC_ADDRS.
+ *	The channel to use can be set on the interface or be given using the
+ *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel width.
+ */
+ 
+ 
+	NLA_PUT_U32(msg, NL80211_ATTR_BEACON_INTERVAL, 100);
+	NLA_PUT_U32(msg, NL80211_ATTR_DTIM_PERIOD, 1);
+	NLA_PUT(msg, NL80211_ATTR_SSID, strlen(interfaceInfo->SSID), interfaceInfo->SSID);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
+	CWLog("Imposto frequenza: %d", gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
+	
+	NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
+	
+	
 	NLA_PUT(msg, NL80211_ATTR_BEACON_HEAD, offset, beaconFrame);
 	//NLA_PUT(msg, NL80211_ATTR_BEACON_TAIL, NULL, params->tail);	
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, ifIndex);
-	NLA_PUT_U32(msg, NL80211_ATTR_BEACON_INTERVAL, 1);
-	NLA_PUT_U32(msg, NL80211_ATTR_DTIM_PERIOD, 1);
+
 	
-	CWLog("SSID: %s ifIndex: %d", interfaceInfo->SSID, ifIndex);
-	NLA_PUT(msg, NL80211_ATTR_SSID, strlen(interfaceInfo->SSID), interfaceInfo->SSID);
+	
 	if(interfaceInfo->authType == NL80211_AUTHTYPE_OPEN_SYSTEM)
 		NLA_PUT_U32(msg, NL80211_ATTR_AUTH_TYPE, NL80211_AUTHTYPE_OPEN_SYSTEM);
 	//TODO: else
