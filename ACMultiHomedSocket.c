@@ -642,6 +642,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
  */
 		if(readByest80211 == -1)
 			goto after_tap;
+		CWLog("WTPIndexFromSta: %d", WTPIndexFromSta);
 		if(WTPIndexFromSta == -1)
 		{
 			for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
@@ -655,6 +656,10 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 							gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL
 						)
 						{
+							
+									CWLog("Invio a WTP %d radio %d wlan %d", indexWTP, indexRadio, indexWlan);
+
+
 							CW_COPY_MEMORY(
 										(buf80211+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
 										gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, 
@@ -668,7 +673,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 
 							if(!CWAssembleDataMessage(&completeMsgPtr, 
 												  &fragmentsNum, 
-												  gWTPs[WTPIndexFromSta].pathMTU, 
+												  gWTPs[indexWTP].pathMTU, 
 												  frame, 
 												  NULL,
 												  CW_PACKET_PLAIN
@@ -682,12 +687,12 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 								CW_FREE_OBJECT(frame);
 								goto after_tap;
 							}
-									
+
 							for(k = 0; k < sockPtr->count; k++) {
-								if(sockPtr->interfaces[k].sock == gWTPs[WTPIndexFromSta].socket){
+								if(sockPtr->interfaces[k].sock == gWTPs[indexWTP].socket){
 									dataSocket = sockPtr->interfaces[k].dataSock;
 									//Elena
-									CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[WTPIndexFromSta].dataaddress));
+									CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[indexWTP].dataaddress));
 									break;
 								}
 							}

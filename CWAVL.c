@@ -388,7 +388,7 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
 				 
 				free(temp);
 				
-				
+				temp = NULL;			
 		}
 		else 
 		{
@@ -410,6 +410,7 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
     // If the tree had only one node then return
     if (root == NULL)
       return root;
+
  
     // STEP 2: UPDATE HEIGHT OF THE CURRENT NODE
     root->height = AVLmax(AVLheight(root->left), AVLheight(root->right)) + 1;

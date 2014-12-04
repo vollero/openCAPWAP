@@ -7,6 +7,7 @@ u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
 int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen, unsigned char *outbuffer, int * WTPIndex){
 
+CWLog("Ricevuto frame, devo convertire");
 	int offset=0;
 	unsigned char * hdr80211;
 	unsigned char SA[ETH_ALEN];
@@ -32,14 +33,14 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 		CWThreadMutexUnlock(&mutexAvlTree);
 		if(tmpNode == NULL)
 		{
-		//	CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+			CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 			return -1;
 		}
 		else
 		{
-	//		CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+			CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 			CW_COPY_MEMORY(BSSID, tmpNode->BSSID, ETH_ALEN);
-	//		CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
+			CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
 			*(WTPIndex) = tmpNode->index;
 		}
 		//----
@@ -62,6 +63,7 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 
 	CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeEncapsHdr), (frameReceived+ETH_HLEN), frameLen-ETH_HLEN);
 	
+	CWLog("Size 80211 frame: %d", (frameLen-ETH_HLEN+HLEN_80211+sizeEncapsHdr));
 	return (frameLen-ETH_HLEN+HLEN_80211+sizeEncapsHdr);
 }
 
@@ -74,12 +76,14 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 	unsigned char * payload = frameReceived+HLEN_80211;
 	short int etherType = (payload[6] << 8) | payload[7];
 	
+	CWLog("dentro CWConvertDataFrame_80211_to_8023");
 	if(!CW80211ParseDataFrameToDS(frameReceived, &(dataFrame)))
 	{
 		CWLog("CW80211: Error parsing data frame");
 		return CW_FALSE;
 	}
-					
+	
+	CWLog("Dopo parse");
 	if(	
 		(
 			(!memcmp(payload, rfc1042_header, 6)) &&
@@ -101,14 +105,21 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 			offsetEthPayload = HLEN_80211;
 			//	CWLog("Senza LLC. EthPayload Len: %d", offsetEthPayload);
 		}
-					
+		
+		CWLog("Dopo flagEncaps");
+		
 		/* SET Eth vX Frame */
 	//	CW_CREATE_ARRAY_CALLOC_ERR(frame8023, sizeEthFrame, unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.DA))
 			return CW_FALSE;
+							CWLog("Dopo 1 CW80211AssembleIEAddr");
+
 		if(!CW80211AssembleIEAddr(&(frame8023[offsetFrame8023]), &(offsetFrame8023), dataFrame.SA))
 			return CW_FALSE;
 		
+				CWLog("Dopo 2 CW80211AssembleIEAddr");
+
+
 		if(flagEncaps == CW_TRUE)
 		{	
 			if(!CW8023AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), htons(etherType)))
@@ -119,6 +130,10 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 			if(!CW8023AssembleHdrLength(&(frame8023[offsetFrame8023]), &(offsetFrame8023), htons(frameLen-offsetEthPayload)))
 				return CW_FALSE;
 		}
+		
+						CWLog("Dopo 3 CW80211AssembleIEAddr");
+
+
 		CW_COPY_MEMORY((frame8023+offsetFrame8023), (frameReceived+offsetEthPayload), (frameLen-offsetEthPayload));
 
 	//	CWLog("****** ETHERNET FRAME ******* ");
@@ -130,6 +145,9 @@ CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameL
 		
 		*(frame8023Len) = (ETH_HLEN+(frameLen - offsetEthPayload));
 		
+			CWLog("esco da CWConvertDataFrame_80211_to_8023. FrameLen: %d", *(frame8023Len));
+
+
 		return CW_TRUE;	
 }
 

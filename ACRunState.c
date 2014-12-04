@@ -289,13 +289,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			//if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC)	
 			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA )
 			{
-				
-				if(!CW80211ParseDataFrameFromDS(msgPtr->msg, &(dataFrame)))
+				if(!CW80211ParseDataFrameToDS(msgPtr->msg, &(dataFrame)))
 				{
 					CWLog("CW80211: Error parsing data frame");
 					return CW_FALSE;
 				}
-							
+
 				CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
 				CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
 				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
@@ -316,12 +315,11 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							return CW_FALSE;
 						
 					write_bytes = write(ACTap_FD, frame8023, frame8023len);
+					CWLog("Inviati %d byte su tap", write_bytes);
 					if(write_bytes != frame8023len){
 							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
 					}
-					
-					
 					
 					for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 					{
@@ -334,8 +332,9 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL
 								)
 								{
+									CWLog("Invio a WTP %d radio %d wlan %d frameRespLen: %d msglen: %d", indexWTP, indexRadio, indexWlan, frameRespLen, msglen);
 									CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, {return CW_FALSE;} );
-									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, {return CW_FALSE;} );
+									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, msglen, {return CW_FALSE;} );
 									
 									/*
 									 * FromDS per le stazioni riceventi
@@ -424,10 +423,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					//Destinatario non associato
 					if(tmpNode == NULL)
 					{
+						CWLog("Destinatario non associato");
 						if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
 							return CW_FALSE;
 						
 						write_bytes = write(ACTap_FD, frame8023, frame8023len);
+						CWLog("Inviati %d byte su tap", write_bytes);
 						if(write_bytes != frame8023len){
 							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
@@ -436,7 +437,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					//Destinatario associato ad un WTP
 					else
 					{
-						
+						CWLog("Destinatario associato");
 						CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
 						CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
 
@@ -602,10 +603,30 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					{
 						for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
 						{
+							CWLog("Ricerca BSSID %02x:%02x:%02x:%02x:%02x:%02x radio[%d] wlan[%d]", (int)assRequest.BSSID[0],
+							(int)assRequest.BSSID[1],
+							(int)assRequest.BSSID[2],
+							(int)assRequest.BSSID[3],
+							(int)assRequest.BSSID[4],
+							(int)assRequest.BSSID[5],
+							indexRadio, indexWlan);
+							
+							CWLog("Esamino radio %d wlan %d: tipoInterfaccia: %d, BSSID:%02x:%02x:%02x:%02x:%02x:%02x",
+							indexRadio, indexWlan,
+							gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface,
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[0],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[1],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[2],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[3],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[4],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[5]
+							);
+							
+							
 							if(
 								gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
 								gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL && 
-								!strcmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, assRequest.BSSID)
+								strncmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, assRequest.BSSID, ETH_ALEN) == 0
 							)
 							{
 								stop++;
@@ -820,7 +841,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									if(
 										gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
 										gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL && 
-										!strcmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, assocResponse.BSSID)
+										strncmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, assocResponse.BSSID, ETH_ALEN) == 0
 									)
 									{
 										stop++;
