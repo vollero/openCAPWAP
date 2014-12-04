@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     opterr = 0;
     
 	/* Parse options */
-    while ((c = getopt (argc, argv, "ha:p:w:c:f:n:s:r:l:")) != -1)
+    while ((c = getopt (argc, argv, "ha:p:w:c:f:n:s:r:l:t:")) != -1)
         switch (c)
         {
 		case 'a':
@@ -142,6 +142,12 @@ int main(int argc, char *argv[])
 			do_cancel_cmd(acserver, wtpIds, wtpNames);
 			break;
 		case WLAN_ADD_CMD:
+		printf("wtpIds: %s", wtpIds);
+		printf("ssid: %s", ssid);
+		printf("radioID: %s", radioID);
+		printf("wlanID: %s", wlanID);
+		printf("tunnel: %s", tunnel);
+		
 			do_wlan_add_cmd(acserver, wtpIds, wtpNames, ssid, radioID, wlanID, tunnel);
 			break;
 		case WLAN_DEL_CMD:
