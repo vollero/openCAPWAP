@@ -249,7 +249,7 @@ CWBool nl80211CmdSetChannelInterface(char * interface, int channel){
 	//NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, NL80211_CHAN_WIDTH_80);
 		
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
-	CWLog("ret: %d", ret);
+	CWLog("ret channel: %d", ret);
 	if( ret != 0)
 		return CW_FALSE;
 		
@@ -273,7 +273,7 @@ CWBool nl80211CmdGetChannelInterface(char * interface, int * channel){
 
 	int index = if_nametoindex(interface);
 	
-	CWLog("Interface %s (%d) for channel %d", interface, index, channel);
+	CWLog("GET channel for interface %s (%d)", interface, index);
 
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_GET_WIPHY, 0);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, 0);
@@ -366,6 +366,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 
 	//DSSS
 	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
+	CWLog("CHANNEL: %d", channel);
 	if(!CW80211AssembleIEDSSS(&(beaconFrame[offset]), &(offset), channel))
 		return CW_FALSE;
 /* *************************************************** */

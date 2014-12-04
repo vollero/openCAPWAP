@@ -283,6 +283,10 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	if(!nl80211_set_bss(interfaceInfo, 1, 1))
 		return CW_FALSE;
 	 
+	/* int tmpChannel = -1;
+	 nl80211CmdGetChannelInterface(interfaceInfo->ifName, &(tmpChannel));
+	 CWLog("GET CHANNEL: %d", tmpChannel);
+	 */
 	//Setta nuova BSS
 	int BSSId = getBSSIndex(radioIndex, wlanIndex);
 	CWLog("radio %d wlan %d bss %d", radioIndex, wlanIndex, BSSId);

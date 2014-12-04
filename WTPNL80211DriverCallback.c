@@ -369,7 +369,6 @@ int CB_getChannelInterface(struct nl_msg *msg, void *arg)
 	if (tb_msg[NL80211_ATTR_CHANNEL_WIDTH])
 		ch2 = nla_get_u32(tb_msg[NL80211_ATTR_CHANNEL_WIDTH]);
 	
-	
 	CWLog("ch1: %d, ch2: %d", ch1, ch2);
 	
 	return NL_SKIP;
