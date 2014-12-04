@@ -1161,15 +1161,15 @@ void _CWCloseThread(int i) {
 	do {
 		tmp = AVLfindWTPNode(fakeMACMax, avlTree, i);
 		if(tmp != NULL)
-			AVLdeleteNodeWithoutRadioID(avlTree, tmp);
-	}while(tmp != NULL);
+			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
+	}while(tmp != NULL && avlTree != NULL);
 	
 	tmp=NULL;
 	do {
 		tmp = AVLfindWTPNode(fakeMACMin, avlTree, i);
 		if(tmp != NULL)
-			AVLdeleteNodeWithoutRadioID(avlTree, tmp);
-	}while(tmp != NULL);
+			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
+	}while(tmp != NULL && avlTree != NULL);
 	
 	CWThreadMutexUnlock(&(mutexAvlTree));
 //--

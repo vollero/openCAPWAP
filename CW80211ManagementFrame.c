@@ -110,7 +110,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
-		if(strcmp(probeRequest.SSID, WTPBSSInfoPtr->interfaceInfo->SSID))
+		if(strncmp(probeRequest.SSID, WTPBSSInfoPtr->interfaceInfo->SSID, ETH_ALEN))
 		{
 			CWLog("[80211] SSID is not the same of this interface. Aborted");
 			return;
