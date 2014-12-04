@@ -343,7 +343,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	offset += LEN_IE_TIMESTAMP;
 	
 	//beacon interval: 2 byte
-	if(!CW80211AssembleIEBeaconInterval(&(beaconFrame[offset]), &(offset), 100))
+	if(!CW80211AssembleIEBeaconInterval(&(beaconFrame[offset]), &(offset), htons(10)))
 			return CW_FALSE;
 	
 	//capability: 2 byte
