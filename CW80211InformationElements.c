@@ -1209,11 +1209,11 @@ CWBool CW80211ParseAuthResponse(char * frame, struct CWFrameAuthResponse * authR
 		return CW_FALSE;
 	
 	//Duration
-	if(!CW80211ParseFrameIEControl((frame+offset), &(offset), &(authResponse->duration)))
+	if(!CW80211ParseFrameIEDuration((frame+offset), &(offset), &(authResponse->duration)))
 		return CW_FALSE;
-		
+	
 	//DA
-	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), authResponse->DA))
+	if(!CW80211ParseFrameIEAddr((frame+offset), &(offset), &(authResponse->DA)))
 		return CW_FALSE;
 	
 	//SA
