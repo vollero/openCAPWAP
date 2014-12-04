@@ -63,14 +63,14 @@ void CW80211EventReceive(void *cbPtr, void *handlePtr)
 	
 	int res;
 
-	CWLog("nl80211: Event message available");
+	//CWLog("nl80211: Event message available");
 	res = nl_recvmsgs(handle, cb);
 	if (res < 0) {
 		CWLog("nl80211: %s->nl_recvmsgs failed: %d, %s",  __func__, res, strerror(res));
 	}
 }
 
-void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer)
+void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, unsigned char * frameBuffer)
 {
 	char * frameResponse = NULL;
 	WTPSTAInfo * thisSTA;
@@ -82,7 +82,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	int deleteRadioID;
 	unsigned char deleteStaAddr[ETH_ALEN];
 	
-	CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
+	//CWLog("nl80211: Drv Event %d (%s) received for %s", cmd, nl80211_command_to_string(cmd), WTPBSSInfoPtr->interfaceInfo->ifName);
 	
 	//union wpa_event_data data;
 	if(!tb[NL80211_ATTR_FRAME])
@@ -102,7 +102,6 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	/* +++ PROBE Request/Response: non aggiungo handler della STA fino ad un auth +++ */
 	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_PROBE_REQ)
 	{
-		CWLog("[80211] Probe Request Received");
 		struct CWFrameProbeRequest probeRequest;
 		if(!CW80211ParseProbeRequest(frameReceived, &probeRequest))
 		{
@@ -112,9 +111,12 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		
 		if(strcmp(probeRequest.SSID, WTPBSSInfoPtr->interfaceInfo->SSID))
 		{
-			CWLog("[80211] SSID is not the same of this interface. Aborted");
+			//CWLog("[80211] SSID is not the same of this interface. Aborted");
 			return;
 		}
+		
+		CWLog("[80211] Probe Request Received");
+		
 		
 		//Split MAC: invia probe request ad AC per conoscenza
 #ifdef SPLIT_MAC
@@ -138,7 +140,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
-		CWLog("[CW80211] TRY TO STA %02x:%02x:%02x:%02x:%02x:%02x", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
+///		CWLog("[CW80211] TRY TO STA %02x:%02x:%02x:%02x:%02x:%02x", (int) authRequest.SA[0], (int) authRequest.SA[1], (int) authRequest.SA[2], (int) authRequest.SA[3], (int) authRequest.SA[4], (int) authRequest.SA[5]);
 
 		thisSTA = addSTABySA(WTPBSSInfoPtr, authRequest.SA);
 		if(thisSTA)
@@ -273,7 +275,6 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 	/* +++ Dissassociation or Deauthentication Frame: cleanup of STA parameters +++ */
 	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && (WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DEAUTH || WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DISASSOC))
 	{
-		CWLog("[CW80211] Deauth/Disassociation Request Received");
 		struct CWFrameDeauthDisassociationRequest disassocRequest;
 		if(!CW80211ParseDeauthDisassociationRequest(frameReceived, &disassocRequest))
 		{
@@ -287,6 +288,8 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			//Deauth elimina dal BSS la STA
 			if(WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DEAUTH)
 			{
+				CWLog("[CW80211] Deauth Request Received");
+
 				deleteRadioID = WTPBSSInfoPtr->phyInfo->radioID;
 				CW_COPY_MEMORY(deleteStaAddr, thisSTA->address, ETH_ALEN);
 		
@@ -304,6 +307,8 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			//Disassociation regredisce di stato
 			else
 			{
+				CWLog("[CW80211] Disassociation Request Received");
+
 				if(thisSTA)
 				{
 					if(thisSTA->state == CW_80211_STA_ASSOCIATION)
@@ -327,18 +332,17 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 
 WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa) {
 	int indexSTA;
+	WTPSTAInfo * foundSTA=NULL;
 	
 	if(sa == NULL)
 		return NULL;
 		
-	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
+		
+	foundSTA=findSTABySA(WTPBSSInfoPtr, sa);
+	if(foundSTA != NULL)
 	{
-		//Se gia c'era, riazzero tutto
-		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL && !strcmp(WTPBSSInfoPtr->staList[indexSTA].address, sa))
-		{
-			WTPBSSInfoPtr->staList[indexSTA].state = CW_80211_STA_OFF;
-			return &(WTPBSSInfoPtr->staList[indexSTA]);
-		}
+		foundSTA->state = CW_80211_STA_OFF; 
+		return foundSTA;
 	}
 	
 	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
@@ -348,7 +352,7 @@ WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa) {
 			CW_CREATE_ARRAY_CALLOC_ERR(WTPBSSInfoPtr->staList[indexSTA].address, ETH_ALEN+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 			CW_COPY_MEMORY(WTPBSSInfoPtr->staList[indexSTA].address, sa, ETH_ALEN);
 			
-			CWLog("AGGIUNTA INDICE %d", indexSTA);
+			CWLog("[CW80211] Added STA %02x:%02x:%02x:%02x:%02x:%02x index[%d]", (int) sa[0], (int) sa[1], (int) sa[2], (int) sa[3], (int) sa[4], (int) sa[5], indexSTA);
 			return &(WTPBSSInfoPtr->staList[indexSTA]);
 		}
 	}
@@ -471,7 +475,7 @@ void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 		radioID =  info->BSSInfo->phyInfo->radioID;
 		CW_COPY_MEMORY(staAddr, info->staInfo->address, ETH_ALEN);
 		
-		if(CWWTPDelStation(info->BSSInfo, info->staInfo))
+		if(CWWTPDeauthStation(info->BSSInfo, info->staInfo))
 		{
 			CWLog("[CW80211] STA deleted by timer handler");
 			CWWTPEventRequestDeleteStation(radioID, staAddr);

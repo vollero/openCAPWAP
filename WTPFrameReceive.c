@@ -285,7 +285,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 		//Puo inviarlo la STA per fare richiesta di power saving. Rispondere con ACK sse indica che vuole stare UP
 		else if(WLAN_FC_GET_STYPE(dataFrame.frameControl) == WLAN_FC_STYPE_NULLFUNC)
 		{
-			CWLog("[80211] Pure frame null func");
+	//		CWLog("[80211] Pure frame null func");
 		//	frameResponse = CW80211AssembleACK(WTPBSSInfoPtr, tb[NL80211_ATTR_MAC], &frameRespLen);
 		}
 		//Altri casi?

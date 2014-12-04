@@ -343,7 +343,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	offset += LEN_IE_TIMESTAMP;
 	
 	//beacon interval: 2 byte
-	if(!CW80211AssembleIEBeaconInterval(&(beaconFrame[offset]), &(offset), htons(10)))
+	if(!CW80211AssembleIEBeaconInterval(&(beaconFrame[offset]), &(offset), htons(1)))
 			return CW_FALSE;
 	
 	//capability: 2 byte
@@ -386,7 +386,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
  *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel width.
  */
  
- int beaconInt = htons(10);
+ int beaconInt = htons(1);
 	NLA_PUT_U32(msg, NL80211_ATTR_BEACON_INTERVAL, beaconInt);
 	NLA_PUT_U32(msg, NL80211_ATTR_DTIM_PERIOD, 1);
 	NLA_PUT(msg, NL80211_ATTR_SSID, strlen(interfaceInfo->SSID), interfaceInfo->SSID);
@@ -487,6 +487,10 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 }
 
 CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
+	
+	//To debug
+	return CW_TRUE;
+	
 	struct nl_msg *msg;
 	unsigned char rateChar[CW_80211_MAX_SUPP_RATES];
 	int indexRates=0;
@@ -518,6 +522,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	/* Association ID */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
 	CWLog("StaAID: %d", staInfo.staAID);
+	
 	/* Listen Interval */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
 	CWLog("listenInterval: %d", staInfo.listenInterval);
@@ -549,7 +554,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	return CW_FALSE;
 }
 
-CWBool nl80211CmdDelStation(WTPBSSInfo * infoBSS, char * macAddress){
+CWBool nl80211CmdDelStation(WTPBSSInfo * infoBSS, unsigned char * macAddress){
 	struct nl_msg *msg;
 	
 	msg = nlmsg_alloc();
@@ -893,7 +898,7 @@ CWBool CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned 
 	if (!msg)
 		return -1;
 	
-	CWLog("nl80211: CMD_FRAME freq=%u wait=%u no_cck=%d no_ack=%d", freq, wait, no_cck, no_ack);
+//	CWLog("nl80211: CMD_FRAME freq=%u wait=%u no_cck=%d no_ack=%d", freq, wait, no_cck, no_ack);
 
 	genlmsg_put(msg, 0, 0, WTPBSSInfoPtr->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_FRAME, 0);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, WTPBSSInfoPtr->interfaceInfo->realWlanID);
@@ -1127,6 +1132,7 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
 	WPA_PUT_LE16(&rtap_hdr[12], txflags);
 
+CWLog("Injecto");
 	res = sendmsg(rawSocket, &msg, 0);
 	if (res < 0) {
 		CWLog("nl80211: sendmsg: %s", strerror(errno));

@@ -410,6 +410,28 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	return CW_TRUE;
 }
 
+CWBool CWWTPDeauthStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
+{	
+	nodeAVL * tmpRoot;
+	int heightAVL=-1;
+	
+	if(staInfo->radioAdd == CW_FALSE)
+		return CW_FALSE;
+	
+	staInfo->radioAdd=CW_FALSE;
+	
+	if(!delSTABySA(BSSInfo, staInfo->address))
+	{
+		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		return CW_FALSE;
+	}
+	
+	staInfo->state = CW_80211_STA_OFF;
+	
+	CWLog("STA eliminata da WTP");
+	return CW_TRUE;
+}
+
 CWBool CWWTPDisassociateStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 {	
 	nodeAVL * tmpRoot;
@@ -432,6 +454,8 @@ CWBool CWWTPDisassociateStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	CWThreadMutexUnlock(&mutexAvlTree);
 	//----
 
+	staInfo->radioAdd = CW_80211_STA_AUTH;
+	
 	CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x is disassociated. It's in Authenticate state", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
 	return CW_TRUE;
 }

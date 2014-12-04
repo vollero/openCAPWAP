@@ -483,6 +483,7 @@ CWBool CWWTPDeleteBSS(int radioIndex, int wlanIndex);
 CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex);
 CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo);
 CWBool CWWTPDisassociateStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo);
+CWBool CWWTPDeauthStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo);
 
 #define WTP_NL80211_BITRATE_NUM NL80211_MAX_SUPP_RATES
 #define WTP_NL80211_CHANNELS_NUM 50
@@ -537,7 +538,7 @@ CWBool nl80211CmdSetInterfaceSTAType(char * interface);
 CWBool nl80211CmdSetChannelInterface(char * interface, int channel);
 CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo);
 CWBool nl80211CmdStopAP(char * ifName);
-CWBool nl80211CmdDelStation(WTPBSSInfo * infoBSS, char * macAddress);
+CWBool nl80211CmdDelStation(WTPBSSInfo * infoBSS, unsigned char * macAddress);
 CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo);
 CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo);
 
@@ -554,7 +555,7 @@ int nl80211_register_spurious_class3(WTPInterfaceInfo * interfaceInfo);
 void nl80211_mgmt_handle_register_eloop(WTPInterfaceInfo * interfaceInfo);
 void CW80211EventReceive(void *eloop_ctx, void *handle);
 void CW80211EventDataReceive(int dataRawSock, struct WTPBSSInfo * BSSInfo);
-void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, char * frameBuffer);
+void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, unsigned char * frameBuffer);
 int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
 
 

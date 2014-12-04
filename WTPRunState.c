@@ -167,6 +167,9 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	CWThreadMutexUnlock(&gInterfaceMutex);
 	*/
 	
+	CWNetworkCloseSocket(sockDTLS);
+
+	
 	return NULL;
 }
 
@@ -228,6 +231,9 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	*/
 	CWLog("+++++ ESCO THREAD CWWTPReceiveDataPacket");
 	
+		CWNetworkCloseSocket(sockDTLS);
+
+
 	return NULL;
 }
 
@@ -248,10 +254,13 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	int gWTPThreadDataPacketStateLocal=0;
 	CWBool bReceivePacket;
 
+CWLog("1");
 	/* Elena Agostini - 07/2014: data packet thread alive flag */
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPThreadDataPacketState = 1;
 	CWThreadMutexUnlock(&gInterfaceMutex);
+
+CWLog("2");
 
 #ifdef CW_DTLS_DATA_CHANNEL
 
@@ -272,6 +281,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	}
 	
 #endif
+
+CWLog("3");
 
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPDataChannelDeadFlag=CW_FALSE;
@@ -316,6 +327,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 		
 		if (bReceivePacket) {
 			
+			CWLog("5");
+
 			/* Elena Agostini - 03/2014: DTLS Data Session WTP */
 			if(!CWReceiveDataMessage(&msgPtr))
 			{
@@ -324,6 +337,8 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 				break;		
 			}
 					
+					CWLog("6");
+
 			if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
 
 					char *valPtr=NULL;
@@ -384,7 +399,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					
 				}else if(msgPtr.data_msgType == CW_IEEE_802_11_FRAME_TYPE) {
 				
-				CWLog("Frame CW_IEEE_802_11_FRAME_TYPE received from AC");
 #ifdef SPLIT_MAC
 					int offsetFrameReceived;
 					short int frameControl;
@@ -440,22 +454,35 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 							CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 							CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
 							
-							nodeAVL *tmpNodeSta=NULL;
-							//---- Search AVL node
-							CWThreadMutexLock(&mutexAvlTree);
-							tmpNodeSta = AVLfind(dataFrame.DA, avlTree);
-							//AVLdisplay_avl(avlTree);
-							CWThreadMutexUnlock(&mutexAvlTree);
-							if(tmpNodeSta == NULL)
-								CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) dataFrame.SA[0], (int) dataFrame.SA[1], (int) dataFrame.SA[2], (int) dataFrame.SA[3], (int) dataFrame.SA[4], (int) dataFrame.SA[5]);
-							else
+							if(checkAddressBroadcast(dataFrame.DA))
 							{
-								//NB. Controllo anche il BSSID?
-								CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x]", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
+								CWLog("Broadcast destination");
 								CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
 							}
-							//----
-							
+							else
+							{
+								nodeAVL *tmpNodeSta=NULL;
+								//---- Search AVL node
+								CWThreadMutexLock(&mutexAvlTree);
+								tmpNodeSta = AVLfind(dataFrame.DA, avlTree);
+								//AVLdisplay_avl(avlTree);
+								CWThreadMutexUnlock(&mutexAvlTree);
+								if(tmpNodeSta == NULL)
+									CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", 
+									(int) dataFrame.DA[0], 
+									(int) dataFrame.DA[1], 
+									(int) dataFrame.DA[2], 
+									(int) dataFrame.DA[3], 
+									(int) dataFrame.DA[4], 
+									(int) dataFrame.DA[5]);
+								else
+								{
+									//NB. Controllo anche il BSSID?
+									CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x]", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
+									CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
+								}
+								//----
+							}							
 							close(rawSocket);
 					}
 					
@@ -2103,10 +2130,10 @@ CWBool CWParseConfigurationUpdateRequest (char *msg,
 CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, int * STAIndex, int * typeOp) 
 {
 	int radioID, wlanID, supportedRatesLen;
-	char * address;
+	unsigned char * address;
 	short int assID, capability;
 	char flags;
-	char * supportedRates;
+	unsigned char * supportedRates;
 	
 	//CWBool bindingMsgElemFound=CW_FALSE;
 	CWProtocolMessage completeMsg;
@@ -2177,18 +2204,14 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 	
 	int trovato=0;
 	
-	CWLog("radioIndex: %d, radioID: %d", radioIndex, radioID);
-	CWLog("wlanIndex: %d, wlanID: %d", wlanIndex, wlanID);
-
 	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
 	
 	for((*STAIndex)=0; (*STAIndex) < WTP_MAX_STA; (*STAIndex)++)
 	{
-		CWLog("BSSIndex: %d, STAIndex: %d", (*BSSIndex), (*STAIndex));
 		if(
 			(WTPGlobalBSSList[(*BSSIndex)] != NULL) &&
 			(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address != NULL) && 
-			(!strcmp(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address, address))
+			(strncmp(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address, address, ETH_ALEN) == 0)
 		)
 		{
 			trovato=1;
@@ -2198,6 +2221,7 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 	if(trovato == 0)
 		return CW_FALSE;
 
+CWLog("CW80211: STAZIONE TROVATA");
 #ifdef SPLIT_MAC
 	/*
 	 * In caso di split mac riassegno alla STA i valori che l'AC mi invia.
