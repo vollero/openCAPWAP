@@ -642,9 +642,11 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
  */
 		if(readByest80211 == -1)
 			goto after_tap;
-		CWLog("WTPIndexFromSta: %d", WTPIndexFromSta);
+
+CWLog("Ricevuto frame");
 		if(WTPIndexFromSta == -1)
 		{
+		//	CWLog("BROADCAST DA");
 			for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 			{
 				for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
@@ -657,8 +659,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 						)
 						{
 							
-									CWLog("Invio a WTP %d radio %d wlan %d", indexWTP, indexRadio, indexWlan);
-
+			//				CWLog("Invio a WTP %d radio %d wlan %d bssid: %02x", indexWTP, indexRadio, indexWlan, (int)gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[0]);
 
 							CW_COPY_MEMORY(
 										(buf80211+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
@@ -679,8 +680,8 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 												  CW_PACKET_PLAIN
 												  ,0))
 							{
-								for(k = 0; k < fragmentsNum; k++)
-									CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+//								for(k = 0; k < fragmentsNum; k++)
+//									CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
 									
 								CW_FREE_OBJECT(completeMsgPtr);
 								CW_FREE_PROTOCOL_MESSAGE(*frame);
@@ -714,8 +715,8 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 										}
 							}
 							
-							for (k = 0; k < fragmentsNum; k++)
-								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+//							for (k = 0; k < fragmentsNum; k++)
+//								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
 						
 							CW_FREE_OBJECT(completeMsgPtr);				
 							CW_FREE_PROTOCOL_MESSAGE(*(frame));
@@ -728,6 +729,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 		else
 		{
+			CWLog("NON BROADCAST. Invio a WTP %d", WTPIndexFromSta);
 			CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
 			CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
 			memcpy(frame->msg, buf80211, readByest80211);
