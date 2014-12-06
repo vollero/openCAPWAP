@@ -295,12 +295,13 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					return CW_FALSE;
 				}
 
+				CWLog("**RICEVUTO DA WTP FRAME**");
 				CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
 				CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
 				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
 				
-				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, NULL, &(offsetDataFrame), 1, 0);
+				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, &(offsetDataFrame), 1, 0);
 				if(dataHdr == NULL)
 					return CW_FALSE;
 				CW_CREATE_ARRAY_CALLOC_ERR(dataFrameBuffer, msglen, char, { return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); });
@@ -310,17 +311,17 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				//Broadcast
 				if(checkAddressBroadcast(dataFrame.DA))
 				{
-					CWLog("BROADCAST");
+					CWLog("DA INVIARE BROADCAST");
 					if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
 							return CW_FALSE;
 						
 					write_bytes = write(ACTap_FD, frame8023, frame8023len);
-					CWLog("Inviati %d byte su tap", write_bytes);
 					if(write_bytes != frame8023len){
 							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
 					}
 					
+					/*
 					for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 					{
 						for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
@@ -335,14 +336,14 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									CWLog("Invio a WTP %d radio %d wlan %d frameRespLen: %d msglen: %d", indexWTP, indexRadio, indexWlan, frameRespLen, msglen);
 									CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, {return CW_FALSE;} );
 									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, msglen, {return CW_FALSE;} );
-									
+						*/			
 									/*
 									 * FromDS per le stazioni riceventi
 									 * DA: broadcast
 									 * BSSID: quello del WTP/radio (byte 10)
 									 * SA: STAx
 									 */
-									
+							/*		
 									CW_COPY_MEMORY(
 										(dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
 										gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, 
@@ -410,7 +411,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 								}	
 							}
 						}
-					}
+					}*/
 					
 				}
 				else 
