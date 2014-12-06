@@ -5,7 +5,7 @@
  * 
  ***************************************/
 #include "CWWTP.h"
-
+#include <pcap.h>
 /*****************************************************
  * Interaction with nl80211 cmd
  *****************************************************/
@@ -1089,15 +1089,27 @@ CWBool ioctlActivateInterface(char * interface){
 
 int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack)
 {
+	/*
 	__u8 rtap_hdr[] = {
-		0x00, 0x00, /* radiotap version */
-		0x0e, 0x00, /* radiotap length */
+		0x00, 0x00, // radiotap version
+		0x0e, 0x00, // radiotap length
 		0x02, 0xc0, 0x00, 0x00, //bmap: flags, tx and rx flags
 		IEEE80211_RADIOTAP_F_FRAG, // F_FRAG (fragment if required)
 		0x00,       // padding
 		0x00, 0x00, // RX and TX flags to indicate that
 		0x00, 0x00, // this is the injected frame directly
 	};
+
+	__u8 rtap_hdr[] = {
+		0x00, 0x00, // radiotap version
+		0x0b, 0x00,
+		0x04, 0x0c, 0x00, 0x00,
+		0x6c, 
+		0x0c, 
+		0x01
+	};
+
+
 	struct iovec iov[2] = {
 		{
 			.iov_base = &rtap_hdr,
@@ -1119,25 +1131,74 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 	};
 	int res;
 	u16 txflags = 0;
+*/
 
-	if (encrypt)
-		rtap_hdr[8] |= IEEE80211_RADIOTAP_F_WEP;
+	static const u8 u8aRadiotapHeader[] = {
+
+		0x00, 0x00, // <-- radiotap version
+		0x19, 0x00, // <- radiotap header length
+		0x6f, 0x08, 0x00, 0x00, // <-- bitmap
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // <-- timestamp
+		0x00, // <-- flags (Offset +0x10)
+		0x6c, // <-- rate (0ffset +0x11)
+		0x71, 0x09, 0xc0, 0x00, // <-- channel
+		0xde, // <-- antsignal
+		0x00, // <-- antnoise
+		0x01, // <-- antenna
+
+	};	
+	
+	u8 u8aSendBuffer[500];
+	char szErrbuf[PCAP_ERRBUF_SIZE];
+	int nCaptureHeaderLength = 0, n80211HeaderLength = 0, nLinkEncap = 0;
+	int nOrdinal = 0, r, nDelay = 100000;
+	int nRateIndex = 0, retval, bytes;
+	pcap_t *ppcap = NULL;
+	struct bpf_program bpfprogram;
+	char * szProgram = "", fBrokenSocket = 0;
+	u16 u16HeaderLen;
+	char szHostname[PATH_MAX];
+	
+	szErrbuf[0] = '\0';
+	ppcap = pcap_open_live("monitor0", 800, 1, 20, szErrbuf);
+	if (ppcap == NULL) {
+		CWLog("Unable to open interface monitor0 in pcap: %s\n", szErrbuf);
+		return -1;
+	}
+	
+/*
 
 	if (rawSocket < 0) {
 		CWLog("nl80211: No monitor socket available for %s", __func__);
 		return -1;
 	}
-
-	if (noack)
-		txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
-	WPA_PUT_LE16(&rtap_hdr[12], txflags);
+*/
+	//if (noack)
+	//	txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
+	//WPA_PUT_LE16(&rtap_hdr[12], txflags);
 
 CWLog("Injecto");
+
+	memcpy(u8aSendBuffer, u8aRadiotapHeader, sizeof (u8aRadiotapHeader));
+	
+	memcpy(u8aSendBuffer, data, len);
+	
+		
+	r = pcap_inject(ppcap, u8aSendBuffer, len+sizeof(u8aRadiotapHeader));
+	CWLog("Ijectati %d bytes", r);
+		if (r != (len+sizeof(u8aRadiotapHeader))) {
+			perror("Trouble injecting packet");
+			return -1;
+		}
+
+CWLog("ok inject");
+/*
 	res = sendmsg(rawSocket, &msg, 0);
 	if (res < 0) {
 		CWLog("nl80211: sendmsg: %s", strerror(errno));
 		return -1;
 	}
 	CWLog("res: %d", res);
+	*/
 	return 0;
 }
