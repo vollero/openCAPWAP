@@ -1138,5 +1138,6 @@ CWLog("Injecto");
 		CWLog("nl80211: sendmsg: %s", strerror(errno));
 		return -1;
 	}
+	CWLog("res: %d", res);
 	return 0;
 }

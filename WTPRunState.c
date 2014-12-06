@@ -456,7 +456,7 @@ CWLog("3");
 							
 							if(checkAddressBroadcast(dataFrame.DA))
 							{
-								CWLog("Broadcast destination");
+						//		CWLog("Broadcast destination");
 								CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
 							}
 							else
