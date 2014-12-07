@@ -19,7 +19,7 @@ CWBool nl80211CmdGetPhyInfo(int indexPhy, struct WTPSinglePhyInfo * singlePhyInf
 	
 //	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_GET_WIPHY, 0);
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, gPhyInterfaceIndex[indexPhy]);
 //	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, "phy1");
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_getPhyInfo, singlePhyInfo);
@@ -43,12 +43,13 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 		return CW_FALSE;
 	
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, gPhyInterfaceIndex[indexPhy]);
+	
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, interfaceInfo->ifName);
 	
+	CWLog("indexPhy: %d CW_WTP_DEFAULT_RADIO_CHANNEL: %d ifname: %s", indexPhy, CW_WTP_DEFAULT_RADIO_CHANNEL, interfaceInfo->ifName);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
 	CWLog("interface channel: %d",gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
-	
 
 	enum nl80211_iftype typeIf = NL80211_IFTYPE_STATION;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
@@ -57,11 +58,11 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 	 * Tell cfg80211 that the interface belongs to the socket that created
 	 * it, and the interface should be deleted when the socket is closed.
 	 */
-	NLA_PUT_FLAG(msg, NL80211_ATTR_IFACE_SOCKET_OWNER);
+//	NLA_PUT_FLAG(msg, NL80211_ATTR_IFACE_SOCKET_OWNER);
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_setNewInterface, interfaceInfo);
 	CWLog("ret: %d", ret);
-
+perror("new interface");
 	if( ret != 0)
 		return CW_FALSE;
 		
@@ -155,7 +156,7 @@ CWBool nl80211CmdDelInterface(int indexPhy, char * ifName){
 	int index = if_nametoindex(ifName);
 
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_DEL_INTERFACE, 0);
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, gPhyInterfaceIndex[indexPhy]);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, index);
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
@@ -185,10 +186,13 @@ CWBool nl80211CmdSetInterfaceAPType(char * interface){
 	CWLog("interface: %s, index: %d", interface, index);
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_INTERFACE, 0);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, index);
+	
 	enum nl80211_iftype typeIf = NL80211_IFTYPE_AP;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, typeIf);
+	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
 	CWLog("ret nl80211CmdSetInterfaceAPType: %d", ret);
+	perror("nl80211CmdSetInterfaceAPType ");
 	if( ret != 0)
 		return CW_FALSE;
 		
@@ -1108,6 +1112,20 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		0x0c, 
 		0x01
 	};
+*/
+
+	__u8 rtap_hdr[] = {
+		0x00, 0x00, // <-- radiotap version
+		0x19, 0x00, // <- radiotap header length
+		0x6f, 0x08, 0x00, 0x00, // <-- bitmap
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // <-- timestamp
+		0x00, // <-- flags (Offset +0x10)
+		0x6c, // <-- rate (0ffset +0x11)
+		0x7b, 0x09, 0xc0, 0x00, // <-- channel
+		0xde, // <-- antsignal
+		0x00, // <-- antnoise
+		0x02 // <-- antenna
+	};
 
 
 	struct iovec iov[2] = {
@@ -1131,8 +1149,8 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 	};
 	int res;
 	u16 txflags = 0;
-*/
 
+/*
 	static const u8 u8aRadiotapHeader[] = {
 
 		0x00, 0x00, // <-- radiotap version
@@ -1166,19 +1184,19 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		return -1;
 	}
 	
-/*
 
+*/
 	if (rawSocket < 0) {
 		CWLog("nl80211: No monitor socket available for %s", __func__);
 		return -1;
 	}
-*/
+
 	//if (noack)
 	//	txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
 	//WPA_PUT_LE16(&rtap_hdr[12], txflags);
 
 CWLog("Injecto");
-
+/*
 	memcpy(u8aSendBuffer, u8aRadiotapHeader, sizeof (u8aRadiotapHeader));
 	
 	memcpy(u8aSendBuffer, data, len);
@@ -1192,13 +1210,12 @@ CWLog("Injecto");
 		}
 
 CWLog("ok inject");
-/*
+*/
 	res = sendmsg(rawSocket, &msg, 0);
 	if (res < 0) {
 		CWLog("nl80211: sendmsg: %s", strerror(errno));
 		return -1;
 	}
 	CWLog("res: %d", res);
-	*/
 	return 0;
 }

@@ -2194,17 +2194,27 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 	//Add function for delete station
 	
 	//Ricavo indici di BSS e STA
-	int radioIndex = CWIEEEBindingGetIndexFromDevID(radioID);
+	int radioIndex = radioID; //CWIEEEBindingGetIndexFromDevID(radioID);
 	if(radioIndex < 0)
 		return CW_FALSE;
 		
-	int wlanIndex = CWIEEEBindingGetIndexFromDevID(wlanID);
+	int wlanIndex = wlanID; //CWIEEEBindingGetIndexFromDevID(wlanID);
 	if(wlanIndex < 0)
 		return CW_FALSE;
 	
 	int trovato=0;
 	
 	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
+	
+	CWLog("radioIndex: %d, wlanIndex: %d, bssindex: %d", radioIndex, wlanIndex, (*BSSIndex));
+	
+	CWLog("Search address %02x:%02x:%02x:%02x:%02x:%02x", 
+	(int)address[0],
+	(int)address[1],
+	(int)address[2],
+	(int)address[3],
+	(int)address[4],
+	(int)address[5]);
 	
 	for((*STAIndex)=0; (*STAIndex) < WTP_MAX_STA; (*STAIndex)++)
 	{

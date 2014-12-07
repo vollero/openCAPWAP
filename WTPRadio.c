@@ -48,8 +48,9 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	for(indexPhy=0; indexPhy < gRadiosInfo.radioCount; indexPhy++)
 	{
+		CWLog("indexPhy: %d", indexPhy);
 		CWLog("[NL80211] Retrieving info for phy interface %d name: %s ...", gPhyInterfaceIndex[indexPhy], gPhyInterfaceName[indexPhy]);
-		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = gPhyInterfaceIndex[indexPhy];
+		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = indexPhy; //gPhyInterfaceIndex[indexPhy];
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.realRadioID = -1;
 		//Not best practice with define
 		//Frequencies array
@@ -60,7 +61,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		
 
 		//Info about all phy info
-		if(nl80211CmdGetPhyInfo(gPhyInterfaceIndex[indexPhy], &(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo)) == CW_FALSE)
+		if(nl80211CmdGetPhyInfo(indexPhy, &(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo)) == CW_FALSE)
 		{
 			CWLog("[NL80211 ERROR] Phy interface %d name: %s has some problems. WTP will stop.", indexPhy, gPhyInterfaceName[indexPhy]);
 			return CW_FALSE;
@@ -171,7 +172,7 @@ CWBool CWWTPCreateNewWlanInterface(int radioIndex, int wlanIndex)//WTPInterfaceI
 	snprintf(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, gPhyInterfaceIndex[radioIndex], wlanIndex);
 	
 	CWLog("radioIndex: %d, wlanIndex: %d name: %s", gPhyInterfaceIndex[radioIndex], wlanIndex, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
-	if(!nl80211CmdSetNewInterface(gPhyInterfaceIndex[radioIndex], &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex])))
+	if(!nl80211CmdSetNewInterface(radioIndex, &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex])))
 		return CW_FALSE;
 	   
 	gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].typeInterface = CW_STA_MODE;

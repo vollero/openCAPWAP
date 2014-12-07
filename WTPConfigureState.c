@@ -158,7 +158,7 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.txMSDU,
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.rxMSDU)) ||
 		 !(CWAssembleMsgElemSupportedRates(&(msgElems[++k]), 
-											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID,
+											indexWTPRadioInfo, //gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID,
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.supportedRates,
 											CW_80211_MAX_SUPP_RATES
 											))
