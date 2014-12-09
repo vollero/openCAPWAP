@@ -779,8 +779,8 @@ CWLog("Ricevuto frame");
 						}
 			}
 			
-			for (k = 0; k < fragmentsNum; k++)
-				CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+		//	for (k = 0; k < fragmentsNum; k++)
+		//		CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
 		
 			CW_FREE_OBJECT(completeMsgPtr);				
 			CW_FREE_PROTOCOL_MESSAGE(*(frame));
