@@ -4,8 +4,8 @@
 #include "includes.h"
 #include "common.h"
 
-#define le16_to_cpu		le_to_host16
-#define le32_to_cpu		le_to_host32
+//#define le16_to_cpu		le_to_host16
+//#define le32_to_cpu		le_to_host32
 
 #define get_unaligned(p)					\
 ({								\

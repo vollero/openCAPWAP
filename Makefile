@@ -83,7 +83,7 @@ WTP_OBJS = WTP.o WTPFrameReceive.o WTPFreqStatsReceive.o WTPStatsReceive.o WTPCo
 	CWProtocol.o CWRandom.o CWSecurity.o CWOpenSSLBio.o CWStevens.o CWThread.o CWBinding.o CWVendorPayloadsWTP.o WTPBinding.o \
 	WTPDriverInteraction.o WTPSettingsFile.o timerlib.o \
 	 WTPRadio.o WTPNL80211DriverCallback.o WTPNL80211Driver.o WTPNL80211Netlink.o WTPIEEEConfigurationState.o CW80211ManagementFrame.o CW80211InformationElements.o CWTunnel.o CWAVL.o \
-        ./HostapdHeaders/utils/eloop.o ./HostapdHeaders/utils/os_unix.o
+        ./HostapdHeaders/utils/eloop.o ./HostapdHeaders/utils/os_unix.o radiotap.o
 
 WUA_OBJS = WUA.o
  

@@ -47,6 +47,17 @@ CWBool CW80211AssembleIEDuration(char * frame, int * offset, int value) {
 	return CW_TRUE;
 }
 
+CWBool CW80211AssembleIESequenceNumber(char * frame, int * offset, int value) {
+	
+	short int val = htons(host_to_le16(value));
+	
+	CW_COPY_MEMORY(frame, &(val), LEN_IE_SEQ_CTRL);
+	(*offset) += LEN_IE_SEQ_CTRL;
+	
+	return CW_TRUE;
+}
+
+
 CWBool CW80211AssembleIEAddr(char * frame, int * offset, char * value) {
 	//Broadcast
 	if(value == NULL)
@@ -1109,8 +1120,9 @@ unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char *
 	else return NULL;
 	
 	//2 (sequence ctl)
-	(*offset) += LEN_IE_SEQ_CTRL;
-	
+	if(!CW80211AssembleIESequenceNumber(&(frameACK[(*offset)]), offset, 2145))
+		return NULL;
+		
 	return frameACK;
 }
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
