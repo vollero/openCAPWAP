@@ -924,7 +924,7 @@ char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAIn
 	return frameAssociationResponse;
 }
 
-char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset)
+char * CW80211AssembleAssociationResponseAC(unsigned char * MACAddr, unsigned char * BSSID,  short int capabilityBit, short int staAID, unsigned char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset)
 {
 	if(request == NULL || BSSID == NULL || MACAddr == NULL || suppRate == NULL)
 		return NULL;
@@ -973,14 +973,19 @@ char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short
 	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, staAID))
 		return NULL;
 	
-	//Supported Rates
-	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, suppRatesLen))
-		return NULL;
+	
+	CWLog("suppRatesLen: %d", suppRatesLen);
+	if(suppRatesLen > 0)
+	{
+		//Supported Rates
+		if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, suppRatesLen))
+			return NULL;
+	}
 	
 	return frameAssociationResponse;
 }
 
-char * CW80211AssembleReassociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset)
+char * CW80211AssembleReassociationResponseAC(unsigned char * MACAddr, unsigned char * BSSID,  short int capabilityBit, short int staAID, unsigned char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset)
 {
 	if(request == NULL || BSSID == NULL || MACAddr == NULL || suppRate == NULL)
 		return NULL;

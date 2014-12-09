@@ -581,8 +581,8 @@ char * CW80211AssembleAuthResponse(char * addrAP, struct CWFrameAuthRequest *req
 char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
 char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
 char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo * staInfo, struct CWFrameAssociationRequest *request, int *offset);
-char * CW80211AssembleAssociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
-char * CW80211AssembleReassociationResponseAC(char * MACAddr, char * BSSID,  short int capabilityBit, short int staAID, char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
+char * CW80211AssembleAssociationResponseAC(unsigned char * MACAddr, unsigned char * BSSID,  short int capabilityBit, short int staAID, unsigned char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
+char * CW80211AssembleReassociationResponseAC(unsigned char * MACAddr, unsigned char * BSSID,  short int capabilityBit, short int staAID, unsigned char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
 char * CW80211AssembleBeacon(WTPBSSInfo * WTPBSSInfoPtr, int *offset);
 char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset);
 unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, int *offset, int toDS, int fromDS);

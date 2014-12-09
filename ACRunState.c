@@ -665,7 +665,10 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 																		&(assRequest), &(frameRespLen));
 																		
 					if(frameResponse == NULL)
+					{
+						CWLog("Nessun frame di risposta. Esco");
 						return CW_TRUE;
+					}
 					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
 					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
 					
