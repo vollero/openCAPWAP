@@ -1116,11 +1116,7 @@ CWBool ioctlActivateInterface(char * interface){
 	return CW_TRUE;
 }
 
-int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack)
-{
-	unsigned char bufToSend[500];
-	
-	/*
+/*
 	__u8 rtap_hdr[] = {
 		0x00, 0x00, // radiotap version
 		0x0e, 0x00, // radiotap length
@@ -1162,7 +1158,15 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 	};
 */
 
-u8 rtap_hdr[] = {
+
+int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack)
+{
+	unsigned char * bufToSend;
+	
+	if(len <= 0)
+		return -1;
+	
+	u8 rtap_hdr[] = {
 		0x00, 0x00, // <-- radiotap version
 		0x0b, 0x00, // <- radiotap header length
 		0x04, 0x0c, 0x00, 0x00, // <-- bitmap
@@ -1202,14 +1206,14 @@ u8 rtap_hdr[] = {
 	(int)frameData.DA[5]);
 	CWLog("FrameData.duration: %d", frameData.duration);
 
-
+	CW_CREATE_ARRAY_CALLOC_ERR(bufToSend, (sizeof(rtap_hdr)+len), unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(bufToSend, rtap_hdr, sizeof(rtap_hdr));	
 	CW_COPY_MEMORY(bufToSend+sizeof(rtap_hdr), dataChar, len);
 	
 	struct iovec iov[1] = {
 		{
-			.iov_base = &bufToSend,
-			.iov_len =  (sizeof(rtap_hdr)+len), 
+			.iov_base = bufToSend,
+			.iov_len = (sizeof(rtap_hdr)+len), 
 		}
 	};
 	
@@ -1255,5 +1259,6 @@ CWLog("Injecto");
 	}
 	CWLog("Result code: %d", res);
 
+	CW_FREE_OBJECT(bufToSend);
 	return 0;
 }

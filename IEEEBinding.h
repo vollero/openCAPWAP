@@ -131,7 +131,6 @@ extern struct nl80211SocketUnit globalNLSock;
 #define DATA_FRAME_FIXED_LEN_ACK 10
 
 
-
 enum {
 	CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME,
 	CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE
@@ -471,6 +470,8 @@ typedef struct CWFrameDataHdr {
 	unsigned char DA[ETH_ALEN];
 	short int seqCtrl; 
 } CWFrameDataHdr;
+
+extern int rawInjectSocket;
 
 
 //WTPRadio.c

@@ -820,7 +820,8 @@ void CWWTPDestroy() {
 	}
 	
 	timer_destroy();
-
+//Elena
+	close(rawInjectSocket);
 	CW_FREE_OBJECT(gCWACList);
 	CW_FREE_OBJECT(gRadiosInfo.radiosInfo);
 }

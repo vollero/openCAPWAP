@@ -166,6 +166,7 @@ int from_8023_to_80211( unsigned char *inbuffer,int inlen, unsigned char *outbuf
 #ifdef SPLIT_MAC
 
 int gRawSock;
+int rawInjectSocket;
 extern int wtpInRunState;
 
 CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
@@ -182,7 +183,11 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 	CWProtocolMessage* frame=NULL;
 	CWBindingDataListElement* listElement=NULL;
 	struct ifreq ethreq;
- 
+	
+	struct sockaddr_ll addr_inject;
+	unsigned char macAddrInject[MAC_ADDR_LEN];
+
+
 	CWThreadSetSignals(SIG_BLOCK, 1, SIGALRM);
 	
 	if ((gRawSock=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0) 	{
@@ -218,6 +223,26 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 
 	nodeAVL * tmpNodeSta=NULL;
 	
+	/* RAW SOCKET on monitor interface to Inject packets */
+	if ((rawInjectSocket=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0) 	{
+		CWLog("THR FRAME: Error creating socket");
+		//CWExitThread();
+	}
+	
+	memset(&addr_inject, 0, sizeof(addr_inject));
+	addr_inject.sll_family = AF_PACKET;
+	addr_inject.sll_ifindex = if_nametoindex("monitor0");
+						  
+	if ((bind(rawInjectSocket, (struct sockaddr*)&addr_inject, sizeof(addr_inject)))<0) {
+		CWLog("THR FRAME: Error binding socket");
+		//CWExitThread();
+	}
+						 
+	if (!getMacAddr(rawInjectSocket, "monitor0", macAddrInject)){
+		CWLog("THR FRAME: Ioctl error");
+		//EXIT_FRAME_THREAD(gRawSock);
+	}
+
  	CW_REPEAT_FOREVER{
 		n = recvfrom(gRawSock,buffer,sizeof(buffer),0,NULL,NULL);
 

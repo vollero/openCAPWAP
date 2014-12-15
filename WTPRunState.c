@@ -405,38 +405,22 @@ CWLog("3");
 						return NULL;
 					
 					if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA ){
-						int rawSocket;
 						unsigned char buffer[CW_BUFFER_SIZE];
 						unsigned char buf80211[CW_BUFFER_SIZE];
-						unsigned char macAddr[MAC_ADDR_LEN];
 						unsigned char staAddr[ETH_ALEN];
 						struct ieee80211_radiotap_header * radiotapHeader;
 						int frameRespLen=0;
 						struct CWFrameDataHdr dataFrame;
 						int tmpOffset;
-						struct sockaddr_ll addr;
 						struct ifreq ethreq;
 						WTPSTAInfo * thisSTA;
 						int offsetFrameReceived;
 						int indexBSS;
 						
-							if ((rawSocket=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0) 	{
-								CWLog("THR FRAME: Error creating socket");
-								//CWExitThread();
-							}
-
-							memset(&addr, 0, sizeof(addr));
-							addr.sll_family = AF_PACKET;
-							addr.sll_ifindex = if_nametoindex("monitor0");
-						  
-							if ((bind(rawSocket, (struct sockaddr*)&addr, sizeof(addr)))<0) {
-								CWLog("THR FRAME: Error binding socket");
-								//CWExitThread();
-							}
-						 
-							if (!getMacAddr(rawSocket, "monitor0", macAddr)){
-								CWLog("THR FRAME: Ioctl error");
-								//EXIT_FRAME_THREAD(gRawSock);
+							if(rawInjectSocket < 0)
+							{
+								CWLog("ERROR INJECT SOCKET. You must restart WTP");
+								return CW_FALSE;
 							}
 							CWLog("RICEVUTO UN DATA FRAME di dimensione %d", msgPtr.offset);
 							if(!CW80211ParseDataFrameFromDS(msgPtr.msg, &(dataFrame)))
@@ -453,7 +437,7 @@ CWLog("3");
 							if(checkAddressBroadcast(dataFrame.DA))
 							{
 						//		CWLog("Broadcast destination");
-								CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
+								CWInjectFrameMonitor(rawInjectSocket, msgPtr.msg, msgPtr.offset, 0, 0);
 							}
 							else
 							{
@@ -475,11 +459,10 @@ CWLog("3");
 								{
 									//NB. Controllo anche il BSSID?
 									CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x]", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
-									CWInjectFrameMonitor(rawSocket, msgPtr.msg, msgPtr.offset, 0, 0);
+									CWInjectFrameMonitor(rawInjectSocket, msgPtr.msg, msgPtr.offset, 0, 0);
 								}
 								//----
-							}							
-							close(rawSocket);
+							}
 					}
 					
 					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_AUTH)
