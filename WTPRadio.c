@@ -67,6 +67,12 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			return CW_FALSE;
 		}
 		
+				int indexRates=0;
+		for(indexRates=0; indexRates <= WTP_NL80211_BITRATE_NUM; indexRates++)
+		{
+			CWLog("Mbps: %f", gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyMbpsSet[indexRates]);
+		}
+		
 		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.realRadioID == -1)
 		{
 			//free
@@ -106,7 +112,6 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 		
 		CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.supportedRates, gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.lenSupportedRates, float, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-		int indexRates;
 		for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.lenSupportedRates; indexRates++)
 			gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.supportedRates[indexRates] = (char) mapSupportedRatesValues(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
 			
@@ -175,6 +180,10 @@ CWBool CWWTPCreateNewWlanInterface(int radioIndex, int wlanIndex)//WTPInterfaceI
 	if(!nl80211CmdSetNewInterface(radioIndex, &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex])))
 		return CW_FALSE;
 	   
+	 if(!nl80211_get_channel_width(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName))
+				return CW_FALSE;
+
+
 	gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].typeInterface = CW_STA_MODE;
 	//RFC wlanIndex > 0
 	gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].wlanID = CWIEEEBindingGetDevFromIndexID(wlanIndex);
@@ -256,20 +265,22 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	
 	if(interfaceInfo == NULL)
 		return CW_FALSE;
-				
+		
 	if(!nl80211CmdSetInterfaceAPType(interfaceInfo->ifName))
 		return CW_FALSE;
 
 	//BSSID == AP Address
 	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(interfaceInfo->BSSID, interfaceInfo->MACaddr, ETH_ALEN);
-	
-	if(!ioctlActivateInterface(interfaceInfo->ifName))
-		return CW_FALSE;
-		
+
 	if(!nl80211CmdSetChannelInterface(interfaceInfo->ifName, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency))
 		return CW_FALSE;
 
+	if(!nl80211_get_channel_width(interfaceInfo->ifName))
+		return CW_FALSE;
+		
+	if(!ioctlActivateInterface(interfaceInfo->ifName))
+		return CW_FALSE;
 
 	if(!nl80211CmdStartAP(interfaceInfo))
 		return CW_FALSE;
@@ -281,7 +292,7 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 			
 	interfaceInfo->typeInterface = CW_AP_MODE;
 	  
-	if(!nl80211_set_bss(interfaceInfo, 1, 1))
+	if(!nl80211_set_bss(interfaceInfo, radioIndex, 1, 1))
 		return CW_FALSE;
 	 
 	/* int tmpChannel = -1;

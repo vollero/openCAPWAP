@@ -1070,6 +1070,7 @@ CWBool CWParse80211Station(CWProtocolMessage *msgPtr, int len, int * radioID, sh
 	(*flags) = CWProtocolRetrieve8(msgPtr);
 	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN);
 	(*capability) = CWProtocolRetrieve16(msgPtr);
+	CWLog("TROVATA CAPABILITY: %d, %02x", (*capability), (*capability));
 	(*wlanID) = CWProtocolRetrieve8(msgPtr);
 	
 	(*supportedRatesLen) = len-(1+2+1+ETH_ALEN+2+1);

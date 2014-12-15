@@ -141,6 +141,65 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 		CWLog("[NL80211] PHY name: %s\n", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]));
 		CW_CREATE_STRING_FROM_STRING_ERR(singlePhyInfo->phyName, nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
+	/*
+				= 1 << 0,
+	NL80211_FEATURE_HT_IBSS				= 1 << 1,
+	NL80211_FEATURE_CELL_BASE_REG_HINTS		= 1 << 3,
+	NL80211_FEATURE_P2P_DEVICE_NEEDS_CHANNEL	= 1 << 4,
+	NL80211_FEATURE_SCAN_FLUSH			= 1 << 7,
+	NL80211_FEATURE_AP_SCAN				= 1 << 8,
+	NL80211_FEATURE_VIF_TXPOWER			= 1 << 9,
+	NL80211_FEATURE_P2P_GO_CTWIN			= 1 << 11,
+	NL80211_FEATURE_P2P_GO_OPPPS			= 1 << 12,
+	NL80211_FEATURE_ADVERTISE_CHAN_LIMITS		= 1 << 14,
+	NL80211_FEATURE_FULL_AP_CLIENT_STATE		= 1 << 15,
+	NL80211_FEATURE_USERSPACE_MPM			= 1 << 16,
+	NL80211_FEATURE_ACTIVE_MONITOR			= 1 << 17,
+	NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES	= 1 << 19,
+	NL80211_FEATURE_WFA_TPC_IE_IN_PROBES		= 1 << 20,
+	NL80211_FEATURE_QUIET				= 1 << 21,
+	NL80211_FEATURE_TX_POWER_INSERTION		= 1 << 22,
+	NL80211_FEATURE_ACKTO_ESTIMATION		= 1 << 23,
+	NL80211_FEATURE_STATIC_SMPS			= 1 << 24,
+	NL80211_FEATURE_DYNAMIC_SMPS			= 1 << 25,
+	*/
+	if(tb_msg[NL80211_ATTR_FEATURE_FLAGS])
+	{
+		int flags = nla_get_u32(tb_msg[NL80211_ATTR_FEATURE_FLAGS]);
+
+	if (flags & NL80211_FEATURE_SK_TX_STATUS)
+		CWLog("NL80211_FEATURE_SK_TX_STATUS");
+		
+	if (flags & NL80211_FEATURE_INACTIVITY_TIMER)
+		CWLog("NL80211_FEATURE_INACTIVITY_TIMER");
+
+	if (flags & NL80211_FEATURE_SAE)
+		CWLog("NL80211_FEATURE_SAE");
+
+	if (flags & NL80211_FEATURE_NEED_OBSS_SCAN)
+		CWLog("NL80211_FEATURE_NEED_OBSS_SCAN");
+
+	if (flags & NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE)
+		CWLog("NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE");
+		
+	if (flags & NL80211_FEATURE_LOW_PRIORITY_SCAN)
+		CWLog("NL80211_FEATURE_LOW_PRIORITY_SCAN");
+	
+	if (flags & NL80211_FEATURE_AP_SCAN)
+		CWLog("NL80211_FEATURE_AP_SCAN");
+			
+	if (flags & NL80211_FEATURE_ACTIVE_MONITOR)
+		CWLog("NL80211_FEATURE_ACTIVE_MONITOR");
+	
+	if (flags & NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE)
+		CWLog("NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE");
+	
+	if (flags & NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES)
+		CWLog("NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES");
+	}
+
+
+	
 	
 	//Default values
 	singlePhyInfo->txMSDU = WTP_NL80211_DEFAULT_MSDU;
@@ -246,7 +305,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 						if(indexMbps < WTP_NL80211_BITRATE_NUM)
 						{		
 							singlePhyInfo->phyMbpsSet[indexMbps] = (float) (0.1 * nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
-							//CWLog("NL80211_BITRATE_ATTR_MAX: %d, singlePhyInfo->phyMbpsSet[%d]: %f", NL80211_BITRATE_ATTR_MAX, indexMbps, singlePhyInfo->phyMbpsSet[indexMbps]);
+							CWLog("NL80211_BITRATE_ATTR_MAX: %d, singlePhyInfo->phyMbpsSet[%d]: %f", NL80211_BITRATE_ATTR_MAX, indexMbps, singlePhyInfo->phyMbpsSet[indexMbps]);
 							indexMbps++;
 						}
 					}
@@ -277,7 +336,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 				}
 				
 				
-				singlePhyInfo->lenSupportedRates = indexMbps;
+				singlePhyInfo->lenSupportedRates = (indexMbps-1);
 				
 				/* 80211.a/b/g/n */
 				
@@ -428,3 +487,24 @@ int CB_startAP(struct nl_msg *msg, void * arg) {
 	
 	CWLog("CB_startAP");
 }
+
+int CBget_channel_width(struct nl_msg *msg, void *arg)
+{
+	struct nlattr *tb[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+
+CWLog("DENTRO GETCHANNELWIDTH");
+	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (tb[NL80211_ATTR_CHANNEL_WIDTH]) {
+		CWLog("chanwidth: %d", nla_get_u32(tb[NL80211_ATTR_CHANNEL_WIDTH]));
+		if (tb[NL80211_ATTR_CENTER_FREQ1])
+			CWLog("center_frq1: %d", nla_get_u32(tb[NL80211_ATTR_CENTER_FREQ1]));
+		if (tb[NL80211_ATTR_CENTER_FREQ2])
+			CWLog("center_frq2: %d", nla_get_u32(tb[NL80211_ATTR_CENTER_FREQ2]));
+	}
+
+	return NL_SKIP;
+}
+
