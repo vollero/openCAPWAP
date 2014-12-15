@@ -327,8 +327,6 @@ CWLog("3");
 		
 		if (bReceivePacket) {
 			
-			CWLog("5");
-
 			/* Elena Agostini - 03/2014: DTLS Data Session WTP */
 			if(!CWReceiveDataMessage(&msgPtr))
 			{
@@ -336,8 +334,6 @@ CWLog("3");
 				CWLog("Failure Receiving DTLS Data Channel");
 				break;		
 			}
-					
-					CWLog("6");
 
 			if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
 
@@ -442,7 +438,7 @@ CWLog("3");
 								CWLog("THR FRAME: Ioctl error");
 								//EXIT_FRAME_THREAD(gRawSock);
 							}
-							
+							CWLog("RICEVUTO UN DATA FRAME di dimensione %d", msgPtr.offset);
 							if(!CW80211ParseDataFrameFromDS(msgPtr.msg, &(dataFrame)))
 							{
 								CWLog("CW80211: Error parsing data frame");
@@ -2203,11 +2199,8 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 		return CW_FALSE;
 	
 	int trovato=0;
-	
 	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
-	
-	CWLog("radioIndex: %d, wlanIndex: %d, bssindex: %d", radioIndex, wlanIndex, (*BSSIndex));
-	
+		
 	CWLog("Search address %02x:%02x:%02x:%02x:%02x:%02x", 
 	(int)address[0],
 	(int)address[1],
@@ -2248,13 +2241,11 @@ CWLog("CW80211: STAZIONE TROVATA");
 		CW_COPY_MEMORY(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, supportedRates, supportedRatesLen);
 		
 		CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].phyMbpsSet, supportedRatesLen+1, float, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+		//not working? mbps is always 0
 		int indexRates=0;
 		for(indexRates=0; indexRates <= supportedRatesLen; indexRates++)
 		{
 			WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].phyMbpsSet[indexRates] = mapSupportedRatesValues(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE);
-			CWLog("SupportedRate: %d Mbps: %d",
-				WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates[indexRates],
-				WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].phyMbpsSet[indexRates]);
 		}
 		CWLog("STA supportedRatesLen: %d", supportedRatesLen);
 	}

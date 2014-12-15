@@ -14,7 +14,7 @@ CWThreadMutex mutexAvlTree;
 CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	int err, indexPhy=0;
-	int indexWlan;
+	int indexWlan, indexRates;
 	
 	gRadiosInfo.radioCount = gPhyInterfaceCount;
 	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo, gRadiosInfo.radioCount, CWWTPRadioInfoValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
@@ -48,7 +48,6 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	for(indexPhy=0; indexPhy < gRadiosInfo.radioCount; indexPhy++)
 	{
-		CWLog("indexPhy: %d", indexPhy);
 		CWLog("[NL80211] Retrieving info for phy interface %d name: %s ...", gPhyInterfaceIndex[indexPhy], gPhyInterfaceName[indexPhy]);
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.radioID = indexPhy; //gPhyInterfaceIndex[indexPhy];
 		gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.realRadioID = -1;
@@ -65,12 +64,6 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		{
 			CWLog("[NL80211 ERROR] Phy interface %d name: %s has some problems. WTP will stop.", indexPhy, gPhyInterfaceName[indexPhy]);
 			return CW_FALSE;
-		}
-		
-				int indexRates=0;
-		for(indexRates=0; indexRates <= WTP_NL80211_BITRATE_NUM; indexRates++)
-		{
-			CWLog("Mbps: %f", gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.phyMbpsSet[indexRates]);
 		}
 		
 		if(gRadiosInfo.radiosInfo[indexPhy].gWTPPhyInfo.realRadioID == -1)

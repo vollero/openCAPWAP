@@ -211,7 +211,6 @@ CWBool CWSaveIEEEConfigurationRequestMessage(ACInterfaceRequestInfo * interfaceA
 	int indexRadio = CWIEEEBindingGetIndexFromDevID(interfaceACInfo->radioID);
 	int indexWlan = CWIEEEBindingGetIndexFromDevID(interfaceACInfo->wlanID);
 	
-	CWLog("interfaceACInfo->radioID: %d, interfaceACInfo->wlanID: %d", interfaceACInfo->radioID, interfaceACInfo->wlanID);
 	CWLog("WLAN Interface op %d on radioID: %d wlanID: %d", interfaceACInfo->operation, indexRadio, indexWlan);
 	//Add Wlan
 	if(interfaceACInfo->operation == CW_OP_ADD_WLAN)

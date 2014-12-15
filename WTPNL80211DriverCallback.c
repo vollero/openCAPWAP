@@ -337,6 +337,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 				
 				
 				singlePhyInfo->lenSupportedRates = (indexMbps-1);
+				CWLog("LEN SUPPORTED RATES: %d", singlePhyInfo->lenSupportedRates);
 				
 				/* 80211.a/b/g/n */
 				
