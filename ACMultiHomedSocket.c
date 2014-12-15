@@ -643,10 +643,9 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		if(readByest80211 == -1)
 			goto after_tap;
 
-CWLog("Ricevuto frame");
 		if(WTPIndexFromSta == -1)
 		{
-		//	CWLog("BROADCAST DA");
+			CWLog("BROADCAST");
 			for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 			{
 				for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)

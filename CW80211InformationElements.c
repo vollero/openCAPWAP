@@ -1125,7 +1125,7 @@ unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char *
 	else return NULL;
 	
 	//2 (sequence ctl)
-	if(!CW80211AssembleIESequenceNumber(&(frameACK[(*offset)]), offset, 2145))
+	if(!CW80211AssembleIESequenceNumber(&(frameACK[(*offset)]), offset, 0))
 		return NULL;
 		
 	return frameACK;
