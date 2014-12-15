@@ -13,12 +13,16 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 	unsigned char SA[ETH_ALEN];
 	unsigned char DA[ETH_ALEN];
 	unsigned char BSSID[ETH_ALEN];
-	int sizeEncapsHdr = ENCAPS_HDR_LEN;
+	int sizeEncapsHdr=0, skipBytes=0;
 	nodeAVL* tmpNode=NULL;
 
 	CW_COPY_MEMORY(DA, frameReceived, ETH_ALEN);
 	CW_COPY_MEMORY(SA, frameReceived+ETH_ALEN, ETH_ALEN);
 	
+	CWLog("FRAME ETHERNET RICEVUTO");
+	CWLog("DA[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+	CWLog("SA[%02x:%02x:%02x:%02x:%02x:%02x]", (int) SA[0], (int) SA[1], (int) SA[2], (int) SA[3], (int) SA[4], (int) SA[5]);
+
 	if(checkAddressBroadcast(DA))
 	{
 		memset(BSSID, 0xff, ETH_ALEN);
@@ -33,38 +37,48 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 		CWThreadMutexUnlock(&mutexAvlTree);
 		if(tmpNode == NULL)
 		{
-		//	CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+			//CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 			return -1;
 		}
 		else
 		{
-	//		CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
+			//CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 			CW_COPY_MEMORY(BSSID, tmpNode->BSSID, ETH_ALEN);
-	//		CWLog("BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
+//			CWLog("Trovato BSSID[%02x:%02x:%02x:%02x:%02x:%02x]", (int) BSSID[0], (int) BSSID[1], (int) BSSID[2], (int) BSSID[3], (int) BSSID[4], (int) BSSID[5]);
 			*(WTPIndex) = tmpNode->index;
 		}
 		//----
 	}					
 	hdr80211 = CW80211AssembleDataFrameHdr(SA, DA, BSSID, &(offset), 0, 1);
 	
+//	CWLog("Byte dopo eth addr: %02x %02x", (int)(frameReceived+ETH_ALEN+ETH_ALEN)[0], (int)(frameReceived+ETH_ALEN+ETH_ALEN)[1]);
+
+
 	int ethertype = (frameReceived[12] << 8) | frameReceived[13];
 	
 	CW_COPY_MEMORY(outbuffer, hdr80211, HLEN_80211);
 	//Encaps header
+	CWLog("ETHERTYPE: %02x", ethertype);
 	if (ethertype == ETH_P_AARP || ethertype == ETH_P_IPX) {
 			CW_COPY_MEMORY((outbuffer+HLEN_80211), bridge_tunnel_header, sizeof(bridge_tunnel_header));
-			CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeof(bridge_tunnel_header)), &(sizeEncapsHdr), 2);
+			skipBytes=2;
+			sizeEncapsHdr=sizeof(bridge_tunnel_header);
+
+		//	CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeof(bridge_tunnel_header)), &(sizeEncapsHdr), 2);
 	} else if (ethertype >= ETH_P_802_3_MIN) {
 		CW_COPY_MEMORY((outbuffer+HLEN_80211), rfc1042_header, sizeof(rfc1042_header));
-		CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeof(rfc1042_header)), &(sizeEncapsHdr), 2);
+		skipBytes=2;
+		sizeEncapsHdr=sizeof(rfc1042_header);
+		//CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeof(rfc1042_header)), &(sizeEncapsHdr), 2);
 	}
 	else
 		sizeEncapsHdr=0;
 
-	CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeEncapsHdr), (frameReceived+ETH_HLEN), frameLen-ETH_HLEN);
+	CW_COPY_MEMORY((outbuffer+HLEN_80211+sizeEncapsHdr), (frameReceived+ETH_HLEN-skipBytes), frameLen-ETH_HLEN+skipBytes);
 	
-	CWLog("Size 80211 frame: %d WTPIndex: %d", (frameLen-ETH_HLEN+HLEN_80211+sizeEncapsHdr), *(WTPIndex));
-	return (frameLen-ETH_HLEN+HLEN_80211+sizeEncapsHdr);
+//	CWLog("Byte dopo llc: %02x %02x", (int)(outbuffer+HLEN_80211+sizeEncapsHdr)[0], (int)(outbuffer+HLEN_80211+sizeEncapsHdr)[1]);
+	CWLog("DIMENSIONE NUOVO 80211 frame: %d WTPIndex: %d", (frameLen-ETH_HLEN+skipBytes+HLEN_80211+sizeEncapsHdr), *(WTPIndex));
+	return (frameLen-ETH_HLEN+skipBytes+HLEN_80211+sizeEncapsHdr);
 }
 
 CWBool CWConvertDataFrame_80211_to_8023(unsigned char *frameReceived, int frameLen, unsigned char *frame8023, int * frame8023Len){
