@@ -489,11 +489,6 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	lenRates=4;
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 	
-	rateChar[0]=20;
-	rateChar[1]=40;
-	rateChar[2]=110;
-	rateChar[3]=220;
-	/*
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{
 //			if(indexRates < 4)
@@ -502,7 +497,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
 		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	}
-		*/
+		
 //		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
 //		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	
