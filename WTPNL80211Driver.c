@@ -486,37 +486,13 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	else
 		lenRates = CW_80211_MAX_SUPP_RATES;
 	
-	lenRates=4;
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 	
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{
-//			if(indexRates < 4)
-//				rateChar[indexRates] = ((int) ((infoBSS->phyInfo->phyMbpsSet[indexRates] * 10)) | 0x80); // 0.1); // diviso 5?
-//			else
 		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
 		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	}
-		
-//		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
-//		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
-	
-	/*
-	 int lenRates=0;
-	CWLog("staInfo: %d", staInfo.lenSupportedRates);
-	if(staInfo.lenSupportedRates < CW_80211_MAX_SUPP_RATES)
-		lenRates = staInfo.lenSupportedRates;
-	else
-		lenRates = CW_80211_MAX_SUPP_RATES;
-	CWLog("lenRates: %d", lenRates);
-
-	for(indexRates=0; indexRates < lenRates; indexRates++)
-	{
-		CWLog("staInfo.phyMbpsSet[%d]: %d", indexRates, staInfo.phyMbpsSet[indexRates]);
-		rateChar[indexRates] = (staInfo.phyMbpsSet[indexRates] / 0.1); // diviso 5?
-		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
-	}
-	 */
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
 		
 	/* Association ID */
