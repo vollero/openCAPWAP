@@ -5,11 +5,6 @@
  * 
  ***************************************/
 #include "CWWTP.h"
-#include "packetspammer.h"
-#include "radiotap.h"
-/*****************************************************
- * Interaction with nl80211 cmd
- *****************************************************/
  
 CWBool nl80211CmdGetPhyInfo(int indexPhy, struct WTPSinglePhyInfo * singlePhyInfo){
 	struct nl_msg *msg;
@@ -63,7 +58,7 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_setNewInterface, interfaceInfo);
 	CWLog("ret: %d", ret);
-perror("new interface");
+
 	if( ret != 0)
 		return CW_FALSE;
 		
@@ -98,6 +93,7 @@ CWBool nl80211CmdSetNewMonitorInterface(int indexPhy, WTPInterfaceInfo * interfa
 	if (!msg)
 		return CW_FALSE;
 	
+	CWLog("Creo monitor su phy%d", indexPhy);
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, interfaceInfo->ifName);
@@ -111,6 +107,7 @@ CWBool nl80211CmdSetNewMonitorInterface(int indexPhy, WTPInterfaceInfo * interfa
 		goto nla_put_failure;
 	NLA_PUT_FLAG(msg, NL80211_MNTR_FLAG_COOK_FRAMES);
 	nla_nest_end(msg, flags);
+	NL80211_MNTR_FLAG_OTHER_BSS
 	*/
 	/*
 	 * Tell cfg80211 that the interface belongs to the socket that created
@@ -248,9 +245,11 @@ CWBool nl80211CmdSetChannelInterface(char * interface, int channel){
 	
 	CWLog("Interface %s (%d) for channel %d", interface, index, channel);
 
-	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_WIPHY, 0);
+	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_CHANNEL, 0); //NL80211_CMD_SET_WIPHY, 0);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, index);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, channel);
+//	NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, freq->center_freq1);
+	
 	//NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, NL80211_CHAN_WIDTH_80);
 		
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, NULL, NULL);
@@ -261,6 +260,41 @@ CWBool nl80211CmdSetChannelInterface(char * interface, int channel){
 	msg = NULL;
 	
 	CWLog("Interface %s now channel %d", interface, channel);
+
+	return CW_TRUE;
+	
+ nla_put_failure:
+	nlmsg_free(msg);
+	return CW_FALSE;
+}
+
+CWBool nl80211_get_channel_width(char * interface)
+{
+		struct nl_msg *msg;
+	
+	msg = nlmsg_alloc();
+	if (!msg)
+		return CW_FALSE;
+
+	int index = if_nametoindex(interface);
+	
+	CWLog("Interface %s (%d)", interface, index);
+int indexPhy=1;
+	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_GET_INTERFACE, 0); //NL80211_CMD_SET_WIPHY, 0);
+//	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, indexPhy);
+
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, index);
+		
+	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CBget_channel_width, NULL);
+	CWLog("ret channel: %d. %s", ret, strerror(ret));
+	perror("ret cannel");
+	if( ret != 0)
+		return CW_FALSE;
+		
+	msg = NULL;
+	
+	CWLog("Interface %s ok", interface);
 
 	return CW_TRUE;
 	
@@ -398,7 +432,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
 	CWLog("Imposto frequenza: %d", gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
 	
-	NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
+//	NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyFrequencyInfo.frequencyList[CW_WTP_DEFAULT_RADIO_CHANNEL].frequency);
 	
 	
 	NLA_PUT(msg, NL80211_ATTR_BEACON_HEAD, offset, beaconFrame);
@@ -430,7 +464,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 
 CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
-	unsigned char rateChar[CW_80211_MAX_SUPP_RATES];
+	unsigned char * rateChar;
 	int indexRates=0;
 	
 	CWLog("NL80211_CMD_NEW_STATION. WLanID: %d, MacAddr[0](%02x) - MacAddr[5](%02x)", infoBSS->interfaceInfo->realWlanID, (int)staInfo.address[0], (int)staInfo.address[5]);
@@ -445,17 +479,49 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
 	/* SUPPORTED RATES */
+	
 	int lenRates=0;
 	if(infoBSS->phyInfo->lenSupportedRates < CW_80211_MAX_SUPP_RATES)
 		lenRates = infoBSS->phyInfo->lenSupportedRates;
 	else
 		lenRates = CW_80211_MAX_SUPP_RATES;
 	
+	lenRates=4;
+	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+	
+	rateChar[0]=20;
+	rateChar[1]=40;
+	rateChar[2]=110;
+	rateChar[3]=220;
+	/*
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{
-		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1); // diviso 5?
+//			if(indexRates < 4)
+//				rateChar[indexRates] = ((int) ((infoBSS->phyInfo->phyMbpsSet[indexRates] * 10)) | 0x80); // 0.1); // diviso 5?
+//			else
+		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
 		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	}
+		*/
+//		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
+//		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
+	
+	/*
+	 int lenRates=0;
+	CWLog("staInfo: %d", staInfo.lenSupportedRates);
+	if(staInfo.lenSupportedRates < CW_80211_MAX_SUPP_RATES)
+		lenRates = staInfo.lenSupportedRates;
+	else
+		lenRates = CW_80211_MAX_SUPP_RATES;
+	CWLog("lenRates: %d", lenRates);
+
+	for(indexRates=0; indexRates < lenRates; indexRates++)
+	{
+		CWLog("staInfo.phyMbpsSet[%d]: %d", indexRates, staInfo.phyMbpsSet[indexRates]);
+		rateChar[indexRates] = (staInfo.phyMbpsSet[indexRates] / 0.1); // diviso 5?
+		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
+	}
+	 */
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
 		
 	/* Association ID */
@@ -484,6 +550,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	CWLog("[NL80211] New station ok. Waiting for data from STA %02x:%02x:%02x:%02x:%02x:%02x", (int)staInfo.address[0], (int)staInfo.address[1], (int)staInfo.address[2], (int)staInfo.address[3], (int)staInfo.address[4], (int)staInfo.address[5]);
 	msg = NULL;
 	
+	CW_FREE_OBJECT(rateChar);
 	return CW_TRUE;
 	
  nla_put_failure:
@@ -519,7 +586,10 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{
-		rateChar[indexRates] = (infoBSS->phyInfo->phyMbpsSet[indexRates] / 0.1); // diviso 5?
+		if(indexRates < 4)
+			rateChar[indexRates] = ((int) ((infoBSS->phyInfo->phyMbpsSet[indexRates] * 10)) | 0x80); // 0.1);
+		else
+			rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1);
 		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
 	}
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
@@ -527,7 +597,6 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	/* Association ID */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
 	CWLog("StaAID: %d", staInfo.staAID);
-	
 	/* Listen Interval */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
 	CWLog("listenInterval: %d", staInfo.listenInterval);
@@ -585,7 +654,7 @@ CWBool nl80211CmdDelStation(WTPBSSInfo * infoBSS, unsigned char * macAddress){
 	return CW_FALSE;
 }
 
-int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble)
+int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int radioIndex, int cts, int preamble)
 /*
 			   int slot, int ht_opmode, int ap_isolate,
 			   int *basic_rates)
@@ -603,6 +672,22 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble)
 		NLA_PUT_U8(msg, NL80211_ATTR_BSS_CTS_PROT, cts);
 	if (preamble >= 0)
 		NLA_PUT_U8(msg, NL80211_ATTR_BSS_SHORT_PREAMBLE, preamble);
+	
+	int lenRates=4, indexRates=0;
+	unsigned char rateChar[4];
+
+	/*if(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.lenSupportedRates < CW_80211_MAX_SUPP_RATES)
+		lenRates = gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.lenSupportedRates;
+	else
+		lenRates = CW_80211_MAX_SUPP_RATES;
+	*/
+	for(indexRates=0; indexRates < lenRates; indexRates++)
+	{
+		rateChar[indexRates] = (int) (gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
+		CWLog("rateChar[%d]: %d", indexRates, rateChar[indexRates]);
+	}
+	NLA_PUT(msg, NL80211_ATTR_BSS_BASIC_RATES, lenRates, rateChar);
+	
 /*	if (slot >= 0)
 		NLA_PUT_U8(msg, NL80211_ATTR_BSS_SHORT_SLOT_TIME, slot);
 	if (ht_opmode >= 0)
@@ -870,29 +955,6 @@ nla_put_failure:
 	return ret;
 }
  
-/*
- * Lettura dal socket con eloop_*. Hostapd functions
- */
- /*
-void nl80211_mgmt_handle_register_eloop(WTPInterfaceInfo * interfaceInfo)
-{
-	nl80211_register_eloop_read(&interfaceInfo->nl_mgmt,
-				    wpa_driver_nl80211_event_receive,
-				    interfaceInfo->nl_cb);
-}
-
-void nl80211_register_eloop_read(struct nl_handle **handle,
-					eloop_sock_handler handler,
-					void *eloop_data)
-{
-	nl_socket_set_nonblocking(*handle);
-		
-	int ret = eloop_register_read_sock(nl_socket_get_fd(*handle), handler, eloop_data, *handle);
-	*handle = (void *) (((intptr_t) *handle) ^ ELOOP_SOCKET_INVALID);
-}
-*/
-
-
 CWBool CW80211SendFrame(WTPBSSInfo * WTPBSSInfoPtr, unsigned int freq, unsigned int wait, char * buf, size_t buf_len, u64 *cookie_out, int no_cck, int no_ack)
 {
 	struct nl_msg *msg;
@@ -1092,8 +1154,10 @@ CWBool ioctlActivateInterface(char * interface){
 	return CW_TRUE;
 }
 
-int CWInjectFrameMonitorOLD(int rawSocket, void *data, size_t len, int encrypt, int noack)
+int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack)
 {
+	unsigned char bufToSend[500];
+	
 	/*
 	__u8 rtap_hdr[] = {
 		0x00, 0x00, // radiotap version
@@ -1114,8 +1178,15 @@ int CWInjectFrameMonitorOLD(int rawSocket, void *data, size_t len, int encrypt, 
 		0x01
 	};
 
-
 	__u8 rtap_hdr[] = {
+			0x00, 0x00, // radiotap version
+			0x0d, 0x00,
+			0x04, 0x80, 0x02, 0x00,
+			0x02,
+			0x00, 0x00, 0x00, 0x00
+		};
+
+	u8 rtap_hdr[] = {
 		0x00, 0x00, // <-- radiotap version
 		0x19, 0x00, // <- radiotap header length
 		0x6f, 0x08, 0x00, 0x00, // <-- bitmap
@@ -1129,29 +1200,95 @@ int CWInjectFrameMonitorOLD(int rawSocket, void *data, size_t len, int encrypt, 
 	};
 */
 
-	__u8 rtap_hdr[] = {
-			0x00, 0x00, // radiotap version
-			0x0d, 0x00,
-			0x04, 0x80, 0x02, 0x00,
-			0x02,
-			0x00, 0x00, 0x00, 0x00
-		};
+u8 rtap_hdr[] = {
+		0x00, 0x00, // <-- radiotap version
+		0x0b, 0x00, // <- radiotap header length
+		0x04, 0x0c, 0x00, 0x00, // <-- bitmap
+		0x02, // <-- rate
+		0x1b,//0x0c, //<-- tx power
+		0x03 //<-- antenna
+	};
+
+	unsigned char * dataChar = (unsigned char *) data;
 	
-	struct iovec iov[2] = {
+	struct CWFrameDataHdr frameData;
+	CW80211ParseDataFrameFromDS(dataChar, &(frameData));
+	CWLog("FrameData.fc: %02x", frameData.frameControl);
+	CWLog("FrameData.duration: %d", frameData.duration);
+	CWLog("BSSID: %02x:%02x:%02x:%02x:%02x", 
+	(int)frameData.BSSID[0], 
+	(int)frameData.BSSID[1], 
+	(int)frameData.BSSID[2], 
+	(int)frameData.BSSID[3], 
+	(int)frameData.BSSID[4], 
+	(int)frameData.BSSID[5]);
+
+	CWLog("SA: %02x:%02x:%02x:%02x:%02x", 
+	(int)frameData.SA[0], 
+	(int)frameData.SA[1], 
+	(int)frameData.SA[2], 
+	(int)frameData.SA[3], 
+	(int)frameData.SA[4], 
+	(int)frameData.SA[5]);
+	
+	CWLog("DA: %02x:%02x:%02x:%02x:%02x", 
+	(int)frameData.DA[0], 
+	(int)frameData.DA[1], 
+	(int)frameData.DA[2], 
+	(int)frameData.DA[3], 
+	(int)frameData.DA[4], 
+	(int)frameData.DA[5]);
+	CWLog("FrameData.duration: %d", frameData.duration);
+
+
+//memset((dataChar+4), 0x3, 6);
+
+/*int try=0;
+while(try < 2)
+{
+	if(try==0)
+	{	
+		CWLog("Test 1: cambio DA");
+		memset((dataChar+4), 0x3, 6);
+	}
+
+	if(try == 1)
+	{
+		CWLog("Test 3: rimetto a posto tutto");
+		CW_COPY_MEMORY(dataChar+4, frameData.BSSID, 6);
+	}
+	*/
+	CW_COPY_MEMORY(bufToSend, rtap_hdr, sizeof(rtap_hdr));
+//	CW_COPY_MEMORY(bufToSend+sizeof(rtap_hdr), u8aIeeeHeader, sizeof(u8aIeeeHeader));
+//	CW_COPY_MEMORY(bufToSend+sizeof(rtap_hdr)+sizeof(u8aIeeeHeader), (unsigned char *) (data+24), len-24);
+	
+	CW_COPY_MEMORY(bufToSend+sizeof(rtap_hdr), dataChar, len);
+	
+	struct iovec iov[1] = {
+		{
+			.iov_base = &bufToSend,
+			.iov_len = /* (sizeof(rtap_hdr)+sizeof(u8aIeeeHeader)+len-24), */ (sizeof(rtap_hdr)+len), 
+		}
+	};
+	
+	CWLog("Dimensione messaggio: %d", sizeof(rtap_hdr)+len);
+	
+/*	struct iovec iov[2] = {
 		{
 			.iov_base = &rtap_hdr,
 			.iov_len = sizeof(rtap_hdr),
 		},
 		{
-			.iov_base = (void *) data,
-			.iov_len = len,
+			.iov_base = (void *) u8aIeeeHeader,
+			.iov_len = 24,
 		}
 	};
+	*/
 	struct msghdr msg = {
 		.msg_name = NULL,
 		.msg_namelen = 0,
 		.msg_iov = iov,
-		.msg_iovlen = 2,
+		.msg_iovlen = 1,
 		.msg_control = NULL,
 		.msg_controllen = 0,
 		.msg_flags = 0,
@@ -1159,42 +1296,6 @@ int CWInjectFrameMonitorOLD(int rawSocket, void *data, size_t len, int encrypt, 
 	int res;
 	u16 txflags = 0;
 
-/*
-	static const u8 u8aRadiotapHeader[] = {
-
-		0x00, 0x00, // <-- radiotap version
-		0x19, 0x00, // <- radiotap header length
-		0x6f, 0x08, 0x00, 0x00, // <-- bitmap
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // <-- timestamp
-		0x00, // <-- flags (Offset +0x10)
-		0x6c, // <-- rate (0ffset +0x11)
-		0x71, 0x09, 0xc0, 0x00, // <-- channel
-		0xde, // <-- antsignal
-		0x00, // <-- antnoise
-		0x01, // <-- antenna
-
-	};	
-	
-	u8 u8aSendBuffer[500];
-	char szErrbuf[PCAP_ERRBUF_SIZE];
-	int nCaptureHeaderLength = 0, n80211HeaderLength = 0, nLinkEncap = 0;
-	int nOrdinal = 0, r, nDelay = 100000;
-	int nRateIndex = 0, retval, bytes;
-	pcap_t *ppcap = NULL;
-	struct bpf_program bpfprogram;
-	char * szProgram = "", fBrokenSocket = 0;
-	u16 u16HeaderLen;
-	char szHostname[PATH_MAX];
-	
-	szErrbuf[0] = '\0';
-	ppcap = pcap_open_live("monitor0", 800, 1, 20, szErrbuf);
-	if (ppcap == NULL) {
-		CWLog("Unable to open interface monitor0 in pcap: %s\n", szErrbuf);
-		return -1;
-	}
-	
-
-*/
 	if (rawSocket < 0) {
 		CWLog("nl80211: No monitor socket available for %s", __func__);
 		return -1;
@@ -1205,32 +1306,21 @@ int CWInjectFrameMonitorOLD(int rawSocket, void *data, size_t len, int encrypt, 
 	//WPA_PUT_LE16(&rtap_hdr[12], txflags);
 
 CWLog("Injecto");
-/*
-	memcpy(u8aSendBuffer, u8aRadiotapHeader, sizeof (u8aRadiotapHeader));
-	
-	memcpy(u8aSendBuffer, data, len);
-	
-		
-	r = pcap_inject(ppcap, u8aSendBuffer, len+sizeof(u8aRadiotapHeader));
-	CWLog("Ijectati %d bytes", r);
-		if (r != (len+sizeof(u8aRadiotapHeader))) {
-			perror("Trouble injecting packet");
-			return -1;
-		}
-
-CWLog("ok inject");
-*/
 	res = sendmsg(rawSocket, &msg, 0);
 	if (res < 0) {
 		CWLog("nl80211: sendmsg: %s", strerror(errno));
 		return -1;
 	}
 	CWLog("res: %d", res);
+/*	sleep(10);
+try++;
+}
+	*/
 	return 0;
 }
 
 /* wifi bitrate to use in 500kHz units */
-
+/*
 static const u8 u8aRatesToUse[] = {
 
 	54*2,
@@ -1246,7 +1336,7 @@ static const u8 u8aRatesToUse[] = {
 	1*2
 };
 
-/* this is the template radiotap header we send packets out with */
+//this is the template radiotap header we send packets out with
 
 static const u8 u8aRadiotapHeader[] = {
 
@@ -1265,7 +1355,7 @@ static const u8 u8aRadiotapHeader[] = {
 #define	OFFSET_FLAGS 0x10
 #define	OFFSET_RATE 0x11
 
-/* Penumbra IEEE80211 header */
+// Penumbra IEEE80211 header 
 
 static const u8 u8aIeeeHeader[] = {
 	0x08, 0x01, 0x00, 0x00,
@@ -1342,9 +1432,15 @@ Dump(u8 * pu8, int nLength)
 }
 
 
-int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int noack)
+int CWInjectFrameMonitor2(int rawSocket, void *data, size_t len, int encrypt, int noack)
 {
 	CWLog("Injecto.......");
+	
+	unsigned char * dataChar = (unsigned char *) data;
+	struct CWFrameDataHdr frameData;
+	CW80211ParseDataFrameFromDS(dataChar, &(frameData));
+	CWLog("FrameData.fc: %02x", frameData.frameControl);
+	
 	u8 u8aSendBuffer[500];
 	char szErrbuf[PCAP_ERRBUF_SIZE];
 	int nCaptureHeaderLength = 0, n80211HeaderLength = 0, nLinkEncap = 0;
@@ -1506,7 +1602,9 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 			nRateIndex = 0;
 		pu8 += sizeof (u8aRadiotapHeader);
 
-/*		memcpy(pu8, u8aIeeeHeader, sizeof (u8aIeeeHeader));
+CWLog("Len data: %d", len);
+
+		memcpy(pu8, u8aIeeeHeader, sizeof (u8aIeeeHeader));
 		pu8 += sizeof (u8aIeeeHeader);
 
 		pu8 += sprintf((char *)pu8,
@@ -1514,9 +1612,9 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		    "broadcast packet"
 		    "#%05d -- :-D --%s ----",
 		    nRate/2, nOrdinal++, szHostname);
-	*/
+
 	
-		memcpy(pu8, data, len);
+		memcpy(pu8, dataChar, len);
 		pu8 += len;
 
 		r = pcap_inject(ppcap, u8aSendBuffer, pu8 - u8aSendBuffer);
@@ -1529,3 +1627,4 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 	return 1;
 
 }
+*/

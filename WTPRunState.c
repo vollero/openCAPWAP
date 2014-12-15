@@ -2246,6 +2246,17 @@ CWLog("CW80211: STAZIONE TROVATA");
 		 
 		CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, supportedRatesLen+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 		CW_COPY_MEMORY(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates, supportedRates, supportedRatesLen);
+		
+		CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].phyMbpsSet, supportedRatesLen+1, float, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+		int indexRates=0;
+		for(indexRates=0; indexRates <= supportedRatesLen; indexRates++)
+		{
+			WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].phyMbpsSet[indexRates] = mapSupportedRatesValues(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE);
+			CWLog("SupportedRate: %d Mbps: %d",
+				WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates[indexRates],
+				WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].phyMbpsSet[indexRates]);
+		}
+		CWLog("STA supportedRatesLen: %d", supportedRatesLen);
 	}
 #endif
 	

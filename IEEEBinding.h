@@ -527,6 +527,7 @@ int CB_setNewInterface(struct nl_msg *msg, void * arg);
 int CB_startAP(struct nl_msg *msg, void * arg);
 int CB_cookieHandler(struct nl_msg *msg, void *arg);
 int CB_getChannelInterface(struct nl_msg *msg, void *arg);
+int CBget_channel_width(struct nl_msg *msg, void *arg);
 
 /* NL80211Driver.c */
 CWBool nl80211CmdGetChannelInterface(char * interface, int * channel);
@@ -556,7 +557,7 @@ void nl80211_mgmt_handle_register_eloop(WTPInterfaceInfo * interfaceInfo);
 void CW80211EventReceive(void *eloop_ctx, void *handle);
 void CW80211EventDataReceive(int dataRawSock, struct WTPBSSInfo * BSSInfo);
 void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, unsigned char * frameBuffer);
-int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int cts, int preamble);
+int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int radioIndex, int cts, int preamble);
 
 
 /* CW80211ManagementFrame.c */
