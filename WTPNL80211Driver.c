@@ -1179,32 +1179,6 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 	
 	struct CWFrameDataHdr frameData;
 	CW80211ParseDataFrameFromDS(dataChar, &(frameData));
-	CWLog("FrameData.fc: %02x", frameData.frameControl);
-	CWLog("FrameData.duration: %d", frameData.duration);
-	CWLog("BSSID: %02x:%02x:%02x:%02x:%02x", 
-	(int)frameData.BSSID[0], 
-	(int)frameData.BSSID[1], 
-	(int)frameData.BSSID[2], 
-	(int)frameData.BSSID[3], 
-	(int)frameData.BSSID[4], 
-	(int)frameData.BSSID[5]);
-
-	CWLog("SA: %02x:%02x:%02x:%02x:%02x", 
-	(int)frameData.SA[0], 
-	(int)frameData.SA[1], 
-	(int)frameData.SA[2], 
-	(int)frameData.SA[3], 
-	(int)frameData.SA[4], 
-	(int)frameData.SA[5]);
-	
-	CWLog("DA: %02x:%02x:%02x:%02x:%02x", 
-	(int)frameData.DA[0], 
-	(int)frameData.DA[1], 
-	(int)frameData.DA[2], 
-	(int)frameData.DA[3], 
-	(int)frameData.DA[4], 
-	(int)frameData.DA[5]);
-	CWLog("FrameData.duration: %d", frameData.duration);
 
 	CW_CREATE_ARRAY_CALLOC_ERR(bufToSend, (sizeof(rtap_hdr)+len), unsigned char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	CW_COPY_MEMORY(bufToSend, rtap_hdr, sizeof(rtap_hdr));	
@@ -1217,7 +1191,7 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		}
 	};
 	
-	CWLog("Dimensione messaggio: %d", sizeof(rtap_hdr)+len);
+	CWLog("Frame data size: %d", sizeof(rtap_hdr)+len);
 	
 /*	struct iovec iov[2] = {
 		{
@@ -1251,13 +1225,12 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 	//	txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
 	//WPA_PUT_LE16(&rtap_hdr[12], txflags);
 
-CWLog("Injecto");
 	res = sendmsg(rawSocket, &msg, 0);
 	if (res < 0) {
 		CWLog("nl80211: sendmsg: %s", strerror(errno));
 		return -1;
 	}
-	CWLog("Result code: %d", res);
+	CWLog("Injection result code: %d", res);
 
 	CW_FREE_OBJECT(bufToSend);
 	return 0;
