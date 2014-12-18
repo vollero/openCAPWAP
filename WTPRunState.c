@@ -422,17 +422,17 @@ CWLog("3");
 								CWLog("ERROR INJECT SOCKET. You must restart WTP");
 								return CW_FALSE;
 							}
-							CWLog("RICEVUTO UN DATA FRAME di dimensione %d", msgPtr.offset);
+
 							if(!CW80211ParseDataFrameFromDS(msgPtr.msg, &(dataFrame)))
 							{
 								CWLog("CW80211: Error parsing data frame");
 								return CW_FALSE;
 							}
-							
-							CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
-							CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
-							CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
-							CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
+							CWLog("*** Ricevuto Data Frame da AC ***");
+							CWLog("FrameControl: %02x", dataFrame.frameControl);
+							CWLog("DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
+							CWLog("SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
+							CWLog("BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
 							
 							if(checkAddressBroadcast(dataFrame.DA))
 							{
@@ -448,7 +448,7 @@ CWLog("3");
 								//AVLdisplay_avl(avlTree);
 								CWThreadMutexUnlock(&mutexAvlTree);
 								if(tmpNodeSta == NULL)
-									CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] non associata. Ignoro", 
+									CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] destinataria non associata. Ignoro", 
 									(int) dataFrame.DA[0], 
 									(int) dataFrame.DA[1], 
 									(int) dataFrame.DA[2], 
@@ -458,7 +458,7 @@ CWLog("3");
 								else
 								{
 									//NB. Controllo anche il BSSID?
-									CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x]", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
+									CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x] destinataria.", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
 									CWInjectFrameMonitor(rawInjectSocket, msgPtr.msg, msgPtr.offset, 0, 0);
 								}
 								//----
@@ -2207,7 +2207,6 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 	if(trovato == 0)
 		return CW_FALSE;
 
-CWLog("CW80211: STAZIONE TROVATA");
 #ifdef SPLIT_MAC
 	/*
 	 * In caso di split mac riassegno alla STA i valori che l'AC mi invia.
@@ -2230,7 +2229,6 @@ CWLog("CW80211: STAZIONE TROVATA");
 		{
 			WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].phyMbpsSet[indexRates] = mapSupportedRatesValues(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_FRAME_TO_VALUE);
 		}
-		CWLog("STA supportedRatesLen: %d", supportedRatesLen);
 	}
 #endif
 	

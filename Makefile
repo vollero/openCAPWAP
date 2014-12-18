@@ -32,7 +32,7 @@ CC = gcc
 LDFLAGS = -lssl -lcrypto -lpthread -ldl -D_REENTRANT
 
 #Elena Agostini: libnl
-LDFLAGS += -lnl-genl-3 -lnl-3 -lpcap
+LDFLAGS += -lnl-genl-3 -lnl-3
 LIB_PATH = /usr/local/lib
 INC_PATH = /usr/include/libnl3
  
