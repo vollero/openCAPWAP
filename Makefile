@@ -23,6 +23,7 @@
 # *           Giovannini Federica (giovannini.federica@gmail.com)                           *
 # *           Massimo Vellucci (m.vellucci@unicampus.it)                                    *
 # *	      Donato Capitella (d.capitella@gmail.com)  	                            *
+# *	      Elena Agostini (elena.ago@gmail.com)					    *
 # *******************************************************************************************
 
 
