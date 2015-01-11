@@ -821,7 +821,9 @@ void CWWTPDestroy() {
 	
 	timer_destroy();
 //Elena
+#ifdef SPLIT_MAC
 	close(rawInjectSocket);
+#endif
 	CW_FREE_OBJECT(gCWACList);
 	CW_FREE_OBJECT(gRadiosInfo.radiosInfo);
 }

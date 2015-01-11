@@ -1191,7 +1191,7 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		}
 	};
 	
-	CWLog("Frame data size: %d", sizeof(rtap_hdr)+len);
+//	CWLog("Frame data size: %d", sizeof(rtap_hdr)+len);
 	
 /*	struct iovec iov[2] = {
 		{
