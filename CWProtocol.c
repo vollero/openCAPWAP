@@ -777,7 +777,7 @@ CWBool CWProtocolParseFragment(char *buf, int readBytes, CWList *fragmentsListPt
 				}
 			}
 			else{
-				CWDebugLog("Received a copy of a fragment already in List");
+				CWLog("Received a copy of a fragment already in List");
 				CW_FREE_OBJECT(fragPtr);
 				return CWErrorRaise(CW_ERROR_NEED_RESOURCE, NULL);
 			}	
@@ -803,6 +803,7 @@ CWBool CWProtocolParseFragment(char *buf, int readBytes, CWList *fragmentsListPt
 		}
 
 		if(totalSize == 0) { // we haven't the last fragment
+			CWLog("Total size == 0");
 			return CWErrorRaise(CW_ERROR_NEED_RESOURCE, NULL); // we need at least one more fragment
 		}
 		
@@ -815,6 +816,7 @@ CWBool CWProtocolParseFragment(char *buf, int readBytes, CWList *fragmentsListPt
 		CWDebugLog("totalSize = %d , currentSize = %d", totalSize, currentSize);
 		
 		if(currentSize != totalSize) {
+			CWLog("currentSize != totalSize");
 			return CWErrorRaise(CW_ERROR_NEED_RESOURCE, NULL); // we need at least one mpre fragment
 		} else {
 			int currentOffset = 0;

@@ -210,7 +210,7 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 		CWLockSafeList(gPacketReceiveDataList);
 		while (CWGetCountElementFromSafeList(gPacketReceiveDataList) == 0)
 		{
-				CWLog("Ancora niente..");
+		//		CWLog("Ancora niente..");
 			CWWaitElementFromSafeList(gPacketReceiveDataList);
 		}
 

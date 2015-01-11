@@ -254,13 +254,10 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	int gWTPThreadDataPacketStateLocal=0;
 	CWBool bReceivePacket;
 
-CWLog("1");
 	/* Elena Agostini - 07/2014: data packet thread alive flag */
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPThreadDataPacketState = 1;
 	CWThreadMutexUnlock(&gInterfaceMutex);
-
-CWLog("2");
 
 #ifdef CW_DTLS_DATA_CHANNEL
 
@@ -281,8 +278,6 @@ CWLog("2");
 	}
 	
 #endif
-
-CWLog("3");
 
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPDataChannelDeadFlag=CW_FALSE;
@@ -428,8 +423,7 @@ CWLog("3");
 								CWLog("CW80211: Error parsing data frame");
 								return CW_FALSE;
 							}
-							/*
-							CWLog("*** Ricevuto Data Frame da AC ***");
+						/*	CWLog("*** Ricevuto Data Frame da AC ***");
 							CWLog("FrameControl: %02x", dataFrame.frameControl);
 							CWLog("DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
 							CWLog("SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
@@ -459,7 +453,7 @@ CWLog("3");
 								else
 								{
 									//NB. Controllo anche il BSSID?
-								//	CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x] destinataria.", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
+						//			CWLog("STA trovata [%02x:%02x:%02x:%02x:%02x:%02x] destinataria.", (int) tmpNodeSta->staAddr[0], (int) tmpNodeSta->staAddr[1], (int) tmpNodeSta->staAddr[2], (int) tmpNodeSta->staAddr[3], (int) tmpNodeSta->staAddr[4], (int) tmpNodeSta->staAddr[5]);
 									CWInjectFrameMonitor(rawInjectSocket, msgPtr.msg, msgPtr.offset, 0, 0);
 								}
 								//----

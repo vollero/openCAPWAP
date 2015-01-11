@@ -294,14 +294,14 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CWLog("CW80211: Error parsing data frame");
 					return CW_FALSE;
 				}
-
+/*
 				CWLog("**RICEVUTO DA WTP FRAME**");
 				CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
 				CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
 				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
-				
-				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, &(offsetDataFrame), 1, 0);
+*/			
+				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, &(offsetDataFrame), 0, 1);
 				if(dataHdr == NULL)
 					return CW_FALSE;
 				CW_CREATE_ARRAY_CALLOC_ERR(dataFrameBuffer, msglen, char, { return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); });
@@ -321,7 +321,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
 					}
 					
-					/*
+					
 					for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 					{
 						for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
@@ -333,17 +333,16 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 									gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL
 								)
 								{
-									CWLog("Invio a WTP %d radio %d wlan %d frameRespLen: %d msglen: %d", indexWTP, indexRadio, indexWlan, frameRespLen, msglen);
+	//								CWLog("Invio a WTP %d radio %d wlan %d frameRespLen: %d msglen: %d", indexWTP, indexRadio, indexWlan, frameRespLen, msglen);
 									CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, {return CW_FALSE;} );
 									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, msglen, {return CW_FALSE;} );
-						*/			
 									/*
 									 * FromDS per le stazioni riceventi
 									 * DA: broadcast
 									 * BSSID: quello del WTP/radio (byte 10)
 									 * SA: STAx
 									 */
-							/*		
+									 
 									CW_COPY_MEMORY(
 										(dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
 										gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, 
@@ -411,7 +410,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 								}	
 							}
 						}
-					}*/
+					}
 					
 				}
 				else 
@@ -429,7 +428,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							return CW_FALSE;
 						
 						write_bytes = write(ACTap_FD, frame8023, frame8023len);
-						CWLog("Inviati %d byte su tap", write_bytes);
 						if(write_bytes != frame8023len){
 							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
@@ -438,17 +436,47 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					//Destinatario associato ad un WTP
 					else
 					{
-						CWLog("Destinatario associato");
+//						CWLog("Destinatario associato");
 						CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
-						CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
+						CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, msglen, { return CW_FALSE;} );
 
-						CW_COPY_MEMORY((dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), tmpNode->BSSID, ETH_ALEN);									
+						CW_COPY_MEMORY((dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), tmpNode->BSSID, ETH_ALEN);
+						struct CWFrameDataHdr dataFrameFromDS;
+						if(!CW80211ParseDataFrameFromDS(dataFrameBuffer, &(dataFrameFromDS)))
+						{
+							CWLog("CW80211: Error parsing data frame");
+							return CW_FALSE;
+						}
+/*
+						CWLog("**Invio a WTP %d frame interno 802.11**", tmpNode->index);
+						CWLog("FrameControl: %02x", dataFrameFromDS.frameControl);
+						CWLog("DA: %02x: --- :%02x: --", (int) dataFrameFromDS.DA[0], (int) dataFrameFromDS.DA[4]);
+						CWLog("SA: %02x: --- :%02x: --", (int) dataFrameFromDS.SA[0], (int) dataFrameFromDS.SA[4]);
+						CWLog("BSSID: %02x: --- :%02x: --", (int) dataFrameFromDS.BSSID[0], (int) dataFrameFromDS.BSSID[4]);
+	*/											
 						memcpy(msgFrame->msg, dataFrameBuffer, msglen);
 						msgFrame->offset=msglen;
 						msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
 									
-						CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) dataFrame.DA[0], (int) dataFrame.DA[1], (int) dataFrame.DA[2], (int) dataFrame.DA[3], (int) dataFrame.DA[4], (int) dataFrame.DA[5]);
+//						CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) dataFrame.DA[0], (int) dataFrame.DA[1], (int) dataFrame.DA[2], (int) dataFrame.DA[3], (int) dataFrame.DA[4], (int) dataFrame.DA[5]);
 						
+							if (!CWAssembleDataMessage(&completeMsgPtr, &fragmentsNum, gWTPs[tmpNode->index].pathMTU, msgFrame, NULL,
+								#ifdef CW_DTLS_DATA_CHANNEL
+										CW_PACKET_CRYPT,
+								#else
+										CW_PACKET_PLAIN,
+								#endif	
+										0))
+									{
+											for(k = 0; k < fragmentsNum; k++){
+												CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+											}
+											CW_FREE_OBJECT(completeMsgPtr);
+											CW_FREE_PROTOCOL_MESSAGE(*msgFrame);
+											CW_FREE_OBJECT(msgFrame);
+									}
+
+
 						#ifndef CW_DTLS_DATA_CHANNEL
 							for(i = 0; i < gACSocket.count; i++) {
 								if (gACSocket.interfaces[i].sock == gWTPs[tmpNode->index].socket){
@@ -480,14 +508,14 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 								}
 							}
 
-							CWLog("Inviato Frame 80211 a WTP");
+							CWLog("Inviato Frame 80211 a WTP %d su socket dati: %d", tmpNode->index, dataSocket);
 
 							int k;
 							for(k = 0; messages && k < fragmentsNum; k++) {
 								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
 							}	
 							CW_FREE_OBJECT(completeMsgPtr);
-							CW_FREE_OBJECT(tmpNode);
+							tmpNode=NULL;
 					}
 				}
 				return CW_TRUE;
