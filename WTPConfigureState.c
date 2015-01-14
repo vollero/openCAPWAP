@@ -79,18 +79,8 @@ CWStateTransition CWWTPEnterConfigure() {
 		return CW_QUIT;
 	}
 	
-	//Elena Agostini: 09/2014. IEEE Configuration WLAN sub-state
-	//return CW_ENTER_IEEEE_CONFIGURATION;
 	return CW_ENTER_DATA_CHECK;
 }
-
-/*
-void CWWTPResponseTimerExpired(void *arg, CWTimerID id) 
-{
-	CWLog("WTP Response Configure Timer Expired");
-	CWNetworkCloseSocket(gWTPSocket);
-}
-*/
 
 /* 
  * Send Configure Request on the active session.

@@ -4,7 +4,7 @@
 
 #Elena Agostini 07-2014: nl80211 support
 <RADIO_PHY_TOT>1
-<RADIO_PHY_NAME_0>phy1
+<RADIO_PHY_NAME_0>phy0
 #<RADIO_PHY_NAME_1>phyX
 
 #Elena Agostini 11/2014: Local Bridgind Support with mac80211

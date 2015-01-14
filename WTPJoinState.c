@@ -99,13 +99,17 @@ CWStateTransition CWWTPEnterJoin() {
 	if(gWTPForceACAddress != NULL) {
 		CWNetworkGetAddressForHost(gWTPForceACAddress, 
 					   &(gACInfoPtr->preferredAddress));
-struct sockaddr_in *sin = (struct sockaddr_in *)&(gACInfoPtr->preferredAddress);
-unsigned char *ip = (unsigned char *)&sin->sin_addr.s_addr;
-CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
-	
+/*
+		struct sockaddr_in *sin = (struct sockaddr_in *)&(gACInfoPtr->preferredAddress);
+		unsigned char *ip = (unsigned char *)&sin->sin_addr.s_addr;
+		CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
+*/	
 		gACInfoPtr->security = gWTPForceSecurity;
 	}
 	
+	/*
+	 * Open control channel
+	 */
 	if(gWTPSocket)
 		CWNetworkCloseSocket(gWTPSocket);
 	/* Elena Agostini - 04/2014: make control port always the same inside each WTP */
@@ -113,7 +117,10 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 		timer_rem(waitJoinTimer, NULL);
 		return CW_ENTER_DISCOVERY;
 	}
-	
+
+	/*
+	 * Open data channel
+	 */	
 	if(gWTPDataSocket)
 		CWNetworkCloseSocket(gWTPDataSocket);
 	/* Elena Agostini - 04/2014: make data port always the same inside each WTP */
@@ -122,7 +129,6 @@ CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
 	}
 	
 	CWLog("Initiate Data Channel");
-	//CWLog("+++++++++++++++++++++ gWTPSocket:%d, gWTPDataSocket:%d", gWTPSocket,gWTPDataSocket);
 
 	/* Init DTLS session */
 

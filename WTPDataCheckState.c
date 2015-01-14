@@ -57,22 +57,16 @@ CWStateTransition CWWTPEnterDataCheck() {
 	/* Send Change State Event Request */
 	seqNum = CWGetSeqNum();
 	
-	/*if(!CWErr(CWStartHeartbeatTimer())) {
-		return CW_ENTER_RESET;
-	}*/
-		if(!CWErr(CWWTPSendAcknowledgedPacket(seqNum, 
+	if(!CWErr(CWWTPSendAcknowledgedPacket(seqNum, 
 					      NULL,
 					      CWAssembleChangeStateEventRequest,
 					      CWParseChangeStateEventResponseMessage,
 					      CWSaveChangeStateEventResponseMessage,
-					      NULL))) {
+					      NULL)))
 		return CW_ENTER_RESET;
-	}
-
 	
 /*
  * Elena Agostini - 03/2014
- * 
  * Initilize DTLS Data Session WTP + first KeepAlive
  */
 
@@ -167,19 +161,10 @@ CWStateTransition CWWTPEnterDataCheck() {
 		}
 				
 	if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
-		CWLog("+++ Ricevuto KeepAlive da AC. Vado in stato RUN");
 		return CW_ENTER_RUN;
 	}
 			
 #endif
-	
-/*	if(!CWErr(CWStopHeartbeatTimer())) {
-
-		return CW_ENTER_RESET;
-	}
-	*/
-	
-	
 	
 	return CW_ENTER_RUN;
 }

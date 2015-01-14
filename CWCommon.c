@@ -84,3 +84,11 @@ int CWIEEEBindingGetDevFromIndexID(int indexID)
 		
 	return (indexID+1);
 }
+
+void CWPrintEthernetAddress(unsigned char * address, char * string) {
+	
+	if(address == NULL || string == NULL)
+		return;
+		
+	CWLog("%s -> %02x:%02x:%02x:%02x:%02x:%02x", string, (int)address[0], (int)address[1], (int)address[2], (int)address[3], (int)address[4], (int)address[5]);
+}
