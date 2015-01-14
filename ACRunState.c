@@ -294,13 +294,13 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CWLog("CW80211: Error parsing data frame");
 					return CW_FALSE;
 				}
-/*
+
 				CWLog("**RICEVUTO DA WTP FRAME**");
 				CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
 				CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
 				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
-*/			
+
 				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, &(offsetDataFrame), 0, 1);
 				if(dataHdr == NULL)
 					return CW_FALSE;
@@ -316,6 +316,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							return CW_FALSE;
 						
 					write_bytes = write(ACTap_FD, frame8023, frame8023len);
+					CWLog("Scritti su TAP %d bytes", write_bytes);
 					if(write_bytes != frame8023len){
 							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
@@ -524,15 +525,16 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 
 			if(WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_MGMT)
 			{
-				
-				CWLog("CW80211: Management Frame Received");
+				int subtype = (int) WLAN_FC_GET_STYPE(frameControl);
 
+				CWLog("CW80211: Management Frame Received. Subtype: %d", subtype);
+				
 #ifdef SPLIT_MAC
 				/*
 				 * In SplitMAC mode, WTP forward probe request to AC for optional decision.
 				 * For now, there isn't an AC logic, so I'll log this event only
 				 */
-				if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_PROBE_REQ)
+				if(subtype == WLAN_FC_STYPE_PROBE_REQ)
 				{
 					CWLog("CW80211: Management Probe request received");
 					//Do some stuff with AC logic...
@@ -541,19 +543,18 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				/*
 				 * In SplitMAC mode AC is responsible for auth response to client
 				 */
-				if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_AUTH)
+				if(subtype == WLAN_FC_STYPE_AUTH)
 				{
+					CWLog("CW80211: Management Auth request received");
+
 					struct CWFrameAuthRequest authRequest;
 					if(!CW80211ParseAuthRequest(msgPtr->msg, &authRequest))
 						return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
-					
+
 					frameResponse = CW80211AssembleAuthResponse(authRequest.DA, &authRequest, &frameRespLen);
-					
 					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE; });
 					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE; });
-					
 					memcpy(msgFrame->msg, frameResponse, frameRespLen);
-
 					msgFrame->offset=frameRespLen;
 					msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
 						
@@ -614,7 +615,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					
 				}
 #endif
-				if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_REQ || WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_REASSOC_REQ)
+				if(subtype == WLAN_FC_STYPE_ASSOC_REQ || subtype == WLAN_FC_STYPE_REASSOC_REQ)
 				{
 					CWLog("CW80211: Management Association request received");
 					
@@ -840,7 +841,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 
 #ifndef SPLIT_MAC
 				/* In caso di LOCAL MAC, AC riceve anche AssResp per poter inviare uno Station Configuration Request coerente */
-				if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_RESP)
+				if(subtype == WLAN_FC_STYPE_ASSOC_RESP)
 				{
 					CWLog("CW80211: Management Association response received");
 					

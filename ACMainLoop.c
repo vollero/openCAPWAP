@@ -1153,24 +1153,24 @@ void _CWCloseThread(int i) {
 	
 //-- Elena Agostini: fake method to delete all node about that WTP
 	nodeAVL * tmp;
-	unsigned char * fakeMACMax = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	unsigned char * fakeMACMin = {0x0,0x0,0x0,0x0,0x0,0x0};
+	//unsigned char * fakeMACMax = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	//unsigned char * fakeMACMin = {0x0,0x0,0x0,0x0,0x0,0x0};
 
 	CWThreadMutexLock(&(mutexAvlTree));
 	tmp=NULL;
 	do {
-		tmp = AVLfindWTPNode(fakeMACMax, avlTree, i);
+		tmp = AVLfindWTPNode(avlTree, i);
 		if(tmp != NULL)
 			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
 	}while(tmp != NULL && avlTree != NULL);
 	
-	tmp=NULL;
+	/*tmp=NULL;
 	do {
 		tmp = AVLfindWTPNode(fakeMACMin, avlTree, i);
 		if(tmp != NULL)
 			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
 	}while(tmp != NULL && avlTree != NULL);
-	
+	*/
 	CWThreadMutexUnlock(&(mutexAvlTree));
 //--
 	

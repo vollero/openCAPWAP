@@ -43,19 +43,24 @@ nodeAVL* AVLfind(unsigned char * staAddr, nodeAVL* t )
         return t;
 }
 
-nodeAVL* AVLfindWTPNode(unsigned char * staAddr, nodeAVL* t, int index)
+nodeAVL* AVLfindWTPNode(nodeAVL* t, int index)
 {
-	if(staAddr == NULL || t == NULL )
+	if(t == NULL)
         return NULL;
         
     if(t->index == index)
 		return t;
+	
+	AVLfindWTPNode(t->left, index);
+	AVLfindWTPNode(t->right, index);
+	/*
 	else if(compareEthAddr(staAddr, t->staAddr) < 0)
         return AVLfindWTPNode(staAddr, t->left, index);
     else if(compareEthAddr(staAddr, t->staAddr) > 0)
         return AVLfindWTPNode(staAddr,  t->right, index);
     else
         return NULL;
+	*/
 }
 
 /*

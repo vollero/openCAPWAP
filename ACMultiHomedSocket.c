@@ -704,14 +704,21 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 							
 							for (k = 0; k < fragmentsNum; k++) 
 							{
+#ifdef CW_DTLS_DATA_CHANNEL
+								if(!(CWSecuritySend(gWTPs[indexWTP].sessionData, completeMsgPtr[k].msg, completeMsgPtr[k].offset)))
+#else
+								if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[k].msg, completeMsgPtr[k].offset))
+#endif
+										/*
 								if(!CWNetworkSendUnsafeUnconnected(dataSocket, 
 															&(address), 
 															completeMsgPtr[k].msg, 
 															completeMsgPtr[k].offset)	) 
-										{
-											CWLog("Failure sending Request");
-											break;
-										}
+									*/
+								{
+									CWLog("Failure sending Request");
+									break;
+								}
 							}
 							
 //							for (k = 0; k < fragmentsNum; k++)
@@ -768,14 +775,15 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 			
 			for (k = 0; k < fragmentsNum; k++) 
 			{
-				if(!CWNetworkSendUnsafeUnconnected(dataSocket, 
-											&(address), 
-											completeMsgPtr[k].msg, 
-											completeMsgPtr[k].offset)	) 
-						{
-							CWLog("Failure sending Request");
-							break;
-						}
+#ifdef CW_DTLS_DATA_CHANNEL
+				if(!(CWSecuritySend(gWTPs[WTPIndexFromSta].sessionData, completeMsgPtr[k].msg, completeMsgPtr[k].offset)))
+#else
+				if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[k].msg, completeMsgPtr[k].offset))
+#endif
+				{
+					CWLog("Failure sending Request");
+					break;
+				}
 			}
 			
 		//	for (k = 0; k < fragmentsNum; k++)
