@@ -201,5 +201,7 @@ void CWErrorHandlingInitLib();
  */
 int CWIEEEBindingGetIndexFromDevID(int devID);
 int CWIEEEBindingGetDevFromIndexID(int indexID);
+/* Elena Agostini: print ethernet address + description */
+void CWPrintEthernetAddress(unsigned char * address, char * string);
 
 #endif

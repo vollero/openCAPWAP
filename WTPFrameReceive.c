@@ -290,7 +290,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveFrame(void *arg){
 			//----
 			
 			encaps_len = n-radiotapHeader->it_len;
-			CWLog("[80211] Pure frame data. %d byte letti, %d byte data frame", n, encaps_len);
+			//CWLog("[80211] Pure frame data. %d byte letti, %d byte data frame", n, encaps_len);
 			if (!extract802_11_Frame(&frame, (buffer+radiotapHeader->it_len), encaps_len)){
 				CWLog("THR FRAME: Error extracting a frame");
 				EXIT_FRAME_THREAD(gRawSock);

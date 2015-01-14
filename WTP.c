@@ -23,7 +23,8 @@
  *           Giovannini Federica (giovannini.federica@gmail.com)								*
  *           Massimo Vellucci (m.vellucci@unicampus.it)											*
  *           Mauro Bisson (mauro.bis@gmail.com)													*
- *	         Antonio Davoli (antonio.davoli@gmail.com)											*
+ *	         Antonio Davoli (antonio.davoli@gmail.com)		
+ * 			 Elena Agostini (elena.ago@gmail.com)												*
  ************************************************************************************************/
 
 #include "CWWTP.h"

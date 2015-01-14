@@ -443,13 +443,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 								//AVLdisplay_avl(avlTree);
 								CWThreadMutexUnlock(&mutexAvlTree);
 								if(tmpNodeSta == NULL)
-									CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] destinataria non associata. Ignoro", 
-									(int) dataFrame.DA[0], 
-									(int) dataFrame.DA[1], 
-									(int) dataFrame.DA[2], 
-									(int) dataFrame.DA[3], 
-									(int) dataFrame.DA[4], 
-									(int) dataFrame.DA[5]);
+									CWPrintEthernetAddress(dataFrame.DA, "Destination STA not associated. Ignored");
 								else
 								{
 									//NB. Controllo anche il BSSID?
@@ -462,7 +456,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					
 					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_AUTH)
 					{
-						CWLog("Ricevuto Subtype AUTH");
+						CWLog("Received From AC Authentication Response");
 						
 						struct CWFrameAuthResponse authResponse;
 						if(!CW80211ParseAuthResponse(msgPtr.msg, &authResponse))
@@ -504,7 +498,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					
 					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_RESP)
 					{
-						CWLog("Ricevuto da AC Association Response");
+						CWLog("Received from AC Association Response");
 						
 						struct CWFrameAssociationResponse assResponse;
 						if(!CW80211ParseAssociationResponse(msgPtr.msg, &assResponse))
@@ -556,7 +550,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 #endif
 				}else{
 					
-					CWLog("Unknow data_msgType");
+					CWLog("Unknow Data Msg Type");
 				}
 				CW_FREE_PROTOCOL_MESSAGE(msgPtr);
 		}
@@ -573,7 +567,7 @@ CLEAR_DATA_RUN_STATE:
 	gWTPThreadDataPacketState = 2;
 	CWThreadMutexUnlock(&gInterfaceMutex);
 	
-	CWLog("++++++++ ESCO DAL THREAD CWWTPManageDataPacket");
+	CWLog("THREAD Data Management terminated");
 	
 	return NULL;
 }

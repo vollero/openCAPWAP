@@ -72,8 +72,18 @@ CWBool CWWTPCheckForBindingFrame()
 								
 			for (k = 0; k < fragmentsNum; k++) 
 			{
-				if (!CWNetworkSendUnsafeConnected(gWTPDataSocket, completeMsgPtr[k].msg, completeMsgPtr[k].offset)) {
-					CWDebugLog("Failure sending Request");
+#ifdef CW_NO_DTLS
+				if(!CWNetworkSendUnsafeConnected(gWTPDataSocket,
+							completeMsgPtr[k].msg,
+							completeMsgPtr[k].offset)) 
+#else
+				if(!CWSecuritySend(gWTPSessionData,
+							completeMsgPtr[k].msg,
+							completeMsgPtr[k].offset))
+#endif
+			{
+			//	if (!CWNetworkSendUnsafeConnected(gWTPDataSocket, completeMsgPtr[k].msg, completeMsgPtr[k].offset)) {
+					CWLog("[RUN State Check]: Failure sending Request");
 					break;
 				}
 			//	CWLog("Sending binding Request to AC......");

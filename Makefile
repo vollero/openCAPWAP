@@ -45,7 +45,7 @@ CFLAGS += -DCW_NO_DTLS -DCW_NO_DTLSCWParseConfigurationUpdateRequest
 CFLAGS += -DSPLIT_MAC
 
 #DTLS Data Channel
-# CFLAGS += -DCW_DTLS_DATA_CHANNEL
+#CFLAGS += -DCW_DTLS_DATA_CHANNEL
 
 OPENSSL_INCLUDE = -I./include/  #Openssl include files
 
