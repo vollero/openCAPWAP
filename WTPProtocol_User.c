@@ -138,8 +138,7 @@ __inline__ int CWWTPGetFrameTunnelMode() {
 
 __inline__ int CWWTPGetMACType() {
 	
-
-#ifdef SOFTMAC
+#ifdef SPLIT_MAC
 	return CW_SPLIT_MAC;
 #else
 	return CW_LOCAL_MAC;

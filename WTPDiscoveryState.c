@@ -124,16 +124,10 @@ CWStateTransition CWWTPEnterDiscovery() {
 					exit(1);
 				}
 				
-                                CW_CREATE_OBJECT_ERR(gACInfoPtr, 
-						     CWACInfoValues,
-						     return CW_QUIT;);
+                CW_CREATE_OBJECT_ERR(gACInfoPtr, CWACInfoValues, return CW_QUIT;);
 				
-				CWNetworkGetAddressForHost(gCWACList[i].address, 
-							   &(gACInfoPtr->preferredAddress));
-				
-				CWUseSockNtop(&(gACInfoPtr->preferredAddress),
-						CWDebugLog(str););
-				
+				CWNetworkGetAddressForHost(gCWACList[i].address, &(gACInfoPtr->preferredAddress));
+				CWUseSockNtop(&(gACInfoPtr->preferredAddress), CWDebugLog(str););
 				j = CWErr(CWNetworkSendUnsafeUnconnected(gWTPSocket,
 									 &(gACInfoPtr->preferredAddress),
 									 (*msgPtr).msg,

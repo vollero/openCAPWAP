@@ -133,7 +133,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	CWNetworkLev4Address	addr;
 	char* 			pData;
 	
-	CWLog("++++++++++++++++++++++++++ AVVIO THREAD CWWTPReceiveDtlsPacket");
+	CWLog("THREAD CWWTPReceiveDtlsPacket start");
 	
 	CW_REPEAT_FOREVER 
 	{
@@ -159,7 +159,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 		CWUnlockSafeList(gPacketReceiveList);		
 	}
 	
-	CWLog("++++++++++++++++++++++++++ ESCO THREAD CWWTPReceiveDtlsPacket");
+	CWLog("THREAD CWWTPReceiveDtlsPacket exit");
 	
 	/*
 	CWThreadMutexLock(&gInterfaceMutex);
@@ -179,7 +179,6 @@ extern int gRawSock;
 /* 
  * Manage data packets.
  */
-
 #define HLEN_80211	24
 int isEAPOL_Frame( unsigned char *buf, int len){
 	unsigned char rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
@@ -198,7 +197,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	CWNetworkLev4Address	addr;
 	char* 			pData;
 	
-	CWLog("++ AVVIO THREAD CWWTPReceiveDataPacket su socket %d", sockDTLS);
+	CWLog("THREAD CWWTPReceiveDataPacket start on socket %d", sockDTLS);
 	
 	CW_REPEAT_FOREVER 
 	{
@@ -229,10 +228,9 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	gWTPDataChannelDeadFlag=CW_TRUE;
 	CWThreadMutexUnlock(&gInterfaceMutex);
 	*/
-	CWLog("+++++ ESCO THREAD CWWTPReceiveDataPacket");
+	CWLog("THREAD CWWTPReceiveDataPacket exit");
 	
-		CWNetworkCloseSocket(sockDTLS);
-
+	CWNetworkCloseSocket(sockDTLS);
 
 	return NULL;
 }
@@ -264,7 +262,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);
 	CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
 	tmpAdd->sin_port = htons(5247);
-	CWLog("+++ Start DTLS Data Session with AC %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+	CWLog("Start DTLS Data Session with AC %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
 
 	if(!CWErr(CWSecurityInitSessionClient(gWTPDataSocket,
 					      gACAddressDataChannel,
@@ -336,7 +334,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					unsigned short int elemType = 0;
 					unsigned short int elemLen = 0;
 
-					CWLog("[KeepAlive from AC, %d byte]",msgPtr.offset);
+					CWLog("[KeepAlive] Received");
 					msgPtr.offset=0;	
 					CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
 					valPtr = CWParseSessionID(&msgPtr, 16);
@@ -351,7 +349,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					}
 				}else if (msgPtr.data_msgType == CW_IEEE_802_3_FRAME_TYPE) {
 
-					CWDebugLog("Got 802.3 len:%d from AC",msgPtr.offset);
+					CWDebugLog("DATA Frame 802.3 (%d bytes) received from AC",msgPtr.offset);
 					
 					/*MAC - begin*/
 					rawSockaddr.sll_addr[0]  = msgPtr.msg[0];		
@@ -549,7 +547,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
                     }
 #endif
 				}else{
-					
 					CWLog("Unknow Data Msg Type");
 				}
 				CW_FREE_PROTOCOL_MESSAGE(msgPtr);
@@ -567,7 +564,7 @@ CLEAR_DATA_RUN_STATE:
 	gWTPThreadDataPacketState = 2;
 	CWThreadMutexUnlock(&gInterfaceMutex);
 	
-	CWLog("THREAD Data Management terminated");
+	CWLog("THREAD Data Management exit");
 	
 	return NULL;
 }
@@ -633,13 +630,13 @@ CWStateTransition CWWTPEnterRun() {
 			
 		if(gWTPDataChannelLocalFlag == CW_TRUE)
 		{
-			CWLog("*** Data Channel is dead... restart Discovery State\n");
+			CWLog("Data Channel is dead... restart Discovery State\n");
 			break;
 		}
 		
 		if(gWTPExitRunEchoLocal == CW_TRUE)
 		{
-			CWLog("*** Max Num Retransmit Echo Request reached. We consider peer dead..\n");
+			CWLog("Max Num Retransmit Echo Request reached. We consider peer dead..\n");
 			break;
 		}
 			
