@@ -242,12 +242,12 @@ CWBool CWSecurityInitSessionClient(CWSocket 		sock,
 	SSL_set_bio((*sessionPtr), sbio, sbio);
 	SSL_set_connect_state((*sessionPtr));
 	
-	CWDebugLog("Before HS");
+	CWDebugLog("Making Handshake...");
 	CWSecurityManageSSLError(SSL_do_handshake(*sessionPtr),
 				 *sessionPtr,
 				 SSL_free(*sessionPtr););
-	CWDebugLog("After HS");
-	
+	CWDebugLog("SSL Handshake OK!");
+
 	if (SSL_get_verify_result(*sessionPtr) == X509_V_OK) {
 
 		CWDebugLog("Certificate Verified");

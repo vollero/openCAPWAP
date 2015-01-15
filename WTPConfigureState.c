@@ -129,7 +129,6 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	int indexWTPRadioInfo=0, indexRates=0;;
 	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
 	{
-		CWLog("radioID: %d", gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID);
 		if(
 		!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), 
 											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
@@ -347,21 +346,19 @@ CWBool CWSaveConfigureResponseMessage(CWProtocolConfigureResponseValues *configu
 	if(gACInfoPtr == NULL) return CWErrorRaise(CW_ERROR_NEED_RESOURCE, NULL);
 	
 	CWDebugLog("Saving Configure Response...");
-	CWDebugLog("###A");
-	CWDebugLog("###Count:%d", (configureResponse->ACIPv4ListInfo).ACIPv4ListCount);
+/*
+ 	CWDebugLog("###Count:%d", (configureResponse->ACIPv4ListInfo).ACIPv4ListCount);
 	if((gACInfoPtr->ACIPv4ListInfo).ACIPv4List==NULL) {
 		
 		CWDebugLog("###NULL");
 	}
-
+*/
 	if((configureResponse->ACIPv4ListInfo).ACIPv4ListCount > 0) {
 
 		CW_FREE_OBJECT((gACInfoPtr->ACIPv4ListInfo).ACIPv4List);
 		(gACInfoPtr->ACIPv4ListInfo).ACIPv4ListCount = (configureResponse->ACIPv4ListInfo).ACIPv4ListCount;
 		(gACInfoPtr->ACIPv4ListInfo).ACIPv4List = (configureResponse->ACIPv4ListInfo).ACIPv4List;
 	}
-	
-	CWDebugLog("###B");
 	
 	if((configureResponse->ACIPv6ListInfo).ACIPv6ListCount > 0) {
 

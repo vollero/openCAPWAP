@@ -324,7 +324,7 @@ CWBool CWParseJoinRequestMessage(char *msg,
 		
 		CWParseFormatMsgElem(&completeMsg,&elemType,&elemLen);
 		
-		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
+//		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
 									
 		switch(elemType) {
 			case CW_MSG_ELEMENT_LOCATION_DATA_CW_TYPE:

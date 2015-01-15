@@ -52,19 +52,18 @@ CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 		
 		CWParseFormatMsgElem(&completeMsg,&elemType,&elemLen);		
 
-		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
+//		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
 									
 		switch(elemType) {
 			case CW_MSG_ELEMENT_RESULT_CODE_CW_TYPE:
 				if(!(CWParseResultCode(&completeMsg, elemLen, &(resultCode))))
 					return CW_FALSE;
 				if(resultCode != CW_PROTOCOL_SUCCESS)
-						CWLog("IEEE WLAN Error");
+						CWLog("ERROR IEEE 802.11 Configuration");
 					else
-						CWLog("IEEE WLAN OK");
+						CWLog("OK IEEE 802.11 Configuration");
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE:
-				CWLog("CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE");
 				CW_CREATE_ARRAY_CALLOC_ERR(bssIDTmp, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 				if(!(CWParseACAssignedWTPBSSID(WTPIndex, &completeMsg, elemLen, &radioIDtmp, &wlanIDtmp, &(bssIDTmp))))
 					return CW_FALSE;
@@ -129,8 +128,6 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 	int radioIndex = CWIEEEBindingGetIndexFromDevID(radioID);					
 	int wlanIndex = CWIEEEBindingGetIndexFromDevID(wlanID);
 	
-	
-	CWDebugLog("Assembling Configuration Response with operation %d, WTPIndex: %d, radioID: %d, wlanID: %d", operation, WTPIndex, radioID, wlanID);
 	CW_CREATE_PROTOCOL_MSG_ARRAY_ERR(msgElems, MsgElemCount, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	//Add WLAN
@@ -173,7 +170,6 @@ CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
 		}
 	}
 	
-	CWLog("Now assembling...");
 	if(!(CWAssembleMessage(messagesPtr,
 			       fragmentsNumPtr,
 			       PMTU,

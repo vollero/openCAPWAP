@@ -379,7 +379,7 @@ CWBool CWParseJoinResponseMessage(char *msg,
 		
 		CWParseFormatMsgElem(&completeMsg,&type,&len);		
 
-		CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
+	//	CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
 		/*
 		valuesPtr->ACInfoPtr.IPv4AddressesCount = 0;
 		valuesPtr->ACInfoPtr.IPv6AddressesCount = 0;

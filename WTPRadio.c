@@ -21,15 +21,12 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	
 	//Inizializza la variabile globale che conterrà tutte le bss presenti da questo WTP
 	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList, (WTP_MAX_INTERFACES*gRadiosInfo.radioCount), WTPBSSInfo *, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	
-	CWLog("(WTP_MAX_INTERFACES*gRadiosInfo.radioCount): %d", (WTP_MAX_INTERFACES*gRadiosInfo.radioCount));
-
 	CWCreateThreadMutex(&(mutexAvlTree));
 	
 	err = nl80211_init_socket(&(globalNLSock));
 	if(err != 0)
 	{
-		CWLog("[NL80211]: Error nl80211_init_socket: %d", err);
+		CWLog("[NL80211 ERROR] nl80211_init_socket: %d", err);
 		return CWErrorRaise(CW_ERROR_GENERAL, NULL);
 	}
 	
@@ -115,13 +112,13 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		{
 			if(!CWWTPCreateNewWlanInterface(indexPhy,  indexWlan))
 			{
-				CWLog("NL80211: Error creating new interface. RadioID: %d, WLAN ID: %d", gPhyInterfaceIndex[indexPhy], indexWlan);
+				CWLog("[NL80211 ERROR] creating new interface. RadioID: %d, WLAN ID: %d", gPhyInterfaceIndex[indexPhy], indexWlan);
 				return CW_FALSE;
 			}	
 			
 			if(!CWWTPCreateNewBSS(indexPhy, indexWlan))
 			{
-				CWLog("NL80211: Error creating new bss. radioIndex: %d, wlanIndex: %d", gPhyInterfaceIndex[indexPhy], indexWlan);
+				CWLog("[NL80211 ERROR] creating new bss. radioIndex: %d, wlanIndex: %d", gPhyInterfaceIndex[indexPhy], indexWlan);
 				return CW_FALSE;
 			}			
 		}
@@ -150,7 +147,6 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 		CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName, 9, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		snprintf(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface.ifName, 9, "monitor0");	
 		
-		CWLog("CW_NATIVE_BRIDGING");
 		if(!nl80211CmdSetNewMonitorInterface(gPhyInterfaceIndex[0], &(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.monitorInterface)))
 			return CW_FALSE;
 		
@@ -169,7 +165,6 @@ CWBool CWWTPCreateNewWlanInterface(int radioIndex, int wlanIndex)//WTPInterfaceI
 	CW_CREATE_ARRAY_CALLOC_ERR(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	snprintf(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName, (WTP_NAME_WLAN_PREFIX_LEN+WTP_NAME_WLAN_SUFFIX_LEN+1), "%s%d%d", WTP_NAME_WLAN_PREFIX, gPhyInterfaceIndex[radioIndex], wlanIndex);
 	
-	CWLog("radioIndex: %d, wlanIndex: %d name: %s", gPhyInterfaceIndex[radioIndex], wlanIndex, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
 	if(!nl80211CmdSetNewInterface(radioIndex, &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex])))
 		return CW_FALSE;
 	   
@@ -199,22 +194,21 @@ CWBool CWWTPCreateNewBSS(int radioIndex, int wlanIndex)
 
 	if(nl80211_init_socket(&(WTPGlobalBSSList[BSSId]->BSSNLSock)))
 	{
-		CWLog("[NL80211]: Error nl80211_init_socket");
+		CWLog("[NL80211 ERROR] nl80211_init_socket");
 		return CWErrorRaise(CW_ERROR_GENERAL, NULL);
 	}
 	
 	if(netlink_create_socket(&(WTPGlobalBSSList[BSSId]->BSSNLSock)))
 	{
-		CWLog("[NL80211]: Error netlink_create_socket");
+		CWLog("[NL80211 ERROR] netlink_create_socket");
 		return CWErrorRaise(CW_ERROR_GENERAL, NULL);
 	}
 	
 	WTPGlobalBSSList[BSSId]->phyInfo = &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo);
 	WTPGlobalBSSList[BSSId]->interfaceInfo = &(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex]);
-	
 	WTPGlobalBSSList[BSSId]->active = CW_FALSE;
-	
 	WTPGlobalBSSList[BSSId]->numSTAActive = 0;
+	
 	CW_CREATE_ARRAY_CALLOC_ERR(WTPGlobalBSSList[BSSId]->staList, WTP_MAX_STA, WTPSTAInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
 	{
@@ -279,7 +273,6 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 		return CW_FALSE;
 
 	int tmpIndexif = if_nametoindex(interfaceInfo->ifName);
-	CWLog("Attivo interfaccia %d name %s", tmpIndexif, interfaceInfo->ifName);
 	if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, IF_OPER_UP))
 		return CW_FALSE;
 			
@@ -294,14 +287,13 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	 */
 	//Setta nuova BSS
 	int BSSId = getBSSIndex(radioIndex, wlanIndex);
-	CWLog("radio %d wlan %d bss %d", radioIndex, wlanIndex, BSSId);
 	WTPGlobalBSSList[BSSId]->active = CW_TRUE;
 	
 	//Register mgmt functions
 	if(CW80211SetAPTypeFrame(interfaceInfo, WTPGlobalBSSList[BSSId]) < 0)
 		return CW_FALSE;
 	
-	CWLog("CW80211SetAPTypeFrame ok");
+	CWLog("AP created on interface on interface %s", interfaceInfo->ifName);
 	
 	if(!CWErr(CWCreateThread(&(WTPGlobalBSSList[BSSId]->threadBSS), CWWTPBSSManagement, WTPGlobalBSSList[BSSId]))) {
 		CWLog("Error starting Thread that receive binding frame");
@@ -324,7 +316,7 @@ CWBool CWWTPDeleteWLANAPInterface(int radioIndex, int wlanIndex)
 		return CW_FALSE;
 	*/
 	
-	CWLog("Dentro CWWTPDeleteWLANAPInterface. interface: %s", gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
+	CWLog("Try to delete AP interface: %s", gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName);
 
 	if(!nl80211CmdStopAP(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].ifName))
 		return CW_FALSE;
@@ -344,7 +336,7 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 	
 	if(WTPGlobalBSSList[BSSIndex]->staList[STAIndex].address == NULL)
 	{
-		CWLog("[80211] This STA is no more in BSS. Probably it has send a Deauth/Disassoc frame");
+		CWLog("[CW80211] This STA is no more in BSS. Probably it has send a Deauth/Disassoc frame");
 		return CW_FALSE;
 	}
 	
@@ -361,10 +353,7 @@ CWBool CWWTPAddNewStation(int BSSIndex, int STAIndex)
 			avlTree = tmpRoot;
 		CWThreadMutexUnlock(&mutexAvlTree);
 		if(tmpRoot == NULL)
-		{
-			CWLog("NON aggiunto nell'AVL");
 			return CW_FALSE;
-		}
 		//----
 	}
 	else
@@ -386,7 +375,7 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 		
 	if(!nl80211CmdDelStation(BSSInfo, staInfo->address))
 	{
-		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		CWPrintEthernetAddress(staInfo->address, "[CW80211] Cannot delete STA from mac80211 ->");
 		return CW_FALSE;
 	}
 	
@@ -394,24 +383,18 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	
 	//---- Delete AVL node
 	CWThreadMutexLock(&mutexAvlTree);
-//	heightAVL = AVLheight(avlTree);
 	avlTree = AVLdeleteNode(avlTree, staInfo->address, BSSInfo->phyInfo->radioID);
 	CWThreadMutexUnlock(&mutexAvlTree);
-	/*if(
-		tmpRoot != NULL && heightAVL > 1 ||
-		tmpRoot == NULL && heightAVL == 1
-	 )
-		avlTree = tmpRoot;
-	*/
 	//----
 
 	if(!delSTABySA(BSSInfo, staInfo->address))
 	{
-		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		CWPrintEthernetAddress(staInfo->address, "[CW80211] Cannot delete STA from memory structure ->");
 		return CW_FALSE;
 	}
 	
-	CWLog("STA eliminata da WTP");
+	CWPrintEthernetAddress(staInfo->address, "STA deleted ->");
+	
 	return CW_TRUE;
 }
 
@@ -427,13 +410,14 @@ CWBool CWWTPDeauthStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	
 	if(!delSTABySA(BSSInfo, staInfo->address))
 	{
-		CWLog("[CW80211] Problem deleting STA %02x:%02x:%02x:%02x:%02x:%02x", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		CWPrintEthernetAddress(staInfo->address, "[CW80211] Cannot delete STA from memory structure ->");
 		return CW_FALSE;
 	}
 	
 	staInfo->state = CW_80211_STA_OFF;
 	
-	CWLog("STA eliminata da WTP");
+	CWPrintEthernetAddress(staInfo->address, "[CW80211] STA deauthenticated and deleted ->");;
+
 	return CW_TRUE;
 }
 
@@ -447,7 +431,7 @@ CWBool CWWTPDisassociateStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 		
 	if(!nl80211CmdDelStation(BSSInfo, staInfo->address))
 	{
-		CWLog("[CW80211] Problem deleting STA:%02x:%02x:%02x:%02x:%02x:%02x mac80211", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+		CWPrintEthernetAddress(staInfo->address, "[CW80211] Cannot delete STA from mac80211 ->");
 		return CW_FALSE;
 	}
 	
@@ -461,6 +445,7 @@ CWBool CWWTPDisassociateStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 
 	staInfo->radioAdd = CW_80211_STA_AUTH;
 	
-	CWLog("[CW80211] STA %02x:%02x:%02x:%02x:%02x:%02x is disassociated. It's in Authenticate state", (int) staInfo->address[0], (int) staInfo->address[1], (int) staInfo->address[2], (int) staInfo->address[3], (int) staInfo->address[4], (int) staInfo->address[5]);
+	CWPrintEthernetAddress(staInfo->address, "[CW80211] STA disassociated. Now it's in auth state ->");
+	
 	return CW_TRUE;
 }

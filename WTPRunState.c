@@ -334,7 +334,6 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 					unsigned short int elemType = 0;
 					unsigned short int elemLen = 0;
 
-					CWLog("[KeepAlive] Received");
 					msgPtr.offset=0;	
 					CWParseFormatMsgElem(&msgPtr, &elemType, &elemLen);
 					valPtr = CWParseSessionID(&msgPtr, 16);
@@ -1451,7 +1450,7 @@ CWBool CWStartEchoRequestTimer() {
 	
 	if (gCWEchoRequestTimerID == -1)	return CW_FALSE;
 
-	CWDebugLog("Echo Request Timer Started");
+//	CWDebugLog("Echo Request Timer Started");
 	gEchoTimerSet=CW_TRUE;
 
 	return CW_TRUE;
@@ -1463,7 +1462,7 @@ CWBool CWStopEchoRequestsTimer(){
  	timer_rem(gCWEchoRequestTimerID, NULL);
  	gEchoTimerSet=CW_FALSE;
  	
-	CWDebugLog("Echo Heartbeat Timer Stopped");
+//	CWDebugLog("Echo Heartbeat Timer Stopped");
 	return CW_TRUE;
 }
 
@@ -1492,7 +1491,7 @@ CWBool CWStartKeepAliveTimer() {
 	
 	if (gCWKeepAliveTimerID == -1)	return CW_FALSE;
 
-	CWDebugLog("Keepalive Heartbeat Timer Started");
+//	CWDebugLog("Keepalive Heartbeat Timer Started");
 	
 	return CW_TRUE;
 }
@@ -1500,7 +1499,7 @@ CWBool CWStartKeepAliveTimer() {
 CWBool CWStopKeepAliveTimer() {
 	
 	timer_rem(gCWKeepAliveTimerID, NULL);
-	CWDebugLog("KeepAlive Timer Stopped");
+//	CWDebugLog("KeepAlive Timer Stopped");
 	return CW_TRUE;
 }
 
@@ -1514,7 +1513,7 @@ CWBool CWStartDataChannelDeadTimer() {
 	if (gCWDataChannelDeadTimerID == -1)	return CW_FALSE;
 
 	gDataChannelDeadTimerSet = CW_TRUE;
-	CWDebugLog("DataChannel Dead Timer Started");
+//	CWDebugLog("DataChannel Dead Timer Started");
 
 	return CW_TRUE;
 }
@@ -1522,7 +1521,7 @@ CWBool CWStartDataChannelDeadTimer() {
 CWBool CWStopDataChannelDeadTimer() {
 	
 	timer_rem(gCWDataChannelDeadTimerID, NULL);
-	CWDebugLog("DataChannel Dead Timer Stopped");
+//	CWDebugLog("DataChannel Dead Timer Stopped");
 	gDataChannelDeadTimerSet = CW_FALSE;
 	return CW_TRUE;
 }
@@ -1551,9 +1550,7 @@ CWBool CWAssembleEchoRequest (CWProtocolMessage **messagesPtr,
 	
 	if(messagesPtr == NULL || fragmentsNumPtr == NULL)
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	
-	CWLog("Assembling Echo Request...");
-		
+			
 	if(!(CWAssembleMessage(messagesPtr,
 			       fragmentsNumPtr,
 			       PMTU,
@@ -1570,9 +1567,7 @@ CWBool CWAssembleEchoRequest (CWProtocolMessage **messagesPtr,
 #endif
 			       ))) 
 		return CW_FALSE;
-	
-	CWLog("Echo Request Assembled");
-	
+		
 	return CW_TRUE;
 }
 
@@ -2036,8 +2031,7 @@ CWBool CWParseConfigurationUpdateRequest (char *msg,
 
 		GlobalElementType = elemType;
 
-		/* CWDebugLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen); */
-		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
+//		CWLog("Parsing Message Element: %u, elemLen: %u", elemType, elemLen);
 
 		if(CWBindingCheckType(elemType)) {
 
@@ -2054,8 +2048,7 @@ CWBool CWParseConfigurationUpdateRequest (char *msg,
 				completeMsg.offset += elemLen;
 				break;
 			default:
-				return CWErrorRaise(CW_ERROR_INVALID_FORMAT,
-						    "Unrecognized Message Element");
+				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element");
 		}
 	}
 
@@ -2068,21 +2061,16 @@ CWBool CWParseConfigurationUpdateRequest (char *msg,
 		/* For the knownledge of SaveConfiguration */
 	  	*updateRequestType = GlobalElementType;
 
-		if (!(CWParseVendorMessage(msg, len, &(valuesPtr->protocolValues)))) {
-
+		if (!(CWParseVendorMessage(msg, len, &(valuesPtr->protocolValues))))
 			return CW_FALSE;
-		}
 	}
 	
 	if (bindingMsgElemFound) {
 	  /* For the knownledge of SaveConfiguration */
 	  *updateRequestType = GlobalElementType;
 
-		if (!(CWBindingParseConfigurationUpdateRequest(msg, len, &(valuesPtr->bindingValues)))) {
-
-
+		if (!(CWBindingParseConfigurationUpdateRequest(msg, len, &(valuesPtr->bindingValues))))
 			return CW_FALSE;
-		}
 	}
 
 	CWLog("Configure Update Request Parsed");
@@ -2169,14 +2157,8 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 	
 	int trovato=0;
 	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
-		
-	CWLog("Search address %02x:%02x:%02x:%02x:%02x:%02x", 
-	(int)address[0],
-	(int)address[1],
-	(int)address[2],
-	(int)address[3],
-	(int)address[4],
-	(int)address[5]);
+	
+	CWPrintEthernetAddress(address, "Searching for STA ->");
 	
 	for((*STAIndex)=0; (*STAIndex) < WTP_MAX_STA; (*STAIndex)++)
 	{

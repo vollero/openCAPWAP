@@ -173,11 +173,9 @@ CWBool CWParseIEEEConfigurationRequestMessage (char *msg,
 
 		switch(type) {
 			case CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE:
-			CWLog("CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE");
 				if(!(CWParseACAddWlan(&completeMsg, len, interfaceInfo))) return CW_FALSE;
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE:
-				CWLog("CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE");
 				if(!(CWParseACDelWlan(&completeMsg, len, interfaceInfo))) return CW_FALSE;
 				break;
 			case CW_MSG_ELEMENT_IEEE80211_UPDATE_WLAN_CW_TYPE:

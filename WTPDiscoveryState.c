@@ -513,7 +513,7 @@ CWBool CWParseDiscoveryResponseMessage(char *msg,
 		unsigned short int len=0;	/* = CWProtocolRetrieve16(&completeMsg); */
 		
 		CWParseFormatMsgElem(&completeMsg,&type,&len);
-		CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
+	//	CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
 		
 		switch(type) {
 			case CW_MSG_ELEMENT_AC_DESCRIPTOR_CW_TYPE:

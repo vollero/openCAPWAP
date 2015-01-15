@@ -92,12 +92,9 @@ CWBool CWWTPInitBinding(int radioIndex)
 	int ret;
 	
 	
-	
 	/*** Inizializzazione struttura iwreq ***/
 	memset(&wrq, 0, sizeof(wrq));
 	strncpy(wrq.ifr_name, gInterfaceName, IFNAMSIZ);
-
-	CWLog("wrq.ifr_name %s ",wrq.ifr_name);
 
 	CW_CREATE_OBJECT_ERR(aux, bindingValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
@@ -586,7 +583,7 @@ CWBool CWBindingParseConfigureResponse (char *msg, int len, void **valuesPtr){
 		
 		CWParseFormatMsgElem(&completeMsg,&elemType,&elemLen);		
 
-		CWDebugLog("Parsing Message Element: %d, elemLen: %d", elemType, elemLen);
+//		CWDebugLog("Parsing Message Element: %d, elemLen: %d", elemType, elemLen);
 
 		switch(elemType) {
 			case BINDING_MSG_ELEMENT_TYPE_WTP_QOS:

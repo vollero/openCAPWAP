@@ -299,7 +299,7 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 	
 	while(gWTPRetransmissionCount < gCWMaxRetransmit) 
 	{
-		CWLog("Transmission Num:%d", gWTPRetransmissionCount);
+//		CWLog("Transmission Num:%d", gWTPRetransmissionCount);
 		for(i = 0; i < fragmentsNum; i++) 
 		{
 #ifdef CW_NO_DTLS
@@ -451,7 +451,7 @@ CWBool CWWTPRequestPacketRetransmissionCustomTimeInterval(int retransmissionTime
 	
 	while(gWTPRetransmissionCount < gCWMaxRetransmit) 
 	{
-		CWDebugLog("Transmission Num:%d", gWTPRetransmissionCount);
+//		CWDebugLog("Transmission Num:%d", gWTPRetransmissionCount);
 		for(i = 0; i < fragmentsNum; i++) 
 		{
 #ifdef CW_NO_DTLS
@@ -830,7 +830,7 @@ void CWWTPDestroy() {
 }
 
 CWBool CWWTPInitConfiguration() {
-	CWDebugLog("CWWTPInitConfiguration"); 
+	CWDebugLog("Start WTP configuration"); 
 	int i, err;
 
 	//Generate 128-bit Session ID,

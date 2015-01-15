@@ -133,12 +133,12 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 	
 	if(tb_msg[NL80211_ATTR_WIPHY])
 	{
-		CWLog("[NL80211] PHY index: %d\n", nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]));
+		CWLog("[NL80211 INFO] PHY index: %d\n", nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]));
 		singlePhyInfo->realRadioID=nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]);
 	}
 	if(tb_msg[NL80211_ATTR_WIPHY_NAME])
 	{
-		CWLog("[NL80211] PHY name: %s\n", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]));
+		CWLog("[NL80211 INFO] PHY name: %s\n", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]));
 		CW_CREATE_STRING_FROM_STRING_ERR(singlePhyInfo->phyName, nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	/*
@@ -168,39 +168,36 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 		int flags = nla_get_u32(tb_msg[NL80211_ATTR_FEATURE_FLAGS]);
 
 	if (flags & NL80211_FEATURE_SK_TX_STATUS)
-		CWLog("NL80211_FEATURE_SK_TX_STATUS");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_SK_TX_STATUS");
 		
 	if (flags & NL80211_FEATURE_INACTIVITY_TIMER)
-		CWLog("NL80211_FEATURE_INACTIVITY_TIMER");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_INACTIVITY_TIMER");
 
 	if (flags & NL80211_FEATURE_SAE)
-		CWLog("NL80211_FEATURE_SAE");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_SAE");
 
 	if (flags & NL80211_FEATURE_NEED_OBSS_SCAN)
-		CWLog("NL80211_FEATURE_NEED_OBSS_SCAN");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_NEED_OBSS_SCAN");
 
 	if (flags & NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE)
-		CWLog("NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE");
 		
 	if (flags & NL80211_FEATURE_LOW_PRIORITY_SCAN)
-		CWLog("NL80211_FEATURE_LOW_PRIORITY_SCAN");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_LOW_PRIORITY_SCAN");
 	
 	if (flags & NL80211_FEATURE_AP_SCAN)
-		CWLog("NL80211_FEATURE_AP_SCAN");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_AP_SCAN");
 			
 	if (flags & NL80211_FEATURE_ACTIVE_MONITOR)
-		CWLog("NL80211_FEATURE_ACTIVE_MONITOR");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_ACTIVE_MONITOR");
 	
 	if (flags & NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE)
-		CWLog("NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE");
 	
 	if (flags & NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES)
-		CWLog("NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES");
+		CWLog("[NL80211 INFO] NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES");
 	}
 
-
-	
-	
 	//Default values
 	singlePhyInfo->txMSDU = WTP_NL80211_DEFAULT_MSDU;
 	singlePhyInfo->rxMSDU = WTP_NL80211_DEFAULT_MSDU;
@@ -211,7 +208,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 
 		singlePhyInfo->fragmentationTreshold = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_FRAG_THRESHOLD]);
 		if (singlePhyInfo->fragmentationTreshold != (unsigned int)-1)
-			CWLog("\tFragmentation threshold: %d\n", singlePhyInfo->fragmentationTreshold);
+			CWLog("[NL80211 INFO] Fragmentation threshold: %d", singlePhyInfo->fragmentationTreshold);
 	}
 	
 	//FRTS Threshold
@@ -220,7 +217,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 
 		singlePhyInfo->rtsThreshold = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_RTS_THRESHOLD]);
 		if (singlePhyInfo->rtsThreshold != (unsigned int)-1)
-			CWLog("\tRTS threshold: %d\n", singlePhyInfo->rtsThreshold);
+			CWLog("[NL80211 INFO] RTS threshold: %d", singlePhyInfo->rtsThreshold);
 	}
 
 	singlePhyInfo->shortRetry=0;
@@ -233,8 +230,8 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 			singlePhyInfo->shortRetry = nla_get_u8(tb_msg[NL80211_ATTR_WIPHY_RETRY_SHORT]);
 		if (tb_msg[NL80211_ATTR_WIPHY_RETRY_LONG])
 			singlePhyInfo->longRetry = nla_get_u8(tb_msg[NL80211_ATTR_WIPHY_RETRY_LONG]);
-			CWLog("\tRetry short limit: %d\n", singlePhyInfo->shortRetry);
-			CWLog("\tRetry long limit: %d\n", singlePhyInfo->longRetry);
+			CWLog("[NL80211 INFO] Retry short limit: %d", singlePhyInfo->shortRetry);
+			CWLog("[NL80211 INFO] Retry long limit: %d", singlePhyInfo->longRetry);
 	}
 	
 	/* needed for split dump */
@@ -245,7 +242,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 			
 			if (tb_band[NL80211_BAND_ATTR_FREQS]) {
 				if (!band_had_freq) {
-					CWLog("[NL80211] Frequencies:\n");
+					CWLog("[NL80211 INFO] Frequencies:\n");
 					band_had_freq = true;
 				}
 				
@@ -258,10 +255,10 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 						continue;
 				
 					freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
-					CWLog("\t\t\t* %d MHz [%d]", freq, ieee80211_frequency_to_channel(freq));
+					CWLog("\t* %d MHz [%d]", freq, ieee80211_frequency_to_channel(freq));
 					
 					if (tb_freq[NL80211_FREQUENCY_ATTR_MAX_TX_POWER] && !tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
-						CWLog(" (%.1f dBm)", 0.01 * nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_MAX_TX_POWER]));
+						CWLog("\t\t(%.1f dBm)", 0.01 * nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_MAX_TX_POWER]));
 						
 					singlePhyInfo->phyFrequencyInfo.frequencyList[indexFreq].frequency = freq;
 					singlePhyInfo->phyFrequencyInfo.frequencyList[indexFreq].channel = ieee80211_frequency_to_channel(freq);
@@ -294,18 +291,16 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 
 				if (tb_band[NL80211_BAND_ATTR_RATES]) {
 					
-					CWLog("\t\tBitrates (non-HT):\n");
+					CWLog("[NL80211 INFO] Bitrates (non-HT):\n");
 				
 					nla_for_each_nested(nl_rate, tb_band[NL80211_BAND_ATTR_RATES], rem_rate) {
 						nla_parse(tb_rate, NL80211_BITRATE_ATTR_MAX, nla_data(nl_rate), nla_len(nl_rate), rate_policy);
 						if (!tb_rate[NL80211_BITRATE_ATTR_RATE])
 							continue;
-						CWLog("\t\t\t* %2.1f Mbps", 0.1 * nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
-						CWLog("BITRATE: %d", nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
+						CWLog("\t* %2.1f Mbps", 0.1 * nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
 						if(indexMbps < WTP_NL80211_BITRATE_NUM)
 						{		
 							singlePhyInfo->phyMbpsSet[indexMbps] = (float) (0.1 * nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
-							CWLog("NL80211_BITRATE_ATTR_MAX: %d, singlePhyInfo->phyMbpsSet[%d]: %f", NL80211_BITRATE_ATTR_MAX, indexMbps, singlePhyInfo->phyMbpsSet[indexMbps]);
 							indexMbps++;
 						}
 					}
@@ -334,10 +329,8 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 						break;
 					}
 				}
-				
-				
+								
 				singlePhyInfo->lenSupportedRates = (indexMbps-1);
-				CWLog("LEN SUPPORTED RATES: %d", singlePhyInfo->lenSupportedRates);
 				
 				/* 80211.a/b/g/n */
 				
@@ -436,19 +429,16 @@ int CB_getChannelInterface(struct nl_msg *msg, void *arg)
 
 int CB_cookieHandler(struct nl_msg *msg, void *arg)
 {
-	
-	CWLog("CB_cookieHandler dentro");
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
 	u64 *cookie = arg;
-	
-	CWLog("CB_cookieHandler dentro");
+
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
 		  
 	if (tb[NL80211_ATTR_COOKIE])
 		*cookie = nla_get_u64(tb[NL80211_ATTR_COOKIE]);
 	
-	CWLog("cookie: %d", (*cookie));
+//	CWLog("cookie: %d", (*cookie));
 	
 	return NL_SKIP;
 }
@@ -466,9 +456,7 @@ int CB_setNewInterface(struct nl_msg *msg, void * arg) {
 	{
 		//Real WlanID assigned by mac80211 module
 		interfaceInfo->realWlanID = nla_get_u32(tb_msg[NL80211_ATTR_IFINDEX]);
-		CWLog("[NL80211] IFINDEX : %d\n", interfaceInfo->realWlanID);
 	}
-	
 	
 	//MAC address
 	/*CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->MACaddr, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
@@ -478,15 +466,11 @@ int CB_setNewInterface(struct nl_msg *msg, void * arg) {
 		mac_addr_n2a(interfaceInfo->MACaddr, nla_data(tb_msg[NL80211_ATTR_MAC]));
 		CWLog("MAC ADDR %s\n", mac_addr);
 	}*/
-	
-	CWLog("CB_setNewInterface");
 }
 
 /* OTHERS */
 int CB_startAP(struct nl_msg *msg, void * arg) {
 	void * atr;
-	
-	CWLog("CB_startAP");
 }
 
 int CBget_channel_width(struct nl_msg *msg, void *arg)
@@ -494,7 +478,6 @@ int CBget_channel_width(struct nl_msg *msg, void *arg)
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
 
-CWLog("DENTRO GETCHANNELWIDTH");
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
 		  genlmsg_attrlen(gnlh, 0), NULL);
 

@@ -239,7 +239,6 @@ CWBool CWGetWTPRadiosOperationalState(int radioID, CWRadiosOperationalInfo *valP
 	
 		for (i=0; i<gRadiosInfo.radioCount; i++)
 		{	
-			CWLog("i:%d, gRadiosInfo.radiosInfo[i].radioID: %d", i, gRadiosInfo.radiosInfo[i].radioID);
 			(valPtr->radios)[i].ID = gRadiosInfo.radiosInfo[i].radioID;
 			(valPtr->radios)[i].state = gRadiosInfo.radiosInfo[i].operationalState;
 			(valPtr->radios)[i].cause = gRadiosInfo.radiosInfo[i].operationalCause;

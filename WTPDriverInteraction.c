@@ -52,39 +52,39 @@
 /*--------------------------- Frequency ---------------------------*/
 int set_freq(int sock, struct iwreq wrq, int value)
 {
-	CWLog("Frequensta impostata a: %d", qosStaticFreq);
+	//CWLog("Frequensta impostata a: %d", qosStaticFreq);
 	return 1;
 }
 
 int get_freq(int sock, struct iwreq* wrq)
 {
-	CWLog("Frequensta impostata a: %d", qosStaticFreq);
+	//CWLog("Frequensta impostata a: %d", qosStaticFreq);
 	return 1;
 }
 
 /*--------------------------- Bit rate ---------------------------*/
 int set_bitrate(int sock, struct iwreq wrq, int value)
 {
-      	CWLog("nBit rate impostata a: %d", qosStaticBitRate);
+      	//CWLog("nBit rate impostata a: %d", qosStaticBitRate);
 	return 1;
 }
 
 int get_bitrate(int sock, struct iwreq* wrq)
 {
-	CWLog("nBit rate impostata a: %d", qosStaticBitRate);
+	//CWLog("nBit rate impostata a: %d", qosStaticBitRate);
 	return 1;
 }
 
 /*--------------------------- Fragmentation Threshold ---------------------------*/
 int set_frag(int sock, struct iwreq wrq, int value)
 {
-	CWLog("\nFragmentation threshold impostato a: %d", qosStaticFrag);
+	//CWLog("\nFragmentation threshold impostato a: %d", qosStaticFrag);
 	return 1;
 }
 
 int get_frag(int sock, struct iwreq* wrq)
 {
-	CWLog("Fragmentation threshold: %d", qosStaticFrag);
+	//CWLog("Fragmentation threshold: %d", qosStaticFrag);
       	return 1;
 }
 
@@ -96,13 +96,13 @@ extern int qosStaticAifsn;
 /*--------------------------- Transmit Power ---------------------------*/
 int set_txpower(int sock, struct iwreq wrq, int value)
 {
-	CWLog("Transmit power impostato a: %d", qosStaticTxPower);
+	//CWLog("Transmit power impostato a: %d", qosStaticTxPower);
 	return 1;
 }
 
 int get_txpower(int sock, struct iwreq* wrq)
 {
-	CWLog("Transmit power: %d", qosStaticTxPower);
+	//CWLog("Transmit power: %d", qosStaticTxPower);
 	return 1;
 }
 
@@ -110,39 +110,39 @@ int get_txpower(int sock, struct iwreq* wrq)
 /*--------------------------- CWMIN ---------------------------*/
 int set_cwmin(int sock, struct iwreq wrq, int acclass, int sta, int value)
 {
-	CWLog("nCWMIN impostato a: %d", qosStaticCwMin);
+	//CWLog("nCWMIN impostato a: %d", qosStaticCwMin);
 	return 1;
 }
 
 int get_cwmin(int sock, struct iwreq* wrq, int acclass, int sta)
 {
-	CWLog("nCWMIN a: %d\n", qosStaticCwMin);
+	//CWLog("nCWMIN a: %d\n", qosStaticCwMin);
 	return 1;
 }
 
 /*--------------------------- CWMAX ---------------------------*/
 int set_cwmax(int sock, struct iwreq wrq, int acclass, int sta, int value)
 {
-	CWLog("nCWMAX impostato a: %d", qosStaticCwMax);
+	//CWLog("nCWMAX impostato a: %d", qosStaticCwMax);
 	return 1;
 }
 
 int get_cwmax(int sock, struct iwreq* wrq, int acclass, int sta)
 {
-	CWLog("nCWMAX a: %d", qosStaticCwMax);
+	//CWLog("nCWMAX a: %d", qosStaticCwMax);
 	return 1;
 }
 
 /*--------------------------- AIFS ---------------------------*/
 int set_aifs(int sock, struct iwreq wrq, int acclass, int sta, int value)
 {
-	CWLog("nAIFS impostato a: %d", qosStaticAifs);
+	//CWLog("nAIFS impostato a: %d", qosStaticAifs);
 	return 1;
 }
 
 int get_aifs(int sock, struct iwreq* wrq, int acclass, int sta)
 {
-	CWLog("nAIFS a: %d\n", qosStaticAifs);
+	//CWLog("nAIFS a: %d\n", qosStaticAifs);
 	return 1;
 }
 
