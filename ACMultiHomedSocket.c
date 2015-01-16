@@ -645,7 +645,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 
 		if(WTPIndexFromSta == -1)
 		{
-			CWLog("BROADCAST");
+//			CWLog("BROADCAST");
 			for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
 			{
 				for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
@@ -735,7 +735,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 		else
 		{
-			CWLog("NON BROADCAST. Invio a WTP %d", WTPIndexFromSta);
+//			CWLog("NON BROADCAST. Invio a WTP %d", WTPIndexFromSta);
 			CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
 			CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
 			memcpy(frame->msg, buf80211, readByest80211);

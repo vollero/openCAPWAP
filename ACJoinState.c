@@ -365,7 +365,6 @@ CWBool CWParseJoinRequestMessage(char *msg,
 				if(!(CWParseWTPFrameTunnelMode(&completeMsg, elemLen, &(valuesPtr->frameTunnelMode))))
 					/* will be handled by the caller */
 					return CW_FALSE;
-				CWLog("++++++++++++++++ RICEVUTO FRAME TUNNEL: %d", valuesPtr->frameTunnelMode);
 				break;
 				
 			case CW_MSG_ELEMENT_WTP_MAC_TYPE_CW_TYPE:
@@ -385,7 +384,6 @@ CWBool CWParseJoinRequestMessage(char *msg,
 													&(valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].phyStandardValue)
 													)
 					))return CW_FALSE;
-					CWLog("valuesPtr->tmpPhyInfo.singlePhyInfo[%d].radioID: %d", valuesPtr->tmpPhyInfo.numPhyActive, valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].radioID);
 					valuesPtr->tmpPhyInfo.numPhyActive++;
 				break;
 			/*
@@ -469,8 +467,6 @@ CWBool CWSaveJoinRequestMessage(CWProtocolJoinRequestValues *joinRequest,
         WTPProtocolManager->radiosInfo.radiosInfo[i].operationalCause = OP_NORMAL;
         WTPProtocolManager->radiosInfo.radiosInfo[i].TxQueueLevel = 0;
         WTPProtocolManager->radiosInfo.radiosInfo[i].wirelessLinkFramesPerSec = 0;
-        
-        CWLog("joinRequest->tmpPhyInfo.singlePhyInfo[%d].radioID: %d", i, joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID);
         //Duplicate
         WTPProtocolManager->radiosInfo.radiosInfo[i].radioID = CWIEEEBindingGetIndexFromDevID(joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID);
         WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.radioID = joinRequest->tmpPhyInfo.singlePhyInfo[i].radioID;

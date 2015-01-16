@@ -56,8 +56,6 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 	 */
 	
 	int ret = nl80211_send_recv_cb_input(&(globalNLSock), msg, CB_setNewInterface, interfaceInfo);
-	CWLog("ret: %d", ret);
-
 	if( ret != 0)
 	{
 		CWLog("[NL80211 ERROR] Set new interface error: %d, %s", ret, strerror(-ret));
@@ -70,7 +68,7 @@ CWBool nl80211CmdSetNewInterface(int indexPhy, WTPInterfaceInfo * interfaceInfo)
 	CW_CREATE_ARRAY_CALLOC_ERR(interfaceInfo->MACaddr, MAC_ADDR_LEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	getInterfaceMacAddr(interfaceInfo->ifName, interfaceInfo->MACaddr);
 
-	CWLog("Interface %s created", interfaceInfo->ifName);
+	CWLog("[NL80211 INFO] Interface %s created", interfaceInfo->ifName);
 	return CW_TRUE;
 	
  nla_put_failure:
@@ -534,11 +532,11 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	if( ret != 0)
 	{
-		CWLog("[NL80211 ERROR] Add new STA error: %d, %s", ret, strerror(-ret));
+		CWLog("[NL80211 ERROR] Set new STA error: %d, %s", ret, strerror(-ret));
 		return CW_FALSE;
 	}
 	
-	CWPrintEthernetAddress(staInfo.address, "Set STA info ok ->");
+	CWPrintEthernetAddress(staInfo.address, "Set STA info ok");
 	msg = NULL;
 	
 	return CW_TRUE;
@@ -562,11 +560,11 @@ CWBool nl80211CmdDelStation(WTPBSSInfo * infoBSS, unsigned char * macAddress){
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	if( ret != 0)
 	{
-		CWLog("[NL80211 ERROR] DelSTA error: %d, %s", ret, strerror(-ret));
+		CWLog("[NL80211 ERROR] Del STA error: %d, %s", ret, strerror(-ret));
 		return CW_FALSE;
 	}
 	
-	CWPrintEthernetAddress(macAddress, "Del STA ok ->");
+	CWPrintEthernetAddress(macAddress, "Del STA ok");
 
 	msg = NULL;
 	
@@ -860,7 +858,6 @@ int nl80211_register_spurious_class3(WTPInterfaceInfo * interfaceInfo)
 		goto nla_put_failure;
 	}
 	
-	CWLog("nl80211_register_spurious_class3 ret: %d", ret);
 	ret = 0;
 	
 nla_put_failure:

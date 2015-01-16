@@ -830,7 +830,6 @@ void CWWTPDestroy() {
 }
 
 CWBool CWWTPInitConfiguration() {
-	CWDebugLog("Start WTP configuration"); 
 	int i, err;
 
 	//Generate 128-bit Session ID,

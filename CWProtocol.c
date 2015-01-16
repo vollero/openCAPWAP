@@ -612,7 +612,7 @@ CWBool CWAssembleMessage(CWProtocolMessage **completeMsgPtr, int *fragmentsNumPt
 	transportVal.bindingValuesPtr = NULL;
 		
 	if(*fragmentsNumPtr == 1) {
-		CWDebugLog("1 Fragment");
+		//CWDebugLog("1 Fragment");
 
 		CW_CREATE_OBJECT_ERR(*completeMsgPtr, CWProtocolMessage, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		
@@ -821,8 +821,7 @@ CWBool CWProtocolParseFragment(char *buf, int readBytes, CWList *fragmentsListPt
 		} else {
 			int currentOffset = 0;
 		
-			CWLog("_______________________");
-			CWDebugLog("Received All Fragments");
+			CWLog("WTP Received All Fragments");
 			
 			CW_CREATE_PROTOCOL_MESSAGE(*reassembledMsg, (totalSize), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
@@ -847,9 +846,11 @@ CWBool CWProtocolParseFragment(char *buf, int readBytes, CWList *fragmentsListPt
 				reassembledMsg->data_msgType=msg.data_msgType;
 
 				if( (((CWProtocolFragment*)(el->data))->transportVal.last) == 1) { // last fragment
-					CWDebugLog("Message Reassembled");
+					CWLog("Message Reassembled");
 					
 					CWDeleteList(fragmentsListPtr, CWProtocolDestroyFragment);
+					
+					CWLog("CWDeleteList ok");
 					return CW_TRUE;
 				}
 

@@ -1016,13 +1016,13 @@ CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len, int * radioID, c
 	Length = CWProtocolRetrieve8(msgPtr);
 	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
 	    
-    CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)(*address)[0],
+ /*   CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)(*address)[0],
 														 (unsigned char)(*address)[1],
 														 (unsigned char)(*address)[2],
 														 (unsigned char)(*address)[3],
 														 (unsigned char)(*address)[4],
 														 (unsigned char)(*address)[5]);
-
+*/
 	CWParseMessageElementEnd();  
 }
 
@@ -1041,14 +1041,14 @@ CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char
 	Length = CWProtocolRetrieve8(msgPtr);
 	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
 	
-	    
+	/*    
     CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)(*address)[0],
 														 (unsigned char)(*address)[1],
 														  (unsigned char)(*address)[2],
 														   (unsigned char)(*address)[3],
 														    (unsigned char)(*address)[4],
 														     (unsigned char)(*address)[5]);
-	
+	*/
 	//CWWTPsend_command_to_hostapd_SET_ADDR( tmp_mac,7);												     
 
 	CWParseMessageElementEnd();  
@@ -1070,7 +1070,6 @@ CWBool CWParse80211Station(CWProtocolMessage *msgPtr, int len, int * radioID, sh
 	(*flags) = CWProtocolRetrieve8(msgPtr);
 	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN);
 	(*capability) = CWProtocolRetrieve16(msgPtr);
-	CWLog("TROVATA CAPABILITY: %d, %02x", (*capability), (*capability));
 	(*wlanID) = CWProtocolRetrieve8(msgPtr);
 	
 	(*supportedRatesLen) = len-(1+2+1+ETH_ALEN+2+1);

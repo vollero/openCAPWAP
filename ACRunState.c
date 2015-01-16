@@ -175,7 +175,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 	if(dataFlag){
 		/* We have received a Data Message... now just log this event and do actions by the dataType */
 		
-		CWDebugLog("--> Received a DATA Message: Type: %d", msgPtr->data_msgType);
+	//	CWDebugLog("--> Received a DATA Message: Type: %d", msgPtr->data_msgType);
 
 		if(msgPtr->data_msgType == CW_DATA_MSG_FRAME_TYPE)	{
 
@@ -294,13 +294,13 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CWLog("CW80211: Error parsing data frame");
 					return CW_FALSE;
 				}
-
+/*
 				CWLog("**RICEVUTO DA WTP FRAME**");
 				CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
 				CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
 				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
-
+*/
 				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, &(offsetDataFrame), 0, 1);
 				if(dataHdr == NULL)
 					return CW_FALSE;
@@ -311,14 +311,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				//Broadcast
 				if(checkAddressBroadcast(dataFrame.DA))
 				{
-					CWLog("DA INVIARE BROADCAST");
 					if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
 							return CW_FALSE;
 						
 					write_bytes = write(ACTap_FD, frame8023, frame8023len);
-					CWLog("Scritti su TAP %d bytes", write_bytes);
 					if(write_bytes != frame8023len){
-							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
+							CWPrintEthernetAddress(msgPtr->msg, );
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
 					}
 					
@@ -424,7 +422,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					//Destinatario non associato
 					if(tmpNode == NULL)
 					{
-						CWLog("Destinatario non associato");
+					//	CWLog("Destinatario non associato");
 						if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
 							return CW_FALSE;
 						
@@ -633,6 +631,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					{
 						for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
 						{
+							/*
 							CWLog("Ricerca BSSID %02x:%02x:%02x:%02x:%02x:%02x radio[%d] wlan[%d]", (int)assRequest.BSSID[0],
 							(int)assRequest.BSSID[1],
 							(int)assRequest.BSSID[2],
@@ -651,7 +650,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[4],
 							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[5]
 							);
-							
+							*/
 							
 							if(
 								gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
@@ -922,7 +921,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 										CWLog("AC send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
 									else
 									{	
-										CWLog("AC couldn't send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+										CWLog("AC can't send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
 										CWACStopRetransmission(tmpNodeSta->index);
 									}
 								}
@@ -1365,12 +1364,13 @@ CWBool CWACParseGenericRunMessage(int WTPIndex,
 	if((gWTPs[WTPIndex].responseSeqNum != controlVal->seqNum)) {
 		/* Elena Agostini: gWTPs[WTPIndex].responseType is never set if it is a response
 		 * || (gWTPs[WTPIndex].responseType != controlVal->messageTypeValue)*/
-
+/*
 		CWLog("gWTPs seqNum: %d\n", gWTPs[WTPIndex].responseSeqNum);
 		CWLog("controlVal seqNum: %d\n", controlVal->seqNum);
 		
 		CWLog("gWTPs responseType: %d\n", gWTPs[WTPIndex].responseType);
 		CWLog("controlVal responseType: %d\n", controlVal->messageTypeValue);
+*/
 		CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Seq Num or Msg Type not valid!");
 		return CW_FALSE;
 	}
@@ -2144,7 +2144,7 @@ CWBool CWParseEchoRequestMessage(CWProtocolMessage *msgPtr, int len) {
 	if((msgPtr->offset - offsetTillMessages) != len) 
 		return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
 	
-	CWLog("Echo Request Parsed");
+//	CWLog("Echo Request Parsed");
 	
 	return CW_TRUE;
 }
@@ -2422,7 +2422,7 @@ CWBool CWRestartNeighborDeadTimer(int WTPIndex) {
 	
 	CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
 	
-	CWDebugLog("NeighborDeadTimer restarted");
+//	CWDebugLog("NeighborDeadTimer restarted");
 	return CW_TRUE;
 }
 
@@ -2435,7 +2435,7 @@ CWBool CWRestartNeighborDeadTimerForEcho(int WTPIndex) {
 
 	CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
 	
-	CWDebugLog("NeighborDeadTimer restarted for Echo interval");
+//	CWDebugLog("NeighborDeadTimer restarted for Echo interval");
 	return CW_TRUE;
 }
 
@@ -2473,7 +2473,7 @@ CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
 
 	/* Info Socket Dati */
 	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(address);
-	CWLog("+++ Init DTLS Session Data. %s:%d, socket: %d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
+	CWLog("New DTLS Session Data. %s:%d, socket: %d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
 
 	/* Sessione DTLS Dati */
 	if(!CWErr(CWSecurityInitSessionServerDataChannel(&(gWTPs[i]),	
@@ -2504,7 +2504,7 @@ CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
 			
 			if(countPacketDataList > 0) {
 				// ... li legge cifrati ... 
-				CWLog("+++ Thread DTLS Session Data. %s:%d, socket: %d. Ricevuto pacchetto dati.", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
+	//			CWLog("+++ Thread DTLS Session Data. %s:%d, socket: %d. Ricevuto pacchetto dati.", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
 				if(!CWErr(CWSecurityReceive(gWTPs[i].sessionData,
 											gWTPs[i].buf,
 											CW_BUFFER_SIZE - 1,

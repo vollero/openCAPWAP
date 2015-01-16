@@ -643,7 +643,7 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	if(request == NULL)
 		return NULL;
 		
-	CWLog("Probe response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
+	CWLog("[CW80211] Assemble Probe response per SSID: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
 	(*offset)=0;
 	/* ***************** PROBE RESPONSE FRAME FIXED ******************** */
 	char * frameProbeResponse;
@@ -718,7 +718,7 @@ char * CW80211AssembleAuthResponse(char * addrAP, struct CWFrameAuthRequest *req
 	if(request == NULL)
 		return NULL;
 		
-	CWLog("Auth response");
+	CWLog("[CW80211] Assemble Auth response");
 	(*offset)=0;
 
 	/* ***************** FRAME FIXED ******************** */
@@ -780,7 +780,7 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 	if(request == NULL)
 		return NULL;
 		
-	CWLog("Association response");
+	CWLog("[CW80211] Assemble Association response");
 	
 	(*offset)=0;
 	
@@ -857,7 +857,7 @@ char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAIn
 	if(request == NULL)
 		return NULL;
 		
-	CWLog("Association response");
+	CWLog("[CW80211] Assemble Association response");
 	
 	(*offset)=0;
 	
@@ -929,7 +929,7 @@ char * CW80211AssembleAssociationResponseAC(unsigned char * MACAddr, unsigned ch
 	if(request == NULL || BSSID == NULL || MACAddr == NULL || suppRate == NULL)
 		return NULL;
 		
-	CWLog("Association response AC side");
+	CWLog("[CW80211] Assemble Association response AC side");
 	
 	(*offset)=0;
 	
@@ -973,8 +973,6 @@ char * CW80211AssembleAssociationResponseAC(unsigned char * MACAddr, unsigned ch
 	if(!CW80211AssembleIEAssID(&(frameAssociationResponse[(*offset)]), offset, staAID))
 		return NULL;
 	
-	
-	CWLog("suppRatesLen: %d", suppRatesLen);
 	if(suppRatesLen > 0)
 	{
 		//Supported Rates
@@ -990,7 +988,7 @@ char * CW80211AssembleReassociationResponseAC(unsigned char * MACAddr, unsigned 
 	if(request == NULL || BSSID == NULL || MACAddr == NULL || suppRate == NULL)
 		return NULL;
 		
-	CWLog("Association response AC side");
+	CWLog("[CW80211] Assemble Reassociation response AC side");
 	
 	(*offset)=0;
 	
@@ -1046,7 +1044,7 @@ char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset) {
 	if(DA == NULL)
 		return NULL;
 		
-	CWLog("ACK response per ifname: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
+	CWLog("[CW80211] Assemble ACK response per SSID: %s", WTPBSSInfoPtr->interfaceInfo->ifName);
 	(*offset)=0;
 	/* ***************** PROBE RESPONSE FRAME FIXED ******************** */
 	char * frameACK;

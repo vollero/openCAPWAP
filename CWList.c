@@ -160,12 +160,15 @@ void CWDeleteList(CWList *list , void (*deleteFunc) (void *)) {
 	CWListElement *el = NULL;
 	
 	if (list == NULL || (*list) == NULL || deleteFunc == NULL) return;
-
+	
+	int count=0;
 	do {
+		CWLog("count: %d", count);
 		el = (*list);
 		(*list) = (*list)->next;
 		deleteFunc(el->data);
 		CW_FREE_OBJECT(el);
+	count++;
 	} while((*list) != NULL);
 }
 

@@ -288,7 +288,7 @@ struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr, int
 	 
 				free(temp);
 				
-				CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d] deleted from AVL STA", (int)staAddr[0], (int)staAddr[1], (int)staAddr[2], (int)staAddr[3], (int)staAddr[4], (int)staAddr[5], radioID);
+				CWPrintEthernetAddress(staAddr, "STA deleted from AVL");
 			}
 			else 
 			{
@@ -388,9 +388,11 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
 				else // One child case
 				 *root = *temp; // Copy the contents of the non-empty child
 				
+				CWPrintEthernetAddress(temp->staAddr, "STA deleted from AVL");
+/*
 				CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] WTP[%d] deleted from AVL STA", (int)temp->staAddr[0], (int)temp->staAddr[1], (int)temp->staAddr[2],
 				 (int)temp->staAddr[3], (int)temp->staAddr[4], (int)temp->staAddr[5], temp->index);
-				 
+	*/			 
 				free(temp);
 				
 				temp = NULL;			

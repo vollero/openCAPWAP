@@ -881,20 +881,20 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
 				}
-				CWLog("Station Configuration Request received");
+				CWLog("# _______ Station Configuration Request received _______ #");
 				int typeOp=-1;
 				if(CWParseStationConfigurationRequest((msgPtr->msg)+(msgPtr->offset), len, &BSSIndex, &STAIndex, &typeOp))
 				{
 					if(typeOp == CW_MSG_ELEMENT_ADD_STATION_CW_TYPE)
 					{
-						CWLog("Add Station");
+						CWLog("[CW80211] REQUEST Add Station");
 						if(!CWWTPAddNewStation(BSSIndex, STAIndex))
 							resultCode=CW_PROTOCOL_FAILURE;
 					}
 					
 					if(typeOp == CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE)
 					{
-						CWLog("Del Station");
+						CWLog("[CW80211] REQUEST Delete Station");
 						if(!CWWTPDelStation(WTPGlobalBSSList[BSSIndex], &(WTPGlobalBSSList[BSSIndex]->staList[STAIndex])))
 							resultCode=CW_PROTOCOL_FAILURE;
 					}
@@ -924,7 +924,8 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 					CW_FREE_OBJECT(messages);
 					return CW_FALSE;
 				}
-				CWLog("WLAN Configuration Request received");
+				
+				CWLog("# _______ WLAN Configuration Request received _______ #");
 				
 				if(!(CWParseIEEEConfigurationRequestMessage(msgPtr->msg, len+(msgPtr->offset), controlVal.seqNum, &(interfaceACInfo)))) 
 				{
@@ -2158,7 +2159,7 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 	int trovato=0;
 	(*BSSIndex) = getBSSIndex(radioIndex, wlanIndex);
 	
-	CWPrintEthernetAddress(address, "Searching for STA ->");
+	CWPrintEthernetAddress(address, "Searching for STA");
 	
 	for((*STAIndex)=0; (*STAIndex) < WTP_MAX_STA; (*STAIndex)++)
 	{
