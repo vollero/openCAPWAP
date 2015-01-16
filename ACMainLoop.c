@@ -1155,13 +1155,16 @@ void _CWCloseThread(int i) {
 	
 	CWLog("AVL AC: \n");
 	AVLdisplay_avl(avlTree);
-
+	CWLog("Now delete all STA of WTP %d", i);
 	CWThreadMutexLock(&(mutexAvlTree));
 	tmp=NULL;
 	do {
 		tmp = AVLfindWTPNode(avlTree, i);
 		if(tmp != NULL)
+		{
+			CWPrintEthernetAddress(tmp->staAddr, "There is a STA belonging to WTP");
 			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
+		}
 	}while(tmp != NULL && avlTree != NULL);
 	
 	CWThreadMutexUnlock(&(mutexAvlTree));

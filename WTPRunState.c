@@ -948,7 +948,8 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 					return CW_FALSE;
 				}
 				
-				CWLog("\n# _______ WLAN Configuration Request received _______ #");
+				CWLog("");
+				CWLog("# _______ WLAN Configuration Request received _______ #");
 				
 				if(!(CWParseIEEEConfigurationRequestMessage(msgPtr->msg, len+(msgPtr->offset), controlVal.seqNum, &(interfaceACInfo)))) 
 				{

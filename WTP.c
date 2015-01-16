@@ -190,11 +190,8 @@ CWBool CWReceiveMessage(CWProtocolMessage *msgPtr) {
 }
 
 /*
- * Elena Agostini - 03/2014
- * 
- * PacketDataList + DTLS Data Session WTP
+ * Elena Agostini - 03/2014: PacketDataList + DTLS Data Session WTP
  */
-
 CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 	CWList fragments = NULL;
 	int readBytes;
@@ -218,24 +215,14 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 		pkt_buffer = (char*)CWRemoveHeadElementFromSafeListwithDataFlag(gPacketReceiveDataList, &readBytes,&dataFlag);
 
 		CWUnlockSafeList(gPacketReceiveDataList);
-
-		CW_COPY_MEMORY(buf, pkt_buffer, readBytes);
-		CW_FREE_OBJECT(pkt_buffer);
-	/*	
-	if(!CWErr(CWNetworkReceiveUnsafe(gWTPDataSocket,
-						buf, 
-						CW_BUFFER_SIZE - 1,
-						0,
-						&addr,
-						&readBytes))) {
-
-			if (CWErrorGetLastErrorCode() == CW_ERROR_INTERRUPTED)
-				continue;
-			
-			break;
-	}
-	*/
-	
+		
+		if(pkt_buffer != NULL)
+		{
+			CW_COPY_MEMORY(buf, pkt_buffer, readBytes);
+			CW_FREE_OBJECT(pkt_buffer);
+		}
+		else
+			return CW_FALSE;
 #endif
 
 	if(!CWProtocolParseFragment(buf, readBytes, &fragments, msgPtr, &dataFlag, NULL)) {

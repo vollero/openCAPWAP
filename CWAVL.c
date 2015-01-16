@@ -418,6 +418,7 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
     if (root == NULL)
       return root;
 
+CWLog("root != NULL");
  
     // STEP 2: UPDATE HEIGHT OF THE CURRENT NODE
     root->height = AVLmax(AVLheight(root->left), AVLheight(root->right)) + 1;
