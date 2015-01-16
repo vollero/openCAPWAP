@@ -240,7 +240,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 		/* Clone data packet */
 		CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return NULL; });
 		memcpy(pData, buf, readBytes);
-		//CWLog("pData: %s, readBytes: %d", pData, readBytes);
+		CWLog("Aggiungo readBytes: %d", readBytes);
 		CWLockSafeList(gPacketReceiveDataList);
 		CWAddElementToSafeListTailwitDataFlag(gPacketReceiveDataList, pData, readBytes,CW_TRUE);
 		CWUnlockSafeList(gPacketReceiveDataList);
@@ -348,8 +348,9 @@ manager_data_failure:
 			if(!CWReceiveDataMessage(&msgPtr))
 			{
 				CW_FREE_PROTOCOL_MESSAGE(msgPtr);
-				CWLog("Failure Receiving DTLS Data Channel");
-				break;		
+				CWLog("Failure Receiving Data Message");
+				//break;
+				continue;
 			}
 
 			if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {

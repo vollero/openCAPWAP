@@ -197,6 +197,7 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 	int readBytes;
 	char buf[CW_BUFFER_SIZE];
 	CWBool dataFlag = CW_TRUE;
+	char *pkt_buffer = NULL;
 	
 	CW_REPEAT_FOREVER {
 		CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
@@ -204,14 +205,14 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 #ifdef CW_DTLS_DATA_CHANNEL
 	if(!CWSecurityReceive(gWTPSessionData, buf, CW_BUFFER_SIZE, &readBytes)) {return CW_FALSE;}
 #else
-		char *pkt_buffer = NULL;
+		
 		CWLockSafeList(gPacketReceiveDataList);
 		while (CWGetCountElementFromSafeList(gPacketReceiveDataList) == 0)
 		{
 		//		CWLog("Ancora niente..");
 			CWWaitElementFromSafeList(gPacketReceiveDataList);
 		}
-
+		pkt_buffer = NULL;
 		pkt_buffer = (char*)CWRemoveHeadElementFromSafeListwithDataFlag(gPacketReceiveDataList, &readBytes,&dataFlag);
 
 		CWUnlockSafeList(gPacketReceiveDataList);
@@ -222,7 +223,7 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 			CW_FREE_OBJECT(pkt_buffer);
 		}
 		else
-			return CW_FALSE;
+			CWLog("pkt_buffer == NULL");
 #endif
 
 	if(!CWProtocolParseFragment(buf, readBytes, &fragments, msgPtr, &dataFlag, NULL)) {
