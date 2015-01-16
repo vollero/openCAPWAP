@@ -66,7 +66,7 @@ void CWACSetNewGenericHandshakeDataThread(genericHandshakeThreadPtr * genericThr
 	if(addrPtr == NULL) return;
 
 	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) addrPtr;
-	CWLog("++++ Nuovo thread generico per WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+	CWLog("[DTLS] New generic thread for WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
 	
 	CW_COPY_NET_ADDR_PTR(&((*genericThreadStruct)->addressWTPPtr), addrPtr);
 					
@@ -206,7 +206,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 							CW_CREATE_OBJECT_ERR(listGenericThreadDTLSData[indexTmpThread], genericHandshakeThread, return NULL; );
 
 							struct sockaddr_in *tmpAdd = (struct sockaddr_in *) addrPtr;
-							CWLog("++++ Nuovo thread generico per WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+							CWLog("[DTLS] New generic thread for WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
 							
 							CW_COPY_NET_ADDR_PTR(&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr), addrPtr);
 											
@@ -227,7 +227,6 @@ void CWACManageIncomingPacket(CWSocket sock,
 							listGenericThreadDTLSData[indexTmpThread]->dataSock = sock;
 							listGenericThreadDTLSData[indexTmpThread]->next = NULL;
 							
-							CWLog("++++ Allocata struttura numero %d", indexTmpThread);
 							if(!CWErr(CWCreateThread(&(listGenericThreadDTLSData[indexTmpThread]->thread_GenericDataChannelHandshake), CWGenericWTPDataHandshake, listGenericThreadDTLSData[indexTmpThread]))) {
 								CWLog("Error starting Thread that manage generich handshake with WTP");
 								exit(1);
@@ -1153,8 +1152,9 @@ void _CWCloseThread(int i) {
 	
 //-- Elena Agostini: fake method to delete all node about that WTP
 	nodeAVL * tmp;
-	//unsigned char * fakeMACMax = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	//unsigned char * fakeMACMin = {0x0,0x0,0x0,0x0,0x0,0x0};
+	
+	CWLog("AVL AC: \n");
+	AVLdisplay_avl(avlTree);
 
 	CWThreadMutexLock(&(mutexAvlTree));
 	tmp=NULL;
@@ -1164,13 +1164,6 @@ void _CWCloseThread(int i) {
 			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
 	}while(tmp != NULL && avlTree != NULL);
 	
-	/*tmp=NULL;
-	do {
-		tmp = AVLfindWTPNode(fakeMACMin, avlTree, i);
-		if(tmp != NULL)
-			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
-	}while(tmp != NULL && avlTree != NULL);
-	*/
 	CWThreadMutexUnlock(&(mutexAvlTree));
 //--
 	
@@ -1460,9 +1453,7 @@ CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg) {
 	CWThreadMutexUnlock(&gWTPsMutex);
 	
 	struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) &(argInputThread->addressWTPPtr);
-	CWLog("** New DTLS Data session created  with WTP %s:%d.. generic thread exit", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port));
-					
-//	CWLog("++++ ESCO e torno NULL");
+	CWLog("[DTLS] New DTLS Data session created with WTP %s:%d.. generic thread exit", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port));
 	
 	return NULL;
 }

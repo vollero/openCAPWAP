@@ -74,9 +74,9 @@ CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr,
 				if(radioIndex >= 0 && radioIndex < WTP_RADIO_MAX && wlanIndex >= 0 &&wlanIndex < WTP_MAX_INTERFACES)
 				{
 					//Settato solo se era un add. Come lo rimetto in modalita STA?
-					gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].typeInterface = CW_AP_MODE;
 					CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].BSSID, ETH_ALEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 					CW_COPY_MEMORY(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].BSSID, bssIDTmp, ETH_ALEN);
+					gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].typeInterface = CW_AP_MODE;
 				}
 				
 				CW_FREE_OBJECT(bssIDTmp);

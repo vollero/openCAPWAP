@@ -98,8 +98,7 @@ CWTimerID gCWEchoRequestTimerID;
 CWTimerID gCWKeepAliveTimerID;
 CWTimerID gCWNeighborDeadTimerID;
 /*
- * Elena Agostini - 03/2014
- * DataChannel Dead Timer
+ * Elena Agostini - 03/2014: DataChannel Dead Timer
  */
 CWTimerID gCWDataChannelDeadTimerID;
 CWBool gDataChannelDeadTimerSet=CW_FALSE;
@@ -108,9 +107,7 @@ CWBool gWTPDataChannelDeadFlag = CW_FALSE;
 int gWTPThreadDataPacketState = 0;
 
 /*
- * Elena Agostini - 03/2014
- * 
- * Echo Retransmission Count
+ * Elena Agostini - 03/2014: Echo Retransmission Count
  */
 int gWTPEchoRetransmissionCount=0;
 int gWTPMaxRetransmitEcho=CW_ECHO_MAX_RETRANSMIT_DEFAULT;
@@ -132,11 +129,29 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 	CWSocket 		sockDTLS = (CWSocket)arg;
 	CWNetworkLev4Address	addr;
 	char* 			pData;
-	
-	CWLog("THREAD CWWTPReceiveDtlsPacket start");
+	CWBool gWTPDataChannelLocalFlag=CW_FALSE, gWTPExitRunEchoLocal=CW_FALSE;
+
+	CWLog("THREAD Receiver Control channel start");
 	
 	CW_REPEAT_FOREVER 
 	{
+		CWThreadMutexLock(&gInterfaceMutex);
+		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
+		gWTPExitRunEchoLocal=gWTPExitRunEcho;
+		CWThreadMutexUnlock(&gInterfaceMutex);
+		
+		if(gWTPDataChannelLocalFlag == CW_TRUE)
+		{
+			CWLog("Data Channel is dead... so receiver Control Packet must die!");
+			break;
+		}
+		
+		if(gWTPExitRunEchoLocal == CW_TRUE)
+		{
+			CWLog("Control Channel is dead... so receiver Control Packet must die!");
+			break;
+		}
+		
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
 						 buf, 
 						 CW_BUFFER_SIZE - 1,
@@ -159,34 +174,24 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg) {
 		CWUnlockSafeList(gPacketReceiveList);		
 	}
 	
-	CWLog("THREAD CWWTPReceiveDtlsPacket exit");
+	CWLog("THREAD Receiver Control channel exit");
 	
-	/*
+/*
+ *  If there is a channel error, manager threads stop without the use of this flag *
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPExitRunEcho=CW_TRUE;
 	CWThreadMutexUnlock(&gInterfaceMutex);
-	*/
-	
+*/
 	CWNetworkCloseSocket(sockDTLS);
-
 	
 	return NULL;
 }
-
-
 
 extern int gRawSock;
 /* 
  * Manage data packets.
  */
 #define HLEN_80211	24
-int isEAPOL_Frame( unsigned char *buf, int len){
-	unsigned char rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
-	int i;
-	
-	for(i=0; i<6; i++)if(rfc1042_header[i]!=buf[i + HLEN_80211])return 0;
-	return 1;
-}
 
 CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 
@@ -196,11 +201,29 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	CWSocket 		sockDTLS = (CWSocket)arg;
 	CWNetworkLev4Address	addr;
 	char* 			pData;
+	CWBool gWTPDataChannelLocalFlag=CW_FALSE, gWTPExitRunEchoLocal=CW_FALSE;
 	
-	CWLog("THREAD CWWTPReceiveDataPacket start on socket %d", sockDTLS);
+	CWLog("THREAD Receiver Data channel start on socket %d", sockDTLS);
 	
 	CW_REPEAT_FOREVER 
 	{
+		CWThreadMutexLock(&gInterfaceMutex);
+		gWTPDataChannelLocalFlag = gWTPDataChannelDeadFlag;
+		gWTPExitRunEchoLocal=gWTPExitRunEcho;
+		CWThreadMutexUnlock(&gInterfaceMutex);
+		
+		if(gWTPDataChannelLocalFlag == CW_TRUE)
+		{
+			CWLog("Data Channel is dead... so receiver Data Packet must die!");
+			goto manager_data_failure;
+		}
+		
+		if(gWTPExitRunEchoLocal == CW_TRUE)
+		{
+			CWLog("Control Channel is dead... so receiver Data Packet must die!");
+			goto manager_data_failure;
+		}
+	
 		if(!CWErr(CWNetworkReceiveUnsafe(sockDTLS,
 							buf, 
 							CW_BUFFER_SIZE - 1,
@@ -222,24 +245,22 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 		CWAddElementToSafeListTailwitDataFlag(gPacketReceiveDataList, pData, readBytes,CW_TRUE);
 		CWUnlockSafeList(gPacketReceiveDataList);
 	}
-	
-	/*
+/*
+ * 	If there is a channel error, manager threads stop without the use of this flag *
 	CWThreadMutexLock(&gInterfaceMutex);
 	gWTPDataChannelDeadFlag=CW_TRUE;
 	CWThreadMutexUnlock(&gInterfaceMutex);
-	*/
-	CWLog("THREAD CWWTPReceiveDataPacket exit");
-	
+*/
+manager_data_failure:
+
+	CWLog("THREAD Receiver Data channel exit");	
 	CWNetworkCloseSocket(sockDTLS);
 
 	return NULL;
 }
 
-
 /*
- * Elena Agostini - 03/2014
- * 
- * Manage RUN State WTPDataChannel + DTLS Data Channel
+ * Elena Agostini - 03/2014: Manage RUN State WTPDataChannel + DTLS Data Channel
  */
  CW_THREAD_RETURN_TYPE CWWTPManageDataPacket(void *arg) {
 	
@@ -251,6 +272,9 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	int msg_len;
 	int gWTPThreadDataPacketStateLocal=0;
 	CWBool bReceivePacket;
+	
+	CWLog("THREAD Manager Data channel start");
+
 
 	/* Elena Agostini - 07/2014: data packet thread alive flag */
 	CWThreadMutexLock(&gInterfaceMutex);
@@ -262,7 +286,7 @@ CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg) {
 	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);
 	CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
 	tmpAdd->sin_port = htons(5247);
-	CWLog("Start DTLS Data Session with AC %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+	CWLog("[DTLS] Start Data Session with AC %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
 
 	if(!CWErr(CWSecurityInitSessionClient(gWTPDataSocket,
 					      gACAddressDataChannel,
@@ -725,10 +749,9 @@ CWStateTransition CWWTPEnterRun() {
 		gWTPThreadDataPacketState=2;
 	CWThreadMutexUnlock(&gInterfaceMutex);
 	
-	
 	pthread_join(thread_manageDataPacket, NULL);
 	
-	CWLog("*** thread_manageDataPacket thread is terminated");
+	CWLog("THREAD Manager Data Channel is dead");
 
 
 #ifndef CW_NO_DTLS
@@ -925,7 +948,7 @@ CWBool CWWTPManageGenericRunMessage(CWProtocolMessage *msgPtr) {
 					return CW_FALSE;
 				}
 				
-				CWLog("# _______ WLAN Configuration Request received _______ #");
+				CWLog("\n# _______ WLAN Configuration Request received _______ #");
 				
 				if(!(CWParseIEEEConfigurationRequestMessage(msgPtr->msg, len+(msgPtr->offset), controlVal.seqNum, &(interfaceACInfo)))) 
 				{

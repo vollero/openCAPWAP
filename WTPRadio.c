@@ -276,7 +276,6 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	if(!netlink_send_oper_ifla(globalNLSock.sockNetlink, tmpIndexif, -1, IF_OPER_UP))
 		return CW_FALSE;
 			
-	interfaceInfo->typeInterface = CW_AP_MODE;
 	  
 	if(!nl80211_set_bss(interfaceInfo, radioIndex, 1, 1))
 		return CW_FALSE;
@@ -295,6 +294,8 @@ CWBool CWWTPSetAPInterface(int radioIndex, int wlanIndex, WTPInterfaceInfo * int
 	
 	CWLog("AP created on interface on interface %s", interfaceInfo->ifName);
 	
+	interfaceInfo->typeInterface = CW_AP_MODE;
+
 	if(!CWErr(CWCreateThread(&(WTPGlobalBSSList[BSSId]->threadBSS), CWWTPBSSManagement, WTPGlobalBSSList[BSSId]))) {
 		CWLog("Error starting Thread that receive binding frame");
 		exit(1);

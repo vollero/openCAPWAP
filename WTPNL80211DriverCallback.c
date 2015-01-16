@@ -133,12 +133,12 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 	
 	if(tb_msg[NL80211_ATTR_WIPHY])
 	{
-		CWLog("[NL80211 INFO] PHY index: %d\n", nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]));
+		CWLog("[NL80211 INFO] PHY index: %d", nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]));
 		singlePhyInfo->realRadioID=nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]);
 	}
 	if(tb_msg[NL80211_ATTR_WIPHY_NAME])
 	{
-		CWLog("[NL80211 INFO] PHY name: %s\n", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]));
+		CWLog("[NL80211 INFO] PHY name: %s", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]));
 		CW_CREATE_STRING_FROM_STRING_ERR(singlePhyInfo->phyName, nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	/*

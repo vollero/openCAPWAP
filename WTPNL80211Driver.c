@@ -479,7 +479,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 		return CW_FALSE;
 	}
 	
-	CWPrintEthernetAddress(staInfo.address, "New station ok. Waiting for data from STA");
+	CWPrintEthernetAddress(staInfo.address, "[NL80211] New station ok. Waiting for data from STA");
 
 	msg = NULL;
 	

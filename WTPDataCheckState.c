@@ -82,7 +82,7 @@ CWStateTransition CWWTPEnterDataCheck() {
 	
 	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);
 	tmpAdd->sin_port = htons(5247);
-	CWLog("+++ WTP Run Handshake with %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+	CWLog("[DTLS] WTP Run Handshake with %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
 
 	CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
 	
@@ -99,7 +99,7 @@ CWStateTransition CWWTPEnterDataCheck() {
 		return CW_FALSE;
 	}
 	
-	CWLog("*** OK now assemble first KeepAlive");
+	CWLog("[DTLS] OK now assemble first KeepAlive");
 	
 	/*
 	 * If handshake ok, first KeepAlive DTLS to AC 
