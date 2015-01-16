@@ -316,7 +316,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 						
 					write_bytes = write(ACTap_FD, frame8023, frame8023len);
 					if(write_bytes != frame8023len){
-							CWPrintEthernetAddress(msgPtr->msg, );
 							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
 					}
 					
