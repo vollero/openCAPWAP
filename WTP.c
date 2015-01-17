@@ -101,6 +101,10 @@ char * wtpLogFile;
 CWThreadCondition    gInterfaceWait;
 CWThreadMutex 		gInterfaceMutex;
 
+//Elena Agostini: Mutex and Cond dedicated to Data Packet List
+CWThreadCondition    gInterfaceWaitData;
+CWThreadMutex 		gInterfaceMutexData;
+
 /* infos about the ACs to discover */
 CWACDescriptor *gCWACList = NULL;
 /* infos on the better AC we discovered so far */
@@ -201,20 +205,16 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 	
 	CW_REPEAT_FOREVER {
 		CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
+		readBytes=0;
+		pkt_buffer = NULL;
 		
 #ifdef CW_DTLS_DATA_CHANNEL
 	if(!CWSecurityReceive(gWTPSessionData, buf, CW_BUFFER_SIZE, &readBytes)) {return CW_FALSE;}
 #else
-		
 		CWLockSafeList(gPacketReceiveDataList);
 		while (CWGetCountElementFromSafeList(gPacketReceiveDataList) == 0)
-		{
-		//		CWLog("Ancora niente..");
 			CWWaitElementFromSafeList(gPacketReceiveDataList);
-		}
-		pkt_buffer = NULL;
 		pkt_buffer = (char*)CWRemoveHeadElementFromSafeListwithDataFlag(gPacketReceiveDataList, &readBytes,&dataFlag);
-
 		CWUnlockSafeList(gPacketReceiveDataList);
 		
 		if(pkt_buffer != NULL)
@@ -222,8 +222,6 @@ CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
 			CW_COPY_MEMORY(buf, pkt_buffer, readBytes);
 			CW_FREE_OBJECT(pkt_buffer);
 		}
-		else
-			CWLog("pkt_buffer == NULL");
 #endif
 
 	if(!CWProtocolParseFragment(buf, readBytes, &fragments, msgPtr, &dataFlag, NULL)) {
@@ -645,6 +643,13 @@ int main (int argc, const char * argv[]) {
 	CWCreateThreadCondition(&gInterfaceWait);
 	CWSetConditionSafeList(gPacketReceiveList, &gInterfaceWait);
 	CWSetConditionSafeList(gFrameList, &gInterfaceWait);
+
+	//Elena Agostini: Mutex and Cond dedicated to Data Packet List
+	CWCreateThreadMutex(&gInterfaceMutexData);
+	CWCreateThreadCondition(&gInterfaceWaitData);
+	CWSetMutexSafeList(gPacketReceiveDataList, &gInterfaceMutexData);
+	CWSetConditionSafeList(gPacketReceiveDataList, &gInterfaceWaitData);
+
 
 	CWLog("Starting WTP...");
 	

@@ -134,15 +134,17 @@ extern CWSecuritySession gWTPSessionData;
 extern CWPendingRequestMessage gPendingRequestMsgs[MAX_PENDING_REQUEST_MSGS];
 
 extern CWSafeList gPacketReceiveList;
-/* Elena Agostini - 03/2014 */
-extern CWSafeList gPacketReceiveDataList;
 extern CWSafeList gFrameList;
 extern CWThreadCondition gInterfaceWait;
 extern CWThreadMutex gInterfaceMutex;
 
+//Elena Agostini: Mutex and Cond dedicated to Data Packet List
+extern CWSafeList gPacketReceiveDataList;
+extern CWThreadCondition gInterfaceWaitData;
+extern CWThreadMutex gInterfaceMutexData;
+
 /*
- * Elena Agostini - 02/2014
- * OpenSSL params variables
+ * Elena Agostini - 02/2014: OpenSSL params variables
  */
 extern char *gWTPCertificate;
 extern char *gWTPKeyfile;

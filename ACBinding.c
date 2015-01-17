@@ -229,7 +229,6 @@ CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msg
 		for (j=0; j<radioCount; j++)
 		{
 			radioID=radiosInfo.radiosInfo[j].gWTPPhyInfo.radioID;// radiosInfo.radiosInfo[j].radioID;
-			CWLog("radioID_ %d", radioID);
 			// Assemble WTP QoS Message Element for each radio 
 			if (!(CWAssembleWTPQoS(&((*msgElems)[++k]), radioID, tagPackets)))
 			{
@@ -240,7 +239,6 @@ CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msg
 				return CW_FALSE; // error will be handled by the caller
 			}
 			
-			CWLog("CWAssembleMsgElemACWTPMultiDomainCapability. RadioID: %d",radiosInfo.radiosInfo[j].gWTPPhyInfo.radioID);
 			/*
 			 * Elena Agostini - 07/2014: wtp radio multi domain capability
 			 */
@@ -259,7 +257,6 @@ CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msg
 				return CW_FALSE; // error will be handled by the caller
 			}
 			
-			CWLog("radioCount: %d", radioCount);			
 		}
 
 		gWTPs[*iPtr].qosValues=NULL;
