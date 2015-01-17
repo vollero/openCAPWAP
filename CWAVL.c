@@ -382,23 +382,24 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
 				// No child case
 				if(temp == NULL)
 				{
+					CWLog("No child case");
 					temp = root;
 					root = NULL;
 				}
 				else // One child case
-				 *root = *temp; // Copy the contents of the non-empty child
-				
+				{
+					CWLog("ONE child case");
+					*root = *temp; // Copy the contents of the non-empty child
+				}
 				CWPrintEthernetAddress(temp->staAddr, "STA deleted from AVL");
-/*
-				CWLog("STA[%02x:%02x:%02x:%02x:%02x:%02x] WTP[%d] deleted from AVL STA", (int)temp->staAddr[0], (int)temp->staAddr[1], (int)temp->staAddr[2],
-				 (int)temp->staAddr[3], (int)temp->staAddr[4], (int)temp->staAddr[5], temp->index);
-	*/			 
+
 				free(temp);
 				
 				temp = NULL;			
 		}
 		else 
 		{
+				CWLog("Dentro else");
 				// node with two children: Get the inorder successor (smallest
 				// in the right subtree)
 				struct nodeAVL* temp = AVLminValueNode(root->right);
@@ -409,8 +410,11 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
 				CW_COPY_MEMORY(root->staAddr, temp->staAddr, ETH_ALEN);
 				CW_COPY_MEMORY(root->BSSID, temp->BSSID, ETH_ALEN);
 				
+				CWPrintEthernetAddress(root->right->staAddr, "root->right");
+				CWPrintEthernetAddress(temp->staAddr, "temp->staAddr");
+
 				// Delete the inorder successor
-				root->right = AVLdeleteNode(root->right, temp->staAddr, temp->radioID);
+				root->right = AVLdeleteNodeWithoutRadioID(root->right, temp->staAddr);
 		}
     }
     
@@ -418,7 +422,7 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
     if (root == NULL)
       return root;
 
-CWLog("root != NULL");
+	CWLog("root != NULL");
  
     // STEP 2: UPDATE HEIGHT OF THE CURRENT NODE
     root->height = AVLmax(AVLheight(root->left), AVLheight(root->right)) + 1;
