@@ -363,12 +363,12 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
     // If the key to be deleted is smaller than the root's key,
     // then it lies in left subtree
     if ( compareEthAddr(nodeToDelete->staAddr, root->staAddr) < 0 )
-        root->left = AVLdeleteNodeWithoutRadioID(root->left, nodeToDelete->staAddr);
+        root->left = AVLdeleteNodeWithoutRadioID(root->left, nodeToDelete);
  
     // If the key to be deleted is greater than the root's key,
     // then it lies in right subtree
     else if( compareEthAddr(nodeToDelete->staAddr, root->staAddr) > 0 )
-        root->right = AVLdeleteNodeWithoutRadioID(root->right, nodeToDelete->staAddr);
+        root->right = AVLdeleteNodeWithoutRadioID(root->right, nodeToDelete);
  
     // if key is same as root's key, then This is the node
     // to be deleted. If radioID is the same
@@ -378,20 +378,17 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
 		if((root->left == NULL) || (root->right == NULL))
 		{
 				struct nodeAVL *temp = root->left ? root->left : root->right;
-	 
+				CWPrintEthernetAddress(root->staAddr, "Delete STA from AVL");
 				// No child case
 				if(temp == NULL)
 				{
-					CWLog("No child case");
 					temp = root;
 					root = NULL;
 				}
 				else // One child case
 				{
-					CWLog("ONE child case");
 					*root = *temp; // Copy the contents of the non-empty child
 				}
-				CWPrintEthernetAddress(temp->staAddr, "STA deleted from AVL");
 
 				free(temp);
 				
@@ -399,22 +396,22 @@ struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL
 		}
 		else 
 		{
-				CWLog("Dentro else");
 				// node with two children: Get the inorder successor (smallest
 				// in the right subtree)
 				struct nodeAVL* temp = AVLminValueNode(root->right);
-							
+				
+				CWPrintEthernetAddress(root->staAddr, "Removing STA from AVL");
+
 				// Copy the inorder successor's data to this node
 				root->index = temp->index;
 				root->radioID = temp->radioID;
 				CW_COPY_MEMORY(root->staAddr, temp->staAddr, ETH_ALEN);
 				CW_COPY_MEMORY(root->BSSID, temp->BSSID, ETH_ALEN);
 				
-				CWPrintEthernetAddress(root->right->staAddr, "root->right");
-				CWPrintEthernetAddress(temp->staAddr, "temp->staAddr");
+				CWPrintEthernetAddress(temp->staAddr, "Node to move");
 
 				// Delete the inorder successor
-				root->right = AVLdeleteNodeWithoutRadioID(root->right, temp->staAddr);
+				root->right = AVLdeleteNodeWithoutRadioID(root->right, temp);
 		}
     }
     

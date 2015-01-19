@@ -24,6 +24,8 @@ struct nodeAVL* AVLdeleteNode(struct nodeAVL* root, unsigned char * staAddr, int
 void AVLdisplay_avl(nodeAVL* t);
 int AVLget( nodeAVL* n );
 int AVLgetBalance(struct nodeAVL *N);
+nodeAVL* AVLfindWTPNode(nodeAVL* t, int index);
+struct nodeAVL* AVLdeleteNodeWithoutRadioID(struct nodeAVL* root, struct nodeAVL* nodeToDelete);
 
 nodeAVL* AVLsingle_rotate_with_left( nodeAVL* k2 );
 nodeAVL* AVLsingle_rotate_with_right( nodeAVL* k2 );
