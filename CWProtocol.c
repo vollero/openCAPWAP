@@ -942,7 +942,7 @@ CWBool CWParseTransportHeader(CWProtocolMessage *msgPtr, CWProtocolTransportHead
 				msgPtr->data_msgType=CW_IEEE_802_3_FRAME_TYPE;
 			}
 		}else if (valuesPtr->type==1){	//IEEE 802.11 frame
-//			CWDebugLog("802.11 frame");
+		//	CWDebugLog("802.11 frame");
 			if (optionalWireless){
 				CW_CREATE_OBJECT_ERR( valuesPtr->bindingValuesPtr, CWBindingTransportHeaderValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY,NULL););
 				if (!CWParseTransportHeaderBinding(msgPtr, valuesPtr->bindingValuesPtr)){

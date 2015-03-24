@@ -95,3 +95,22 @@ void CWPrintEthernetAddress(unsigned char * address, char * string) {
 	else
 		CWLog("%s -> %02x:%02x:%02x:%02x:%02x:%02x", string, (int)address[0], (int)address[1], (int)address[2], (int)address[3], (int)address[4], (int)address[5]);
 }
+
+int CWCompareEthernetAddress(unsigned char * address1, unsigned char * address2) {
+	
+	int index;
+	
+	if(address1 == NULL || address2 == NULL)
+		return -1;
+	
+	for(index=0; index < ETH_ALEN; index++)
+	{
+		if(
+			address1[index] && address2[index] &&
+			address1[index] != address2 [index]
+		)
+			return -1;
+	}
+	
+	return 0;
+}

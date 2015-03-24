@@ -373,7 +373,9 @@ CWBool CWWTPDelStation(WTPBSSInfo * BSSInfo, WTPSTAInfo * staInfo)
 	
 	if(staInfo->radioAdd == CW_FALSE)
 		return CW_FALSE;
-		
+	
+	CWPrintEthernetAddress(staInfo->address, "[CW80211] Devi eliminare la STA");
+	
 	if(!nl80211CmdDelStation(BSSInfo, staInfo->address))
 	{
 		CWPrintEthernetAddress(staInfo->address, "[CW80211] Cannot delete STA from mac80211 ->");

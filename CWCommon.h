@@ -203,5 +203,6 @@ int CWIEEEBindingGetIndexFromDevID(int devID);
 int CWIEEEBindingGetDevFromIndexID(int indexID);
 /* Elena Agostini: print ethernet address + description */
 void CWPrintEthernetAddress(unsigned char * address, char * string);
+int CWCompareEthernetAddress(unsigned char * address1, unsigned char * address2);
 
 #endif

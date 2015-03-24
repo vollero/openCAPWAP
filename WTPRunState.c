@@ -2190,7 +2190,7 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 		if(
 			(WTPGlobalBSSList[(*BSSIndex)] != NULL) &&
 			(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address != NULL) && 
-			(strncmp(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address, address, ETH_ALEN) == 0)
+			CWCompareEthernetAddress(WTPGlobalBSSList[(*BSSIndex)]->staList[(*STAIndex)].address, address) == 0
 		)
 		{
 			trovato=1;
