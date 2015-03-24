@@ -109,7 +109,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
-		if(strncmp(probeRequest.SSID, WTPBSSInfoPtr->interfaceInfo->SSID, ETH_ALEN))
+		if(CWCompareEthernetAddress(probeRequest.SSID, WTPBSSInfoPtr->interfaceInfo->SSID) != 0)
 		{
 			//CWLog("[80211] SSID is not the same of this interface. Aborted");
 			return;
@@ -292,7 +292,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 
 				deleteRadioID = WTPBSSInfoPtr->phyInfo->radioID;
 				CW_COPY_MEMORY(deleteStaAddr, thisSTA->address, ETH_ALEN);
-		
+				
 				if(thisSTA->radioAdd==CW_TRUE)
 				{
 					if(CWWTPDelStation(WTPBSSInfoPtr, thisSTA))
@@ -384,8 +384,8 @@ WTPSTAInfo * findSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa) {
 		
 	for(indexSTA=0; indexSTA < WTP_MAX_STA; indexSTA++)
 	{
-		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL && 
-		strncmp(WTPBSSInfoPtr->staList[indexSTA].address, sa, ETH_ALEN) == 0)
+		if(WTPBSSInfoPtr->staList[indexSTA].address != NULL &&
+		CWCompareEthernetAddress(WTPBSSInfoPtr->staList[indexSTA].address, sa) == 0)
 			return &(WTPBSSInfoPtr->staList[indexSTA]);
 	}
 	
@@ -463,8 +463,15 @@ void CWWTPAssociationRequestTimerExpiredHandler(void *arg) {
 	int radioID;
 	unsigned char staAddr[ETH_ALEN];
 	
-	CWLog("[CW80211] Association Timer Raised");
 	
+	if(
+		(info != NULL) && 
+		(info->staInfo != NULL) && 
+		info->staInfo->address != NULL)
+			CWPrintEthernetAddress(info->staInfo->address, "[CW80211] Association Timer Raised for station");
+	else
+		CWLog("[CW80211] Association Timer Raised");
+		
 	if(
 		(info != NULL) && 
 		(info->staInfo != NULL) && 
