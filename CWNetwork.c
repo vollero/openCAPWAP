@@ -64,7 +64,7 @@ CWBool CWNetworkSendUnsafeUnconnected(CWSocket sock,
 	if(buf == NULL || addrPtr == NULL) 
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
-	CWUseSockNtop(addrPtr, CWDebugLog(str););
+	CWUseSockNtop(addrPtr, NULL;/*CWDebugLog(str);*/);
 
 	while(sendto(sock, buf, len, 0, (struct sockaddr*)addrPtr, CWNetworkGetAddressSize(addrPtr)) < 0) {
 
