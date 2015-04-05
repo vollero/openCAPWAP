@@ -218,7 +218,6 @@ int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * w
 	msg.wtpId = wtpId;
 	msg.wum_type = WTP_WLAN_ADD_REQUEST;
 	msg.payload_len = strlen(ssid)+strlen(radioID)+strlen(wlanID)+strlen(tunnel)+4;
-	printf("Payload Len: %d\n", msg.payload_len);
 	
 	msg.payload = (char *) calloc(msg.payload_len, sizeof(char));
 	if(msg.payload == NULL)
@@ -226,10 +225,13 @@ int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * w
 		perror("calloc");
 		return ERROR;
 	}
-	snprintf(msg.payload, msg.payload_len, "%s:%s:%s:%s", radioID, wlanID, ssid, tunnel);
 	
-	printf("Payload: %s\n", msg.payload);
-	
+	//Tunnel non dovrebbe mai essere NULL, ma se e' 0 non e' stato previsto
+	if(tunnel == NULL)
+		snprintf(msg.payload, msg.payload_len, "%s:%s:%s:1", radioID, wlanID, ssid);
+	else
+		snprintf(msg.payload, msg.payload_len, "%s:%s:%s:%s", radioID, wlanID, ssid, tunnel);
+		
 	if (WUMSendMessage(acserver, msg) != 0) {
 		fprintf(stderr, "Error while sending WUM message");
 		return ERROR;
