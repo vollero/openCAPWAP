@@ -446,14 +446,14 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	if (!msg)
 		return CW_FALSE;
 		
-	CWLog("ADD STATION parameters");
+	CWLog("ADD STATION request");
 	genlmsg_put(msg, 0, 0, infoBSS->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_STATION, 0);
 	/* WLAN ID */
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
-	CWLog("wlanid: %d", infoBSS->interfaceInfo->realWlanID);
+//	CWLog("wlanid: %d", infoBSS->interfaceInfo->realWlanID);
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
-	CWPrintEthernetAddress(staInfo.address, "STA address:");
+//	CWPrintEthernetAddress(staInfo.address, "STA address:");
 	/* SUPPORTED RATES */
 	int lenRates = infoBSS->phyInfo->lenSupportedRates;
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
@@ -461,22 +461,22 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{	
 		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
-		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
+//		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
 	}
-	CWLog("len rates: %d", lenRates);
+//	CWLog("len rates: %d", lenRates);
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
 		
 	/* Association ID */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
-	CWLog("staAID: %x", staInfo.staAID);
+	//CWLog("staAID: %x", staInfo.staAID);
 
 	/* Listen Interval */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
-	CWLog("listenIntervaL: %x", staInfo.listenInterval);
+	//CWLog("listenIntervaL: %x", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
 	
-	CWLog("capabilityBit: %x", staInfo.capabilityBit);
+	//CWLog("capabilityBit: %x", staInfo.capabilityBit);
 	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
@@ -491,7 +491,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 		return CW_FALSE;
 	}
 	
-	CWPrintEthernetAddress(staInfo.address, "[NL80211] New station ok. Waiting for data from STA");
+	CWPrintEthernetAddress(staInfo.address, "New station ok. Waiting for data from STA");
 
 	msg = NULL;
 	
@@ -513,7 +513,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	if (!msg)
 		return CW_FALSE;
 	
-	CWLog("SET STATION PARAMETERS");
+	CWLog("SET/UPDATE STATION request");
 	genlmsg_put(msg, 0, 0, infoBSS->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_STATION, 0);
 	/* WLAN ID */
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
@@ -524,13 +524,9 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 	
 	for(indexRates=0; indexRates < lenRates; indexRates++)
-		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
+		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10);
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
-		
-	/* Association ID */
-	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
-	/* Listen Interval */
-	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
+	
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
 	
