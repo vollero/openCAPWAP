@@ -211,14 +211,19 @@ int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * w
 	
 	if(ssid == NULL || radioID == NULL || wlanID == NULL)
 		return ERROR;
-		
+	
+	if(atoi(radioID) <= 0 || atoi(wlanID))
+	{
+		fprintf(stderr, "Error ADD WLAN cmd: radioID or wlanID are <= 0.");
+		return ERROR;
+	}
+	
 	WUM_INIT_REQ_MSG(msg, strlen(ssid)+strlen(radioID)+strlen(wlanID)+3);
 	msg.cmd_msg = CONF_UPDATE_MSG;
 	msg.msg_elem = MSG_ELEMENT_TYPE_ADD_WLAN;
 	msg.wtpId = wtpId;
 	msg.wum_type = WTP_WLAN_ADD_REQUEST;
 	msg.payload_len = strlen(ssid)+strlen(radioID)+strlen(wlanID)+strlen(tunnel)+4;
-	
 	msg.payload = (char *) calloc(msg.payload_len, sizeof(char));
 	if(msg.payload == NULL)
 	{
@@ -226,7 +231,7 @@ int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * w
 		return ERROR;
 	}
 	
-	//Tunnel non dovrebbe mai essere NULL, ma se e' 0 non e' stato previsto
+	//Tunnel non dovrebbe mai essere NULL. Attualmente 0 non e' stato previsto
 	if(tunnel == NULL)
 		snprintf(msg.payload, msg.payload_len, "%s:%s:%s:1", radioID, wlanID, ssid);
 	else
@@ -265,14 +270,19 @@ int WUMWTPwlanDel(int acserver, int wtpId, char * radioID, char * wlanID, struct
 	
 	if(radioID == NULL || wlanID == NULL)
 		return ERROR;
-		
+	
+	if(atoi(radioID) <= 0 || atoi(wlanID))
+	{
+		fprintf(stderr, "Error ADD WLAN cmd: radioID or wlanID are <= 0.");
+		return ERROR;
+	}
+	
 	WUM_INIT_REQ_MSG(msg, strlen(radioID)+strlen(wlanID)+2);
 	msg.cmd_msg = CONF_UPDATE_MSG;
 	msg.msg_elem = MSG_ELEMENT_TYPE_DEL_WLAN;
 	msg.wtpId = wtpId;
 	msg.wum_type = WTP_WLAN_DEL_REQUEST;
 	msg.payload_len = strlen(radioID)+strlen(wlanID)+2;
-	printf("Payload Len: %d\n", msg.payload_len);
 	
 	msg.payload = (char *) calloc(msg.payload_len+1, sizeof(char));
 	if(msg.payload == NULL)
@@ -281,9 +291,7 @@ int WUMWTPwlanDel(int acserver, int wtpId, char * radioID, char * wlanID, struct
 		return ERROR;
 	}
 	snprintf(msg.payload, msg.payload_len, "%s:%s", radioID, wlanID);
-	
-	printf("Payload: %s\n", msg.payload);
-	
+		
 	if (WUMSendMessage(acserver, msg) != 0) {
 		fprintf(stderr, "Error while sending WUM message");
 		return ERROR;

@@ -504,9 +504,7 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 						if ( (n = Readn(sock, payload, (msgLen*sizeof(unsigned char)))) < 0 ) {
 							CWLog("Error while reading from socket.");
 							goto quit_manage;
-						}
-						//CWLog("payload : %s", payload);
-						
+						}						
 						cmdWLAN->typeCmd = CW_OP_ADD_WLAN;
 						
 						char * token;
@@ -517,9 +515,13 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 							{
 								case 0:
 									cmdWLAN->radioID = atoi(token);
+									if(cmdWLAN->radioID > 0)
+										cmdWLAN->radioID--;
 									break;
 								case 1:
 									cmdWLAN->wlanID = atoi(token);
+									if(cmdWLAN->wlanID > 0)
+										cmdWLAN->wlanID--;
 									break;
 								case 2:
 									CW_CREATE_STRING_FROM_STRING_ERR(cmdWLAN->ssid, token, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
@@ -530,13 +532,13 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 							token = strtok(NULL, ":");
 						}
 						//RFC vieta radioID <= 0 e wlanID <= 0
-					/*	if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
+						if(cmdWLAN->radioID < 0 || cmdWLAN->wlanID < 0)
 						{
-							CWLog("ERROR: radioID or wlanID <= 0");
+							CWLog("ERROR: radioID or wlanID < 0");
 							CW_FREE_OBJECT(cmdWLAN);
 							break;
 						}
-						*/
+
 						/****************************************************
 						 * Two behaviors availables:                        *
 						 *    - One message element For All WTPs Active     *

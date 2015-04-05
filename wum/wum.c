@@ -142,12 +142,6 @@ int main(int argc, char *argv[])
 			do_cancel_cmd(acserver, wtpIds, wtpNames);
 			break;
 		case WLAN_ADD_CMD:
-		printf("wtpIds: %s", wtpIds);
-		printf("ssid: %s", ssid);
-		printf("radioID: %s", radioID);
-		printf("wlanID: %s", wlanID);
-		printf("tunnel: %s", tunnel);
-		
 			do_wlan_add_cmd(acserver, wtpIds, wtpNames, ssid, radioID, wlanID, tunnel);
 			break;
 		case WLAN_DEL_CMD:
@@ -379,9 +373,6 @@ void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, ch
 	int *wtps, n, i;
 	struct version_info v_info;
 
-	printf("ADD cmd radioID: %s, wlanID: %s ssid: %s\n", radioID, wlanID, ssid);
-	
-
 	/* WTP work list */
 	wtps = get_id_list(wtpIds, wtpNames, &n);
 	
@@ -389,11 +380,17 @@ void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, ch
 		fprintf(stderr, "Either a list of wtp ids or wtp names must be specified!\n");
 		return;
 	}
-
+	
+	if(n == 0)
+	{
+		fprintf(stderr, "Currently, there aren't associated wtps with AC\n");
+		return;
+	}
+	
 	for (i = 0; i < n; i++) {
 		printf("invio a wtp %d\n", i);
 		WUMWTPwlanAdd(acserver, wtps[i], ssid, radioID, wlanID, tunnel, &v_info);
-	}
+	}	
 }
 
 /*
