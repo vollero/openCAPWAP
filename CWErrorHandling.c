@@ -50,12 +50,14 @@
 #endif
 
 void CWErrorHandlingInitLib() {	
-	CWDebugLog("Init Errors ");
+	//CWDebugLog("Init Errors ");
 	
 	#ifndef CW_SINGLE_THREAD
 		if(!CWThreadCreateSpecific(&gLastError, NULL)) 
 		{
-			CWLog("Critical Error, closing the process..."); 
+			//Elena Agostini - 05/2014
+			fprintf(stderr, "Critical Error, closing the process...");
+//			CWLog("Critical Error, closing the process..."); 
 			exit(1);
 		}
 	#else

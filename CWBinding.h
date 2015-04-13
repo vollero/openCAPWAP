@@ -38,6 +38,7 @@
  ************************************************************************************************/
 
 
+//#include "NL80211.h"
 
 #ifndef __CAPWAP_CWBinding_HEADER__
 #define __CAPWAP_CWBinding_HEADER__
@@ -96,6 +97,7 @@
 
 #define BINDING_MSG_ELEMENT_TYPE_OFDM_CONTROL	1033
 #define BINDING_MSG_ELEMENT_TYPE_WTP_QOS	1045
+#define BINDING_MSG_ELEMENT_TYPE_WTP_MULTIDOMAIN_CAPABILITY	1032
 
 /****************************************************
  * 2009 Update:										*
@@ -118,11 +120,12 @@ typedef struct
   unsigned int TIThreshold;
 } OFDMControlValues;
 
-typedef struct
+typedef struct WTPQosValues
 {
 	unsigned char queueDepth;
-	int cwMin;
-	int cwMax;
+	/* Elena Agostini - 02/2014: RFC 5415 set cwMin and cwMax 16-bit field */
+	short int cwMin;
+	short int cwMax;
 	unsigned char  AIFS;
 	unsigned char dot1PTag;
 	unsigned char DSCPTag;	
@@ -132,6 +135,10 @@ typedef struct
 {
 	WTPQosValues* qosValues;
 } bindingValues;
+
+/* NL80211Driver.c */
+int nl80211GetTxqParams(struct nl80211SocketUnit *nlSockUnit, WTPQosValues * qosValues, int ifindex);
+void nl80211GetPhyInfo();
 
 /*---------------------------*/
 

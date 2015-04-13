@@ -213,6 +213,16 @@ CWBool CWACGetIdleTimeout (int *timer)
 	return CW_TRUE;
 }
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+int CWACGetECNSupport ()
+{
+	return gACECNSupport;
+}
+
 /* Il WTP ha la funzione ridefinita */
 CWBool CWGetWTPRadiosAdminState(CWRadiosAdminInfo *valPtr) 
 {

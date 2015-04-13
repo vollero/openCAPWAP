@@ -110,6 +110,24 @@ int CWWumSetValues(int selection, int socketIndex, CWProtocolVendorSpecificValue
 	return 0;
 }	
 
+/*
+ * Elena Agostini - 09/2014: IEEE 802.11 Binding + WUM
+ */
+int CWWLANSetValues(int selection, int socketIndex, WUMWLANCmdParameters * cmdWLAN) {
+	
+	CWThreadMutexLock(&(gWTPs[selection].interfaceMutex));
+	
+	gWTPs[selection].cmdWLAN = cmdWLAN;
+	gWTPs[selection].interfaceCommand = IEEE_WLAN_CONFIGURATION_CMD;
+	gWTPs[selection].applicationIndex = socketIndex;
+	CWSignalThreadCondition(&gWTPs[selection].interfaceWait);
+	CWWaitThreadCondition(&gWTPs[selection].interfaceComplete, &gWTPs[selection].interfaceMutex);
+	
+	CWThreadMutexUnlock(&(gWTPs[selection].interfaceMutex));
+	
+	return 0;
+}	
+
 
 /************************************************************************
  * CWManageApplication is the function that provide the management of	*
@@ -369,10 +387,9 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
 					case MSG_ELEMENT_TYPE_VENDOR_WUM:
 						{
 						/* Donato's Case */
-
-                                                CW_CREATE_OBJECT_ERR(vendorValues, CWProtocolVendorSpecificValues, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
-                                                CW_CREATE_OBJECT_ERR(wumValues, CWVendorWumValues, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
-                                                vendorValues->vendorPayloadType = CW_MSG_ELEMENT_VENDOR_SPEC_PAYLOAD_WUM;
+						CW_CREATE_OBJECT_ERR(vendorValues, CWProtocolVendorSpecificValues, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
+                        CW_CREATE_OBJECT_ERR(wumValues, CWVendorWumValues, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
+                        vendorValues->vendorPayloadType = CW_MSG_ELEMENT_VENDOR_SPEC_PAYLOAD_WUM;
 
 						/*
 						 * Read WTP Update Message fields into the wumValues structure
@@ -462,6 +479,201 @@ CW_THREAD_RETURN_TYPE CWManageApplication(void* arg) {
                                                         CWWumSetValues(wtpIndex, socketIndex, vendorValues);
                                                 break;
 						}
+						/*
+						 * Elena Agostini - 09/2014: IEEE 802.11 Binding + WUM
+						 */
+					case MSG_ELEMENT_TYPE_ADD_WLAN:
+					{
+						char typeRequest=0;
+						int msgLen=0;
+						char * payload;
+						char * ssid;
+						int radioID, wlanID, tunnel, countChar=0;
+						
+						WUMWLANCmdParameters * cmdWLAN;
+						
+						CW_CREATE_OBJECT_ERR(cmdWLAN, WUMWLANCmdParameters, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
+						
+						CWLog("Received ADD WLAN command");
+						
+						if ( (n = Readn(sock, &(typeRequest), sizeof(unsigned char))) < 0 ) {
+							CWLog("Error while reading from socket.");
+							goto quit_manage;
+						}
+						//CWLog("typeRequest : %d\n", typeRequest);
+						
+						if ( (n = Readn(sock, &msgLen, sizeof(int))) < 0 ) {
+							CWLog("Error while reading from socket.");
+							goto quit_manage;
+						}
+						//CWLog("msgLen : %d\n", msgLen);
+						
+						
+						CW_CREATE_ARRAY_CALLOC_ERR(payload, msgLen+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
+
+						if ( (n = Readn(sock, payload, (msgLen*sizeof(unsigned char)))) < 0 ) {
+							CWLog("Error while reading from socket.");
+							goto quit_manage;
+						}						
+						cmdWLAN->typeCmd = CW_OP_ADD_WLAN;
+						
+						char * token;
+						token = strtok(payload, ":");
+						while(token != NULL)
+						{
+							switch(countChar)
+							{
+								case 0:
+									cmdWLAN->radioID = atoi(token);
+									if(cmdWLAN->radioID > 0)
+										cmdWLAN->radioID--;
+									break;
+								case 1:
+									cmdWLAN->wlanID = atoi(token);
+									if(cmdWLAN->wlanID > 0)
+										cmdWLAN->wlanID--;
+									break;
+								case 2:
+									CW_CREATE_STRING_FROM_STRING_ERR(cmdWLAN->ssid, token, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
+									break;
+							}
+							
+							countChar++;
+							token = strtok(NULL, ":");
+						}
+						//RFC vieta radioID <= 0 e wlanID <= 0
+						if(cmdWLAN->radioID < 0 || cmdWLAN->wlanID < 0)
+						{
+							CWLog("ERROR: radioID or wlanID < 0");
+							CW_FREE_OBJECT(cmdWLAN);
+							break;
+						}
+
+						/****************************************************
+						 * Two behaviors availables:                        *
+						 *    - One message element For All WTPs Active     *
+						 *    - One message for a specific WTP              *
+						 ****************************************************/
+						                                               
+						if ( wtpIndex == ALL_ACTIVE_WTPS ) { // All wpts case
+							
+							if(!CWErr(CWThreadMutexLock(&gActiveWTPsMutex))) {
+								CWLog("Error locking the mutex");
+								return NULL;
+							}
+							numActiveWTPs = gActiveWTPs;
+							CWThreadMutexUnlock(&gActiveWTPsMutex);
+							
+							if(numActiveWTPs>0) {
+								for(i=0; i<gMaxWTPs; i++) {
+									if(gWTPs[i].isNotFree)  {
+										CWWLANSetValues(i, socketIndex, cmdWLAN);
+									}
+								}
+							} 
+						}
+						else // One specific Wtp Case
+							CWWLANSetValues(wtpIndex, socketIndex, cmdWLAN);
+						
+						CW_FREE_OBJECT(cmdWLAN->ssid);
+						CW_FREE_OBJECT(cmdWLAN);
+						
+						break;
+						
+					}
+					case MSG_ELEMENT_TYPE_DEL_WLAN:
+					{
+						char typeRequest=0;
+						int msgLen=0;
+						char * payload;
+						char * ssid;
+						int radioID, wlanID, countChar=0;
+						
+						WUMWLANCmdParameters * cmdWLAN;
+						
+						CW_CREATE_OBJECT_ERR(cmdWLAN, WUMWLANCmdParameters, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
+						
+						CWLog("Received DEL WLAN command");	
+		
+						if ( (n = Readn(sock, &(typeRequest), sizeof(unsigned char))) < 0 ) {
+							CWLog("Error while reading from socket.");
+							goto quit_manage;
+						}
+					//	CWLog("typeRequest : %d\n", typeRequest);
+						
+						if ( (n = Readn(sock, &msgLen, sizeof(int))) < 0 ) {
+							CWLog("Error while reading from socket.");
+							goto quit_manage;
+						}
+						//CWLog("msgLen : %d\n", msgLen);
+						
+						CW_CREATE_ARRAY_CALLOC_ERR(payload, msgLen+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return 0;});
+
+						if ( (n = Readn(sock, payload, (msgLen*sizeof(unsigned char)))) < 0 ) {
+							CWLog("Error while reading from socket.");
+							goto quit_manage;
+						}
+					//	CWLog("payload : %s", payload);
+						
+						cmdWLAN->typeCmd = CW_OP_DEL_WLAN;
+						
+						char * token;
+						token = strtok(payload, ":");
+						while(token != NULL)
+						{
+							switch(countChar)
+							{
+								case 0:
+									cmdWLAN->radioID = atoi(token);
+									break;
+								case 1:
+									cmdWLAN->wlanID = atoi(token);
+									break;
+							}
+							
+							countChar++;
+							token = strtok(NULL, ":");
+						}
+					
+						//RFC vieta radioID <= 0 e wlanID <= 0
+						/*if(cmdWLAN->radioID <= 0 || cmdWLAN->wlanID <= 0)
+						{
+							CWLog("ERROR: radioID or wlanID <= 0");
+							CW_FREE_OBJECT(cmdWLAN);
+							break;
+						}
+						*/
+						/****************************************************
+						 * Two behaviors availables:                        *
+						 *    - One message element For All WTPs Active     *
+						 *    - One message for a specific WTP              *
+						 ****************************************************/
+						                                               
+						if ( wtpIndex == ALL_ACTIVE_WTPS ) { // All wpts case
+							
+							if(!CWErr(CWThreadMutexLock(&gActiveWTPsMutex))) {
+								CWLog("Error locking the mutex");
+								return NULL;
+							}
+							numActiveWTPs = gActiveWTPs;
+							CWThreadMutexUnlock(&gActiveWTPsMutex);
+							
+							if(numActiveWTPs>0) {
+								for(i=0; i<gMaxWTPs; i++) {
+									if(gWTPs[i].isNotFree)  {
+										CWWLANSetValues(i, socketIndex, cmdWLAN);
+									}
+								}
+							} 
+						}
+						else // One specific Wtp Case
+							CWWLANSetValues(wtpIndex, socketIndex, cmdWLAN);
+						
+						CW_FREE_OBJECT(cmdWLAN);
+						
+						break;
+						
+					}
 					default:
 						/* Error Case: Not correct msg_elem type */
 						break;

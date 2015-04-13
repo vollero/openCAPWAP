@@ -92,14 +92,6 @@ CWStateTransition CWWTPEnterConfigure() {
 	return CW_ENTER_DATA_CHECK;
 }
 
-/*
-void CWWTPResponseTimerExpired(void *arg, CWTimerID id) 
-{
-	CWLog("WTP Response Configure Timer Expired");
-	CWNetworkCloseSocket(gWTPSocket);
-}
-*/
-
 /* 
  * Send Configure Request on the active session.
  */
@@ -111,7 +103,7 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 
 	CWProtocolMessage 	*msgElems= NULL;
 	CWProtocolMessage 	*msgElemsBinding= NULL;
-	const int 		msgElemCount = 8;
+	const int 		msgElemCount = 9;
 	const int 		msgElemBindingCount=0;
 	int k = -1;
 	
@@ -129,17 +121,56 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	    (!(CWAssembleMsgElemACNameWithIndex(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemRadioAdminState(&(msgElems[++k])))) ||
 	    (!(CWAssembleMsgElemStatisticsTimer(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k])))) ||
-	    (!(CWAssembleMsgElemMultiDomainCapability(&(msgElems[++k]))))   )
+	    (!(CWAssembleMsgElemWTPRebootStatistics(&(msgElems[++k])))) 
+	    /*
+	     * Elena Agostini TODO: da rifare senza hostapd
+	     || (!(CWAssembleMsgElemSupportedRates(&(msgElems[++k]))))
+	     */
+	)
 	{
 		int i;
 		for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
 		CW_FREE_OBJECT(msgElems);
 		/* error will be handled by the caller */
 		return CW_FALSE;
-	}  	
+	} 
+	
+	//Elena Agostini - 07/2014: nl80211 support. 
+	int indexWTPRadioInfo=0, indexRates=0;;
+	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
+	{
+		if(
+		!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyStandardValue)) ||
+		!(CWAssembleMsgElemMultiDomainCapability( &(msgElems[++k]),
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].frequency, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.totChannels, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower)) ||
+		!(CWAssembleMsgElemMACOperation( &(msgElems[++k]),
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.fragmentationTreshold, 
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.rtsThreshold,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.shortRetry,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.longRetry,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.txMSDU,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.rxMSDU)) ||
+		 !(CWAssembleMsgElemSupportedRates(&(msgElems[++k]), 
+											indexWTPRadioInfo, //gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID,
+											gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.supportedRates,
+											CW_80211_MAX_SUPP_RATES
+											))
+											
+		)
+		{
+			int i;
+			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
+			CW_FREE_OBJECT(msgElems);
+			/* error will be handled by the caller */
+			return CW_FALSE;	
+		}
+	}
 	
 	if (!(CWAssembleMessage(messagesPtr, 
 				fragmentsNumPtr,
@@ -161,6 +192,11 @@ CWBool CWAssembleConfigureRequest(CWProtocolMessage **messagesPtr,
 	CWDebugLog("Configure Request Assembled");	 
 	return CW_TRUE;
 }
+
+/*
+ * Elena Agostini. TODO: for now, WTP doesn't save any message element IEEE80211 from AC
+ * because in AC there is no logic to manipulate those data
+ */
 
 CWBool CWParseConfigureResponseMessage (char *msg,
 					int len,
@@ -320,21 +356,19 @@ CWBool CWSaveConfigureResponseMessage(CWProtocolConfigureResponseValues *configu
 	if(gACInfoPtr == NULL) return CWErrorRaise(CW_ERROR_NEED_RESOURCE, NULL);
 	
 	CWDebugLog("Saving Configure Response...");
-	CWDebugLog("###A");
-	CWDebugLog("###Count:%d", (configureResponse->ACIPv4ListInfo).ACIPv4ListCount);
+/*
+ 	CWDebugLog("###Count:%d", (configureResponse->ACIPv4ListInfo).ACIPv4ListCount);
 	if((gACInfoPtr->ACIPv4ListInfo).ACIPv4List==NULL) {
 		
 		CWDebugLog("###NULL");
 	}
-
+*/
 	if((configureResponse->ACIPv4ListInfo).ACIPv4ListCount > 0) {
 
 		CW_FREE_OBJECT((gACInfoPtr->ACIPv4ListInfo).ACIPv4List);
 		(gACInfoPtr->ACIPv4ListInfo).ACIPv4ListCount = (configureResponse->ACIPv4ListInfo).ACIPv4ListCount;
 		(gACInfoPtr->ACIPv4ListInfo).ACIPv4List = (configureResponse->ACIPv4ListInfo).ACIPv4List;
 	}
-	
-	CWDebugLog("###B");
 	
 	if((configureResponse->ACIPv6ListInfo).ACIPv6ListCount > 0) {
 

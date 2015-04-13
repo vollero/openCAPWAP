@@ -53,5 +53,7 @@
 #define UCI_CONTROL_CMD 4
 /* Manage WTP Update Command */
 #define WTP_UPDATE_CMD	5
+//Elena Agostini - 09/2014: IEEE WLAN configuration command
+#define IEEE_WLAN_CONFIGURATION_CMD 6
 
 #endif

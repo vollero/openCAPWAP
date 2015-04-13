@@ -152,7 +152,7 @@ CWBool CWAssembleWTPQoS (CWProtocolMessage *msgPtr, int radioID, int tagPackets)
 {
 	const int headerLength=2;
 	const int messageBodyLength=32;
-	const int totalMessageLength=headerLength+messageBodyLength;
+	const int totalMessageLength= headerLength+messageBodyLength;
 	int i;
 	int* iPtr;
 	WTPQosValues* valuesPtr;
@@ -185,6 +185,24 @@ CWBool CWAssembleWTPQoS (CWProtocolMessage *msgPtr, int radioID, int tagPackets)
 	return CWAssembleMsgElem(msgPtr, BINDING_MSG_ELEMENT_TYPE_WTP_QOS);
 }
 
+/*
+ * Elena Agostini - 08/2014: nl80211 support 
+ */
+CWBool CWAssembleMsgElemACWTPMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower) {
+
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 8, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
+	CWProtocolStore8(msgPtr, radioID); 
+	CWProtocolStore8(msgPtr, 0); 
+	CWProtocolStore16(msgPtr, firstChannel);
+	CWProtocolStore16(msgPtr, numChannels); 
+	CWProtocolStore16(msgPtr, maxTxPower); 
+
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE);
+}
+
 CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msgElemCountPtr)
 {
 	CWWTPRadiosInfo radiosInfo;
@@ -202,7 +220,8 @@ CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msg
 	*msgElemCountPtr =0;
 	radiosInfo=gWTPs[*iPtr].WTPProtocolManager.radiosInfo;
 	radioCount=radiosInfo.radioCount;
-	*msgElemCountPtr = radioCount;
+	//Elena Agostini: QoS + MultidomainCapability
+	*msgElemCountPtr = radioCount*2;
 
 	CWLog("Assembling Binding Configuration Response...");
 
@@ -219,9 +238,9 @@ CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msg
 
 		for (j=0; j<radioCount; j++)
 		{
-			radioID=radiosInfo.radiosInfo[j].radioID;
+			radioID=radiosInfo.radiosInfo[j].gWTPPhyInfo.radioID;// radiosInfo.radiosInfo[j].radioID;
 			// Assemble WTP QoS Message Element for each radio 
-			if (!(CWAssembleWTPQoS(&(*msgElems[++k]), radioID, tagPackets)))
+			if (!(CWAssembleWTPQoS(&((*msgElems)[++k]), radioID, tagPackets)))
 			{
 				int i;
 				for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(*msgElems[i]);}
@@ -229,9 +248,29 @@ CWBool CWBindingAssembleConfigureResponse(CWProtocolMessage **msgElems, int *msg
 				CWThreadMutexUnlock(&(gWTPs[*iPtr].interfaceMutex));
 				return CW_FALSE; // error will be handled by the caller
 			}
+			
+			/*
+			 * Elena Agostini - 07/2014: wtp radio multi domain capability
+			 */
+			if(!(CWAssembleMsgElemACWTPMultiDomainCapability(&((*msgElems)[++k]), 
+													radiosInfo.radiosInfo[j].gWTPPhyInfo.radioID, 
+													radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].frequency,
+													radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.totChannels,
+													radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower
+													)
+			))
+			{
+				int i;
+				for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(*msgElems[i]);}
+				CW_FREE_OBJECT(*msgElems);
+				CWThreadMutexUnlock(&(gWTPs[*iPtr].interfaceMutex));
+				return CW_FALSE; // error will be handled by the caller
+			}
+			
 		}
 
 		gWTPs[*iPtr].qosValues=NULL;
+		
 	CWThreadMutexUnlock(&(gWTPs[*iPtr].interfaceMutex));	
 
 	CWLog("Binding Configuration Response Assembled");

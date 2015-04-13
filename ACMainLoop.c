@@ -64,8 +64,40 @@ void _CWCloseThread(int i);
 void CWResetWTPProtocolManager(CWWTPProtocolManager *WTPProtocolManager);
 __inline__ CWWTPManager *CWWTPByName(const char *addr);
 __inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr,
-					CWSocket sock);
+					CWSocket sock, CWBool dataFlag, char * sessionID);
+__inline__ genericHandshakeThreadPtr CWWTPThreadGenericByAddress(CWNetworkLev4Address *addressPtr);
+void CWACSetNewGenericHandshakeDataThread(genericHandshakeThreadPtr * genericThreadStruct, CWNetworkLev4Address * addrPtr, CWSocket sock, char * pData, int readBytes);
 
+void CWACSetNewGenericHandshakeDataThread(genericHandshakeThreadPtr * genericThreadStruct, CWNetworkLev4Address * addrPtr, CWSocket sock, char * pData, int readBytes) {
+	/* Se nessuno sta gestendo l'handshake creo un nuovo thread generico */
+	
+	CW_CREATE_OBJECT_ERR((*genericThreadStruct), genericHandshakeThread, return NULL; );
+	
+	if(addrPtr == NULL) return;
+
+	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) addrPtr;
+	CWLog("[DTLS] New generic thread for WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+	
+	CW_COPY_NET_ADDR_PTR(&((*genericThreadStruct)->addressWTPPtr), addrPtr);
+					
+	if (!CWErr(CWCreateSafeList(&((*genericThreadStruct)->packetDataList)))) {
+		exit(-1);
+	}
+	
+	CWCreateThreadMutex(&((*genericThreadStruct)->interfaceMutex));
+	CWCreateThreadCondition(&((*genericThreadStruct)->interfaceWait));
+	CWSetMutexSafeList((*genericThreadStruct)->packetDataList, &((*genericThreadStruct)->interfaceMutex));
+	CWSetConditionSafeList((*genericThreadStruct)->packetDataList, &((*genericThreadStruct)->interfaceWait));
+	
+	//Aggiunta ClientHello				
+	CWLockSafeList((*genericThreadStruct)->packetDataList);
+	CWAddElementToSafeListTailwitDataFlag((*genericThreadStruct)->packetDataList, pData, readBytes, 1);
+	CWUnlockSafeList((*genericThreadStruct)->packetDataList);
+	(*genericThreadStruct)->dataSock = sock;
+	(*genericThreadStruct)->next = NULL;
+	
+	//return genericThreadStruct;
+}
 
 void CWACEnterMainLoop() {
 
@@ -149,26 +181,185 @@ void CWACManageIncomingPacket(CWSocket sock,
 			      CWNetworkLev4Address *addrPtr,CWBool dataFlag) {
  
 	CWWTPManager *wtpPtr = NULL;
+	genericHandshakeThreadPtr tmpGenericThreadList, wtpGenericPtr;
 	char* pData;
+	CWBool dataFlagTmp;
+	CWProtocolMessage msgDataChannel;
+	char *valSessionIDPtr=NULL;
+	int KeepAliveLenght=0, elemType, elemLen;
+	CWSecuritySession sessionDataGeneric;
+	int pathMTU, indexTmpThread=0;
+/*
+ * Elena Agostini - 04/2014: generic handshake datachannel WTP
+ */
+#ifdef CW_DTLS_DATA_CHANNEL
+		if( ((buf[0] & 0x0f) == CW_PACKET_CRYPT) && (dataFlag == CW_TRUE) )
+		{
+			CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return; });
+			memcpy(pData, buf, readBytes);
+					
+			/* Controllo se qualche thread WTP sta gia gestendo questo canale dati */
+			//CWLog("+++ Check WTP thread dedicato");
+			wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
+			if(wtpPtr == NULL)
+			{
+				//CWLog("+++ Check WTP thread generico");
+				/* Controllo se qualche thread generico sta gia gestendo questo canale dati */
+				wtpGenericPtr = CWWTPThreadGenericByAddress(addrPtr);
+				if(wtpGenericPtr == NULL)
+				{
+					CWThreadMutexLock(&gWTPsMutex);
+					for(indexTmpThread=0; indexTmpThread < WTP_MAX_TMP_THREAD_DTLS_DATA; indexTmpThread++)
+					{
+						if(listGenericThreadDTLSData[indexTmpThread] == NULL)
+						{
+							CW_CREATE_OBJECT_ERR(listGenericThreadDTLSData[indexTmpThread], genericHandshakeThread, return NULL; );
+
+							struct sockaddr_in *tmpAdd = (struct sockaddr_in *) addrPtr;
+							CWLog("[DTLS] New generic thread for WTP %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+							
+							CW_COPY_NET_ADDR_PTR(&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr), addrPtr);
+											
+							if (!CWErr(CWCreateSafeList(&(listGenericThreadDTLSData[indexTmpThread]->packetDataList)))) {
+								exit(-1);
+							}
+							
+							CWCreateThreadMutex(&(listGenericThreadDTLSData[indexTmpThread]->interfaceMutex));
+							CWCreateThreadCondition(&(listGenericThreadDTLSData[indexTmpThread]->interfaceWait));
+							CWSetMutexSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList, &(listGenericThreadDTLSData[indexTmpThread]->interfaceMutex));
+							CWSetConditionSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList, &(listGenericThreadDTLSData[indexTmpThread]->interfaceWait));
+							
+							//Aggiunta ClientHello				
+							CWLockSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList);
+							CWAddElementToSafeListTailwitDataFlag(listGenericThreadDTLSData[indexTmpThread]->packetDataList, pData, readBytes, 1);
+							CWUnlockSafeList(listGenericThreadDTLSData[indexTmpThread]->packetDataList);
+							
+							listGenericThreadDTLSData[indexTmpThread]->dataSock = sock;
+							listGenericThreadDTLSData[indexTmpThread]->next = NULL;
+							
+							if(!CWErr(CWCreateThread(&(listGenericThreadDTLSData[indexTmpThread]->thread_GenericDataChannelHandshake), CWGenericWTPDataHandshake, listGenericThreadDTLSData[indexTmpThread]))) {
+								CWLog("Error starting Thread that manage generich handshake with WTP");
+								exit(1);
+							}
+							
+							//CWACSetNewGenericHandshakeDataThread(&(startGenericThreadList), addrPtr, sock, pData, readBytes);
+							break;
+						}
+					}
+					CWThreadMutexUnlock(&gWTPsMutex);
+					return;
+				}
+				else
+				{
+					CWLockSafeList(wtpGenericPtr->packetDataList);
+					CWAddElementToSafeListTailwitDataFlag(wtpGenericPtr->packetDataList, pData, readBytes, 1);
+					CWUnlockSafeList(wtpGenericPtr->packetDataList);
+					return;
+				}
+			}
+			else
+			{
+				/* check if sender address is known */
+				if ((wtpPtr != NULL) && dataFlag && (wtpPtr->dataaddress.ss_family == AF_UNSPEC)) {
+					CW_COPY_NET_ADDR_PTR(&(wtpPtr->dataaddress), addrPtr);
+				}
+			}
+		}
+		else
+		{
+			/* Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs */
+			if(dataFlag == CW_TRUE)
+			{	
+					CWProtocolMessage msg;
+					CWProtocolTransportHeaderValues values;
+					
+					msgDataChannel.msg = buf;
+					msgDataChannel.offset = 0;
+					
+					if(!CWParseTransportHeader(&msgDataChannel, &values, &dataFlag, NULL)){
+						CWDebugLog("CWParseTransportHeader failed");
+						return CW_FALSE;
+					}
+					
+					if(msgDataChannel.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
+						CWParseFormatMsgElem(&msgDataChannel, &elemType, &elemLen);
+						valSessionIDPtr = CWParseSessionID(&msgDataChannel, 16);
+						wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, valSessionIDPtr);
+					}
+					else {
+						wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
+					}
+			}
+			else
+				wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
+		}
 		
+#else		
+	/* Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs */
+	if(dataFlag == CW_TRUE)
+	{	
+			CWProtocolMessage msg;
+			CWProtocolTransportHeaderValues values;
+			
+			msgDataChannel.msg = buf;
+			msgDataChannel.offset = 0;
+			
+			if(!CWParseTransportHeader(&msgDataChannel, &values, &dataFlag, NULL)){
+				CWDebugLog("CWParseTransportHeader failed");
+				return CW_FALSE;
+			}
+			
+			if(msgDataChannel.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
+				CWParseFormatMsgElem(&msgDataChannel, &elemType, &elemLen);
+				valSessionIDPtr = CWParseSessionID(&msgDataChannel, 16);
+				wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, valSessionIDPtr);
+			}
+			else {
+				wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
+			}	
+	}
+	else
+		wtpPtr = CWWTPByAddress(addrPtr, sock, dataFlag, NULL);
+	
 	/* check if sender address is known */
-	wtpPtr = CWWTPByAddress(addrPtr, sock);
 	if ((wtpPtr != NULL) && dataFlag && (wtpPtr->dataaddress.ss_family == AF_UNSPEC)) {
 		CW_COPY_NET_ADDR_PTR(&(wtpPtr->dataaddress), addrPtr);
 	}
+#endif
 
 	if(wtpPtr != NULL) {
 		/* known WTP */
 		/* Clone data packet */
 		CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return; });
 		memcpy(pData, buf, readBytes);
-
+		
+		/*
+		 * Elena Agostini - 03/2014
+		 * DTLS Data Packet List
+		 */
+#ifdef CW_DTLS_DATA_CHANNEL
+		if(dataFlag)
+		{
+			CWLockSafeList(wtpPtr->packetReceiveDataList);
+			CWAddElementToSafeListTailwitDataFlag(wtpPtr->packetReceiveDataList, pData, readBytes,dataFlag);
+			CWUnlockSafeList(wtpPtr->packetReceiveDataList);
+		}
+		else
+		{
+			CWLockSafeList(wtpPtr->packetReceiveList);
+			CWAddElementToSafeListTailwitDataFlag(wtpPtr->packetReceiveList, pData, readBytes,dataFlag);
+			CWUnlockSafeList(wtpPtr->packetReceiveList);
+		}
+#else
 		CWLockSafeList(wtpPtr->packetReceiveList);
 		CWAddElementToSafeListTailwitDataFlag(wtpPtr->packetReceiveList, pData, readBytes,dataFlag);
-		CWUnlockSafeList(wtpPtr->packetReceiveList);
+		CWUnlockSafeList(wtpPtr->packetReceiveList);	
+#endif
+		
 	} else { 
 		/* unknown WTP */
 		int seqNum, tmp;
+			
 		CWDiscoveryRequestValues values;
 		
 		if(!CWErr(CWThreadMutexLock(&gActiveWTPsMutex))) 
@@ -197,14 +388,11 @@ void CWACManageIncomingPacket(CWSocket sock,
 			 * attacks (will be added after join) 
 			 */
 
-			/* destroy useless values */
-			CWDestroyDiscoveryRequestValues(&values);
-			
 			/* send response to WTP 
 			 * note: we can consider reassembling only changed part
 			 * AND/OR do this in a new thread.
 			 */
-			if(!CWErr(CWAssembleDiscoveryResponse(&msgPtr, seqNum))) {
+			if(!CWErr(CWAssembleDiscoveryResponse(&msgPtr, seqNum, &(values.tmpPhyInfo)))) {
 				/* 
 				 * note: maybe an out-of-memory memory error 
 				 * can be resolved without exit()-ing by 
@@ -224,6 +412,9 @@ void CWACManageIncomingPacket(CWSocket sock,
 				exit(1);
 			}
 			
+			/* destroy useless values */
+			CWDestroyDiscoveryRequestValues(&values);
+			
 			CW_FREE_PROTOCOL_MESSAGE(*msgPtr);
 			CW_FREE_OBJECT(msgPtr);
 		} else { 
@@ -241,6 +432,8 @@ void CWACManageIncomingPacket(CWSocket sock,
 			gWTPs[i].dataaddress.ss_family = AF_UNSPEC;
 			gWTPs[i].isNotFree = CW_TRUE;
 			gWTPs[i].isRequestClose = CW_FALSE;
+			/* Elena Agostini - 03/2014: DTLS Data Packet List */
+			gWTPs[i].sessionDataActive = CW_FALSE;
 			CWThreadMutexUnlock(&gWTPsMutex);
 
 			/* Capwap receive packets list */
@@ -258,6 +451,22 @@ void CWACManageIncomingPacket(CWSocket sock,
 			CWSetConditionSafeList(gWTPs[i].packetReceiveList,
 					       &gWTPs[i].interfaceWait);
 
+			/*
+			 * Elena Agostini - 03/2014
+			 * DTLS Data Packet List
+			 */
+			#ifdef CW_DTLS_DATA_CHANNEL
+				if (!CWErr(CWCreateSafeList(&gWTPs[i].packetReceiveDataList))) {
+					if(!CWErr(CWThreadMutexLock(&gWTPsMutex))) exit(1);
+					gWTPs[i].isNotFree = CW_FALSE;
+					CWThreadMutexUnlock(&gWTPsMutex);
+					return;
+				}
+			
+				CWSetMutexSafeList(gWTPs[i].packetReceiveDataList, &gWTPs[i].interfaceMutex);
+				CWSetConditionSafeList(gWTPs[i].packetReceiveDataList, &gWTPs[i].interfaceWait);
+			#endif
+			
 			CW_CREATE_OBJECT_ERR(argPtr, CWACThreadArg, { CWLog("Out Of Memory"); return; });
 
 			argPtr->index = i;
@@ -281,7 +490,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 			 * increment WTPCount for that interface instead of 0-indexed one.
 			 */
 			if (argPtr->interfaceIndex < 0) argPtr->interfaceIndex = 0; 
-			
+	
 			/* create the thread that will manage this WTP */
 			if(!CWErr(CWCreateThread(&(gWTPs[i].thread), CWManageWTP, argPtr))) {
 
@@ -296,6 +505,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 				return;
 			}
 	
+	//ELENA - DA LEVARE CON DTLS DATI?
 			/* Clone data packet */
 			CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return; });
 			memcpy(pData, buf, readBytes);
@@ -312,33 +522,101 @@ void CWACManageIncomingPacket(CWSocket sock,
 
 /*
  * Simple job: see if we have a thread that is serving address *addressPtr
+ * 
+ * Elena Agostini - 04/2014: more WTPs with same IPs, different PORTs
  */
-__inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr, CWSocket sock) {
+__inline__ CWWTPManager *CWWTPByAddress(CWNetworkLev4Address *addressPtr, CWSocket sock, CWBool dataFlag, char * sessionID) {
 
 	int i;
-	if(addressPtr == NULL) return NULL;
 	
+	if(addressPtr == NULL) return NULL;
 	CWThreadMutexLock(&gWTPsMutex);
 	for(i = 0; i < gMaxWTPs; i++) {
-
+		
+		/*
+		if(gWTPs[i].isNotFree)
+		{
+			struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) addressPtr;
+			struct sockaddr_in *tmpAdd2 = (struct sockaddr_in *) &(gWTPs[i].dataaddress);
+			CWLog("++++ CWWTPByAddress: NUOVO WTP %s:%d, corrente WTP: %s:%d", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port), inet_ntoa(tmpAdd2->sin_addr), ntohs(tmpAdd2->sin_port));
+		}
+		*/
 		if(gWTPs[i].isNotFree && 
-		   &(gWTPs[i].address) != NULL &&
-		   !sock_cmp_addr((struct sockaddr*)addressPtr, 
-			   	  (struct sockaddr*)&(gWTPs[i].address), 
-				  sizeof(CWNetworkLev4Address)) )
+		   &(gWTPs[i].address) != NULL 
+		   && 
+		  (
+				(
+					(dataFlag == CW_FALSE) && 
+					(!sock_cmp_addr((struct sockaddr*)addressPtr, (struct sockaddr*)&(gWTPs[i].address),sizeof(CWNetworkLev4Address))) &&
+					(!sock_cmp_port((struct sockaddr*)addressPtr, (struct sockaddr*)&(gWTPs[i].address), sizeof(CWNetworkLev4Address)))
+				)
+				||
+				(
+					(dataFlag == CW_TRUE) &&
+					( 
+						(sessionID != NULL) && (memcmp(gWTPs[i].WTPProtocolManager.sessionID, sessionID, WTP_SESSIONID_LENGTH) == 0) ||
+						(
+							(!sock_cmp_addr((struct sockaddr*)addressPtr, (struct sockaddr*)&(gWTPs[i].dataaddress),sizeof(CWNetworkLev4Address))) &&
+							(!sock_cmp_port((struct sockaddr*)addressPtr, (struct sockaddr*)&(gWTPs[i].dataaddress), sizeof(CWNetworkLev4Address)))
+						)
+					)
+						
+				)			
+		  )
+		)
 		{ 
 		
 			/* we treat a WTP that sends packet to a different 
 			 * AC's interface as a new WTP
 			 */
+
 			CWThreadMutexUnlock(&gWTPsMutex);
+			//CWLog("-- WTP gestito dal thread %d ", i);
 			return &(gWTPs[i]);
 		}
 	}
 	
 	CWThreadMutexUnlock(&gWTPsMutex);
 	
+	//CWLog("-- WTP mai gestito");
+	
 	return NULL;
+}
+
+/* Elena Agostini - 04/2014: check if there is a generic thread for this handshake on datachannel */
+__inline__ genericHandshakeThreadPtr CWWTPThreadGenericByAddress(CWNetworkLev4Address *addressPtr) {
+	
+	int indexTmpThread=0;
+	
+	if(addressPtr == NULL) return NULL;
+	
+	CWThreadMutexLock(&gWTPsMutex);
+	
+	for(indexTmpThread=0; indexTmpThread < WTP_MAX_TMP_THREAD_DTLS_DATA; indexTmpThread++)
+	{
+		//CWLog("+++ cerco nella struttura numero %d", indexTmpThread);
+		if(listGenericThreadDTLSData[indexTmpThread] != NULL)
+		{
+			struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) addressPtr;
+			struct sockaddr_in *tmpAdd2 = (struct sockaddr_in *) &(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr);
+			CWLog("++++ CWWTPThreadGenericByAddress, NUOVO WTP %s:%d, CORRENTE WTP: %s:%d, Num Generic Thread: %d", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port), inet_ntoa(tmpAdd2->sin_addr), ntohs(tmpAdd2->sin_port), indexTmpThread);
+
+			if(
+				(!sock_cmp_addr((struct sockaddr*)addressPtr, (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr),sizeof(CWNetworkLev4Address))) &&
+				(!sock_cmp_port((struct sockaddr*)addressPtr, (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr), sizeof(CWNetworkLev4Address)))
+			)
+			{
+				CWThreadMutexUnlock(&gWTPsMutex);
+				//CWLog("+++++ Trovato");
+				return listGenericThreadDTLSData[indexTmpThread];
+			}
+		}
+	}
+	
+	CWThreadMutexUnlock(&gWTPsMutex);
+	CWLog("+++++ NON Trovato");
+	
+	return NULL;		
 }
 
 /* 
@@ -399,7 +677,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
  	gWTPs[i].messagesCount = 0;
  	gWTPs[i].isRetransmitting = CW_FALSE;
 	gWTPs[i].retransmissionCount = 0;
-
+		
 	CWResetWTPProtocolManager(&(gWTPs[i].WTPProtocolManager));
 
 	CWLog("New Session");
@@ -431,6 +709,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 	if(gCWForceMTU > 0) gWTPs[i].pathMTU = gCWForceMTU;
 
 	CWDebugLog("Path MTU for this Session: %d",  gWTPs[i].pathMTU);
+	
 	
 	CW_REPEAT_FOREVER {
 		int readBytes;
@@ -474,16 +753,19 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			CWThreadMutexLock(&gWTPs[i].interfaceMutex);
 			pBuffer = (char *)CWGetHeadElementFromSafeList(gWTPs[i].packetReceiveList, NULL);
 			
-			
-			if (((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT) && ((gWTPs[i].buf[0] & 0x0f) == CW_PACKET_CRYPT))
-			  bCrypt = CW_TRUE;
+			/*
+			 * Elena Agostini - 03/2014
+			 * 
+			 * If && bCrypt will be 0 even if packet is DTLS
+			 */
+			//if (((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT) || ((gWTPs[i].buf[0] & 0x0f) == CW_PACKET_CRYPT))
+			if((pBuffer[0] & 0x0f) == CW_PACKET_CRYPT)  
+				bCrypt = CW_TRUE;
 
 			
 			CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
 
 			if (bCrypt) {
-
-
 			  if(!CWErr(CWSecurityReceive(gWTPs[i].session,
 										  gWTPs[i].buf,
 										  CW_BUFFER_SIZE - 1,
@@ -504,7 +786,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 			  memcpy(gWTPs[i].buf, pBuffer, readBytes);
 			  CW_FREE_OBJECT(pBuffer);
 			}
-
+			
 			if(!CWProtocolParseFragment(gWTPs[i].buf,
 						    readBytes,
 						    &(gWTPs[i].fragmentsList),
@@ -523,7 +805,6 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 				
 				continue;
 			}
-
 
 			switch(gWTPs[i].currentState) 
 			{
@@ -546,6 +827,7 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							CWCloseThread();
 						}
 					}
+					
 					break;
 				}
 				case CW_ENTER_CONFIGURE:
@@ -586,10 +868,38 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							CWCloseThread();
 						}
 					}
+					
+					
 					break;
 				}	
 				case CW_ENTER_RUN:
 				{
+					/*
+					 * Elena Agostini - 03/2014: DTLS Data Session AC. DataPacket Receiver Thread
+					 */
+					#ifdef CW_DTLS_DATA_CHANNEL
+					
+					if(gWTPs[i].sessionDataActive == CW_FALSE)
+					{
+						CWACThreadArg *argPtrDataThread;
+						CW_CREATE_OBJECT_ERR(argPtrDataThread, CWACThreadArg, { CWLog("Out Of Memory"); return; });
+						argPtrDataThread->index = i;
+						argPtrDataThread->sock = sock;
+						argPtrDataThread->interfaceIndex = 0;
+						
+						CWThreadMutexLock(&gWTPs[i].interfaceMutex);
+						gWTPs[i].sessionDataActive=CW_TRUE;
+						CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
+						
+						CWThread thread_receiveDataChannel;
+						if(!CWErr(CWCreateThread(&thread_receiveDataChannel, CWACReceiveDataChannel, argPtrDataThread))) {
+							CWLog("Error starting Thread that receive data channel");
+							exit(1);
+						}
+						gWTPs[i].sessionDataActive = CW_TRUE;
+					}
+					#endif
+					
 					if(!ACEnterRun(i, &msg, dataFlag)) 
 					{
 						if(CWErrorGetLastErrorCode() == CW_ERROR_INVALID_FORMAT) 
@@ -604,6 +914,13 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 							CWLog("--> Critical Error... closing thread");
 							CWErrorHandleLast();
 							CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+							/*
+							 * Elena Agostini - 03/2014
+							 * 
+							 * DTLS Data Session AC
+							 */
+							//TODO
+							
 							CWCloseThread();
 						}
 					}
@@ -643,6 +960,55 @@ CW_THREAD_RETURN_TYPE CWManageWTP(void *arg) {
 				}
 				break;
 			  }
+			  /*
+			   * Elena Agostini: 09/2014. IEEE WLAN Configuration Request
+			   */
+			 case IEEE_WLAN_CONFIGURATION_CMD:
+			 {
+				int seqNum = CWGetSeqNum();
+				
+				int radioIndex = CWIEEEBindingGetIndexFromDevID(gWTPs[i].cmdWLAN->radioID);					
+				int wlanIndex = CWIEEEBindingGetIndexFromDevID(gWTPs[i].cmdWLAN->wlanID);
+				
+				CWLog("Assembling WLAN Configuration Request (op. %d)", gWTPs[i].cmdWLAN->typeCmd);
+				
+				if(gWTPs[i].cmdWLAN->typeCmd == CW_OP_ADD_WLAN)
+				{
+					//Controlli su numero radio e numero interfaccia
+					if(!ACUpdateInfoWlanInterface(
+					&(gWTPs[i].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex]), 
+					gWTPs[i].cmdWLAN->wlanID, 
+					gWTPs[i].cmdWLAN->ssid, 
+					gWTPs[i].WTPProtocolManager.radiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.interfaces[wlanIndex].frameTunnelMode))
+						break;//return CW_FALSE;
+				}
+				
+				//Create Configuration Request. Add or Del
+				if((CWAssembleIEEEConfigurationRequest(&(gWTPs[i].messages), 
+									 &(gWTPs[i].messagesCount), 
+									 gWTPs[i].pathMTU, 
+									 seqNum,
+									 gWTPs[i].cmdWLAN->typeCmd,
+									 gWTPs[i].cmdWLAN->radioID,
+									 gWTPs[i].cmdWLAN->wlanID,
+									 i
+									 )))  {
+						
+					/*	if(!CWACSendFragments(i)) 
+							CWLog("CWACSendFragments NO");
+						else
+							bResult = CW_TRUE;
+						*/
+						
+						if(CWACSendAcknowledgedPacket(i, CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST, seqNum))
+							bResult = CW_TRUE;
+						 else
+							CWACStopRetransmission(i);
+					}	
+				
+				break;
+			
+			 }
 			case CLEAR_CONFIG_MSG_CMD:
 			  {
 				int seqNum = CWGetSeqNum();
@@ -794,6 +1160,26 @@ void _CWCloseThread(int i) {
 	gWTPs[i].isNotFree = CW_FALSE;
 	CWThreadMutexUnlock(&gWTPsMutex);
 	
+//-- Elena Agostini: fake method to delete all node about that WTP
+	nodeAVL * tmp;
+	
+	CWLog("AVL AC: \n");
+	AVLdisplay_avl(avlTree);
+	CWLog("Now delete all STA of WTP %d", i);
+	CWThreadMutexLock(&(mutexAvlTree));
+	tmp=NULL;
+	do {
+		tmp = AVLfindWTPNode(avlTree, i);
+		if(tmp != NULL)
+		{
+			CWPrintEthernetAddress(tmp->staAddr, "There is a STA belonging to WTP");
+			avlTree = AVLdeleteNodeWithoutRadioID(avlTree, tmp);
+		}
+	}while(tmp != NULL && avlTree != NULL);
+	
+	CWThreadMutexUnlock(&(mutexAvlTree));
+//--
+	
 	CWExitThread();
 }
 
@@ -925,4 +1311,162 @@ void CWResetWTPProtocolManager(CWWTPProtocolManager *WTPProtocolManager) {
 	*/
 }
 
+/*
+ * Elena Agostini - 04/2014: Generic thread handler generich DTLS Data Channel handshake WTP 
+ */
+CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg) {
+	
+	genericHandshakeThreadPtr argInputThread = (genericHandshakeThreadPtr) arg;
+	CWWTPManager *wtpPtr = NULL;
+	struct sockaddr_in *tmpAdd;
+	CWSecuritySession sessionDataGeneric;
+	int pathMTU, readBytes, countPacketDataList, dataFlag=1, elemLen, elemType, fragments, i;
+	char buf[CW_BUFFER_SIZE];
+	char * pData, * valSessionIDPtr;
+	CWProtocolMessage msg, msgDataChannel;
+	CWProtocolTransportHeaderValues values;
+	CWSocket dataSocket;
+	int indexTmpThread;
+	
+	dataSocket = argInputThread->dataSock;
+	if (dataSocket == 0){
+		CWLog("data socket of WTP isn't ready.");
+		CWErrorHandleLast();
+		CWCloseThread();
+	}
 
+	/* Sessione DTLS Dati Genrica con WTP in DataCheck per primo Handshake dati */
+	if(!CWErr(CWSecurityInitGenericSessionServerDataChannel(argInputThread->packetDataList,	
+									&(argInputThread->addressWTPPtr),
+									dataSocket,
+									gACSecurityContext,
+									&sessionDataGeneric,
+									&pathMTU)))
+	{
+		CWErrorHandleLast();
+		CWCloseThread();
+	}
+	
+	/* Leggo i dati dalla packetList e li riscrivo decifrati */	
+	CW_REPEAT_FOREVER {
+		countPacketDataList=0;
+	
+		//Se ci sono pacchetti sulla lista dati ... 
+		CWLockSafeList(argInputThread->packetDataList);
+		countPacketDataList = CWGetCountElementFromSafeList(argInputThread->packetDataList);
+		CWUnlockSafeList(argInputThread->packetDataList);
+		if(countPacketDataList > 0) {
+			// ... li legge cifrati ... 
+			if(!CWErr(CWSecurityReceive(sessionDataGeneric,
+										buf,
+										CW_BUFFER_SIZE - 1,
+										&readBytes)))
+			{		
+				CWDebugLog("Error during security receive");
+				CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+				continue;
+			}
+			
+			/* Se e un keepalive associo il canale dati a quello di controllo */
+			
+			msgDataChannel.msg = buf;
+			msgDataChannel.offset = 0;
+			
+			if(!CWParseTransportHeader(&msgDataChannel, &values, &dataFlag, NULL)){
+				CWDebugLog("CWParseTransportHeader failed");
+				return CW_FALSE;
+			}
+		
+			if(msgDataChannel.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
+				CWParseFormatMsgElem(&msgDataChannel, &elemType, &elemLen);
+				valSessionIDPtr = CWParseSessionID(&msgDataChannel, 16);
+				wtpPtr = CWWTPByAddress(&(argInputThread->addressWTPPtr), 0, CW_TRUE, valSessionIDPtr);
+				if ((wtpPtr != NULL) && (wtpPtr->dataaddress.ss_family == AF_UNSPEC)) {
+					CW_COPY_NET_ADDR_PTR(&(wtpPtr->dataaddress), &(argInputThread->addressWTPPtr));
+					
+					/* ++++++++++++++++++++ Replay with KeepAlive ++++++++++++++++++++ */
+					CWProtocolMessage *messages = NULL;
+					CWProtocolMessage sessionIDmsgElem;
+					int fragmentsNum = 0;
+					
+					CWAssembleMsgElemSessionID(&sessionIDmsgElem, valSessionIDPtr);
+					sessionIDmsgElem.data_msgType = CW_DATA_MSG_KEEP_ALIVE_TYPE;
+					if (!CWAssembleDataMessage(&messages, 
+						  &fragmentsNum, 
+						  pathMTU, 
+						  &sessionIDmsgElem, 
+						  NULL,
+						  CW_PACKET_CRYPT,
+						  1
+						  ))
+					{
+						CWLog("Failure Assembling KeepAlive Request");
+						if(messages)
+							for(i = 0; i < fragmentsNum; i++) {
+								CW_FREE_PROTOCOL_MESSAGE(messages[i]);
+							}	
+						CW_FREE_OBJECT(messages);
+						return CW_FALSE;
+					}
+
+					for(i = 0; i < fragmentsNum; i++) {
+						if(!(CWSecuritySend(sessionDataGeneric, messages[i].msg, messages[i].offset))) {
+							CWLog("Failure sending  KeepAlive Request");
+							int k;
+							for(k = 0; k < fragmentsNum; k++) {
+								CW_FREE_PROTOCOL_MESSAGE(messages[k]);
+							}	
+							CW_FREE_OBJECT(messages);
+							break;
+						}
+					}
+
+					CWLog("Inviato KeepAlive");
+
+					int k;
+					for(k = 0; messages && k < fragmentsNum; k++) {
+						CW_FREE_PROTOCOL_MESSAGE(messages[k]);
+					}	
+					CW_FREE_OBJECT(messages);
+					/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+			
+			
+					//Termina handshake e termina thread
+				}
+				break;
+			}
+		}	
+	}
+	
+	CWThreadMutexLock(&gWTPsMutex);
+	for(indexTmpThread=0; indexTmpThread < WTP_MAX_TMP_THREAD_DTLS_DATA; indexTmpThread++)
+	{
+		if(listGenericThreadDTLSData[indexTmpThread] != NULL)
+		{
+			struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) &(argInputThread->addressWTPPtr);
+			struct sockaddr_in *tmpAdd2 = (struct sockaddr_in *) &(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr);
+				
+			//CWLog("++++ Free prima di terminare il thread, NUOVO WTP %s:%d, CORRENTE WTP: %s:%d", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port), inet_ntoa(tmpAdd2->sin_addr), ntohs(tmpAdd2->sin_port));
+
+			if(
+				(!sock_cmp_addr((struct sockaddr*)&(argInputThread->addressWTPPtr), (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr),sizeof(CWNetworkLev4Address))) &&
+				(!sock_cmp_port((struct sockaddr*)&(argInputThread->addressWTPPtr), (struct sockaddr*)&(listGenericThreadDTLSData[indexTmpThread]->addressWTPPtr), sizeof(CWNetworkLev4Address)))
+			)
+			{
+			//	CWLog("++++ Trovato e faccio FREE della struttura numero %d", indexTmpThread);
+				free(listGenericThreadDTLSData[indexTmpThread]);
+				listGenericThreadDTLSData[indexTmpThread]=NULL;
+				
+				//CW_FREE_OBJECT(tmpGenericThreadList);
+			//	CWLog("++++ Free Thread Generico");
+				break;
+			}
+		}
+	}
+	CWThreadMutexUnlock(&gWTPsMutex);
+	
+	struct sockaddr_in *tmpAdd1 = (struct sockaddr_in *) &(argInputThread->addressWTPPtr);
+	CWLog("[DTLS] New DTLS Data session created with WTP %s:%d.. generic thread exit", inet_ntoa(tmpAdd1->sin_addr), ntohs(tmpAdd1->sin_port));
+	
+	return NULL;
+}

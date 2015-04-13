@@ -77,6 +77,12 @@ typedef struct {
 	CWProtocolResultCode code;
 	ACIPv4ListValues ACIPv4ListInfo;
 	ACIPv6ListValues ACIPv6ListInfo;
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+	 */
+	int ECNSupport;
 } CWProtocolJoinResponseValues;
 
 typedef struct {
@@ -113,23 +119,28 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr);			//36
 CWBool CWAssembleMsgElemWTPFrameTunnelMode(CWProtocolMessage *msgPtr);			//38
 CWBool CWAssembleMsgElemWTPIPv4Address(CWProtocolMessage *msgPtr);			//39
 CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr);				//40
-CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr);				//1048
-CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr);					//1040
-CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr);					//1032
+CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int radioID, char radioType); //1048
+CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr, int radioID,char * suppRates, int lenSuppRates);				//1040
+CWBool CWAssembleMsgElemMACOperation(CWProtocolMessage *msgPtr, int radioID, int fragmentationTreshold, int rtsThreshold, char shortRetry, char longRetry, int txMSDU, int rxMSDU); //1030
+CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower);					//1032
 CWBool CWAssembleMsgElemWTPName(CWProtocolMessage *msgPtr);				//41
 CWBool CWAssembleMsgElemWTPOperationalStatistics(CWProtocolMessage *msgPtr,int radio);	//42
 CWBool CWAssembleMsgElemWTPRadioStatistics(CWProtocolMessage *msgPtr,int radio);	//43
 CWBool CWAssembleMsgElemWTPRebootStatistics(CWProtocolMessage *msgPtr);			//44
+//Elena Agostini - 11/2014: Delete Station Msg Elem
+CWBool CWAssembleMsgElemWTPDeleteStation(CWProtocolMessage *msgPtr, CWMsgElemDataDeleteStation * infoDeleteStation);
+//Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages
+CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr);
 //CWBool CWAssembleMsgElemWTPStaticIPInfo(CWProtocolMessage *msgPtr);			//45
-
 //CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr);	
 
 //---------------------------------------------------------/
 CWBool CWParseACDescriptor(CWProtocolMessage *msgPtr, int len, CWACInfoValues *valPtr);					// 1
 CWBool CWParseACIPv4List(CWProtocolMessage *msgPtr, int len, ACIPv4ListValues *valPtr);					// 2
 CWBool CWParseACIPv6List(CWProtocolMessage *msgPtr, int len, ACIPv6ListValues *valPtr);					// 3
-CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len);								// 8
-CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len);								// 18
+CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address);
+CWBool CWParse80211Station(CWProtocolMessage *msgPtr, int len, int * radioID, short int * assID, char * flags, char ** address, short int * capability, int * wlanID, int * supportedRatesLen, char ** supportedRates);
+CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address);								// 18
 CWBool CWParseCWControlIPv4Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv4NetworkInterface *valPtr);	//10 
 CWBool CWParseCWControlIPv6Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv6NetworkInterface *valPtr);	//11 
 CWBool CWParseCWTimers (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);			//12 
@@ -137,6 +148,13 @@ CWBool CWParseDecryptErrorReportPeriod (CWProtocolMessage *msgPtr, int len, WTPD
 CWBool CWParseIdleTimeout (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);		//26 
 CWBool CWParseWTPFallback (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureResponseValues *valPtr);		//37 
 CWBool CWParseWTPRadioInformation_FromAC(CWProtocolMessage *msgPtr, int len, char *valPtr);					// 1048
+/* Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages */
+CWBool CWParseACECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr);
+//Elena Agostini - 09/2014: IEEE Binding
+CWBool CWAssembleMsgElemAssignedWTPSSID(CWProtocolMessage *msgPtr, int radioID, int wlanID, char * bssid);
+CWBool CWParseACAddWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr);
+CWBool CWParseACDelWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr);
+CWBool CWParseACUpdateWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr);
 
 //si trova in CWProtocol.h
 //CWBool CWParseACName(CWProtocolMessage *msgPtr, int len, char **valPtr);						// 4

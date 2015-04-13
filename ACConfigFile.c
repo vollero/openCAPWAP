@@ -45,7 +45,7 @@ const char *CW_CONFIG_FILE = "config.ac";
 
 CWBool CWConfigFileInitLib() {
 
-	gConfigValuesCount = 11;
+	gConfigValuesCount = 14;
 
 	CW_CREATE_ARRAY_ERR(gConfigValues,
 			    gConfigValuesCount,
@@ -98,30 +98,63 @@ CWBool CWConfigFileInitLib() {
 	gConfigValues[10].code = "</AC_LOG_FILE_SIZE>";
 	gConfigValues[10].value.int_value = DEFAULT_LOG_SIZE;
 	
+	/*
+	* Elena Agostini - 02/2014
+	*
+	* OpenSSL params config.ac
+	*/
+	gConfigValues[11].type = CW_STRING;
+	gConfigValues[11].code = "</AC_SECURITY_CERTIFICATE>";
+	gConfigValues[11].value.str_value = NULL;
+
+	gConfigValues[12].type = CW_STRING;
+	gConfigValues[12].code = "</AC_SECURITY_KEYFILE>";
+	gConfigValues[12].value.str_value = NULL;
+
+	gConfigValues[13].type = CW_STRING;
+	gConfigValues[13].code = "</AC_SECURITY_PASSWORD>";
+	gConfigValues[13].value.str_value = NULL;
+
 	return CW_TRUE;
 }
 
 CWBool CWConfigFileDestroyLib() {
 
 	int  i;
-	
+	int indexBlank=0;
+
 	/* save the preferences we read */
 	gACHWVersion = gConfigValues[0].value.int_value;
 	gACSWVersion = gConfigValues[1].value.int_value;
 	gLimit = gConfigValues[2].value.int_value;
 	gMaxWTPs = gConfigValues[3].value.int_value;
 
-	if(gConfigValues[4].value.str_value != NULL && !strcmp(gConfigValues[4].value.str_value, "PRESHARED")) {
-		
-		gACDescriptorSecurity = CW_PRESHARED;
-	} else { 
-		/* default */
-		gACDescriptorSecurity = CW_X509_CERTIFICATE;
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Ignore spaces in configuration values
+	 */
+
+	if(gConfigValues[4].value.str_value != NULL)
+	{
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[4].value.str_value), indexBlank);
+		if(!strcmp((gConfigValues[4].value.str_value)+indexBlank, "PRESHARED")) {	
+			gACDescriptorSecurity = CW_PRESHARED;
+		} else { 
+			/* default */
+			gACDescriptorSecurity = CW_X509_CERTIFICATE;
+		}
 	}
+
 	if(gConfigValues[5].value.str_value != NULL) {
-		
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * Ignore spaces in configuration values
+		 */
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[5].value.str_value), indexBlank);
 		CW_CREATE_STRING_FROM_STRING_ERR(gACName,
-						 (gConfigValues[5].value.str_value),
+						 (gConfigValues[5].value.str_value)+indexBlank,
 						 return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		//CW_FREE_OBJECT(gACName);
 	}
@@ -152,6 +185,29 @@ CWBool CWConfigFileDestroyLib() {
 		gNetworkPreferredFamily = CW_IPv4;
 	}
 	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Ignore spaces in configuration values
+	 * Get OpenSSL params values
+	 */
+	gEnabledLog = gConfigValues[9].value.int_value;
+	gMaxLogFileSize = gConfigValues[10].value.int_value;
+
+	if(gConfigValues[11].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[11].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gACCertificate, (gConfigValues[11].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	}
+	if(gConfigValues[12].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[12].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gACKeyfile, (gConfigValues[12].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	}
+	if(gConfigValues[13].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[13].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gACPassword, (gConfigValues[13].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	}
+
+
 	for(i = 0; i < gConfigValuesCount; i++) {
 		if(gConfigValues[i].type == CW_STRING) {
 			CW_FREE_OBJECT(gConfigValues[i].value.str_value);
@@ -160,9 +216,6 @@ CWBool CWConfigFileDestroyLib() {
 		}
 	}
 
-	gEnabledLog = gConfigValues[9].value.int_value;
-	gMaxLogFileSize = gConfigValues[10].value.int_value;
-	
 	CW_FREE_OBJECT(gConfigValues);
 	
 	return CW_TRUE;

@@ -90,7 +90,7 @@ CWBool CWParseSettingsFile()
 			CW_FREE_OBJECT(line);
 			continue;
 		}
-		
+	
 		if (!strncmp(startTag+1, "CWMIN_VOICE", endTag-startTag-1))
 		{
 			int value = atoi(endTag+1);
@@ -245,5 +245,31 @@ CWBool CWParseSettingsFile()
 		}
 		CW_FREE_OBJECT(line);
 	}
+
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: values not initialized
+	 * gDefaultQosValues[*]queueDepth
+	 * gDefaultQosValues[*]dot1PTag
+	 * gDefaultQosValues[*]DSCPTag
+	 */
+	gDefaultQosValues[VOICE_QUEUE_INDEX].queueDepth = 0;
+	gDefaultQosValues[VOICE_QUEUE_INDEX].dot1PTag = 0;
+	gDefaultQosValues[VOICE_QUEUE_INDEX].DSCPTag = 0;
+
+	gDefaultQosValues[VIDEO_QUEUE_INDEX].queueDepth = 0;
+	gDefaultQosValues[VIDEO_QUEUE_INDEX].dot1PTag = 0;
+	gDefaultQosValues[VIDEO_QUEUE_INDEX].DSCPTag = 0;
+
+	gDefaultQosValues[BESTEFFORT_QUEUE_INDEX].queueDepth = 0;
+	gDefaultQosValues[BESTEFFORT_QUEUE_INDEX].dot1PTag = 0;
+	gDefaultQosValues[BESTEFFORT_QUEUE_INDEX].DSCPTag = 0;
+
+	gDefaultQosValues[BACKGROUND_QUEUE_INDEX].queueDepth = 0;
+	gDefaultQosValues[BACKGROUND_QUEUE_INDEX].dot1PTag = 0;
+	gDefaultQosValues[BACKGROUND_QUEUE_INDEX].DSCPTag = 0;
+		
+	
 	return CW_TRUE;
 }

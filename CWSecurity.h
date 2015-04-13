@@ -55,7 +55,7 @@ CWBool CWSecurityInitSessionClient(CWSocket sock,
 				   CWSecurityContext ctx,
 				   CWSecuritySession *sessionPtr,
 				   int *PMTUPtr);
-
+				   
 CWBool CWSecuritySend(CWSecuritySession session, const char *buf, int len);
 CWBool CWSecurityReceive(CWSecuritySession session, 
 			 char *buf,

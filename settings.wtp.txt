@@ -1,9 +1,17 @@
 # Settings File for WTP. Lines beginning with # and blank lines will be ignored
-#
 
-#
+<LOG_FILE_WTP>/var/log/wtp1.txt
+
+#Elena Agostini 07-2014: nl80211 support
+<RADIO_PHY_TOT>1
+<RADIO_PHY_NAME_0>phy2
+#<RADIO_PHY_NAME_1>phyX
+
+#Elena Agostini 11/2014: Local Bridgind Support with mac80211
+<WTP_ETH_IF_NAME> eth0
+<BRIDGE_IF_NAME> bridge0
+
 <IF_NAME>    mon.wlan0
-<WTP_ETH_IF_NAME>    vmnet1
 <RADIO_0_IF_NAME>    wlan0
 <BASE_MAC_IF_NAME>   vmnet1
 <BOARD_REVISION_NO>   eth0
@@ -13,6 +21,18 @@
 <WTP_HOSTAPD_PORT> 6333
 <WTP_HOSTAPD_UNIX_PATH> /tmp/wtp_ipc_hostapd
 
+# Elena Agostini - 02/2014
+# QoS Static Values variables
+<WTP_QOS_FREQ> 1
+<WTP_QOS_BITRATE> 1
+<WTP_QOS_FRAG> 1
+<WTP_QOS_TXPOWER> 1
+<WTP_QOS_CWMIN> 1
+<WTP_QOS_CWMAX> 1
+<WTP_QOS_AIFS> 1
+<WTP_QOS_WME_CWMIN> 1
+<WTP_QOS_WME_CWMAX> 1
+<WTP_QOS_WME_AIFSN> 1
 
 #<IF_NAME>    mon.wlan0
 #<WTP_ETH_IF_NAME>    eth0

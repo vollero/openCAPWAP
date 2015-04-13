@@ -64,10 +64,6 @@ CWBool CWParseClearConfigurationResponseMessage(CWProtocolMessage* msgPtr,
 						int len,
 						CWProtocolResultCode* resultCode);
 						
-CWBool CWParseWLANConfigurationResponseMessage(CWProtocolMessage* msgPtr,
-						int len,
-						CWProtocolResultCode* resultCode);
-
 CWBool CWParseStationConfigurationResponseMessage(CWProtocolMessage* msgPtr,
 						  int len,
 						  CWProtocolResultCode* resultCode);
@@ -109,6 +105,12 @@ CWBool CWStopNeighborDeadTimer(int WTPIndex);
 CWBool CWRestartNeighborDeadTimer(int WTPIndex);
 CWBool CWRestartNeighborDeadTimerForEcho(int WTPIndex);
 
+/* argument passed to the thread func */
+typedef struct {
+	int index;
+	CWSocket sock;
+	int interfaceIndex;
+} CWACThreadArg;
 
 int flush_pcap(u_char *buf,int len,char *filename){
 	
@@ -138,7 +140,6 @@ int flush_pcap(u_char *buf,int len,char *filename){
 	return 0;
 }
 
-#define HLEN_80211 24
 int isEAPOL_Frame( unsigned char *buf, int len){
 	unsigned char rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 	int i;
@@ -152,44 +153,51 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 	CWBool toSend= CW_FALSE, timerSet = CW_TRUE;
 	CWControlHeaderValues controlVal;
 	CWProtocolMessage* messages =NULL;
-	int messagesCount=0;
+	int messagesCount=0, k=0;
 	unsigned char StationMacAddr[MAC_ADDR_LEN];
+	unsigned char BSSID[MAC_ADDR_LEN];
 	char string[10];
 	char socketctl_path_name[50];
 	char socketserv_path_name[50];
 	int msglen = msgPtr->offset;
-
+	
+	int offsetFrameReceived;
+			short int frameControl;
+			char * frameResponse=NULL;
+			int frameRespLen=0, i=0;
+			CWProtocolMessage *completeMsgPtr = NULL;
+			CWProtocolMessage * msgFrame;
+			int fragmentsNum=0, dataSocket=0;
+			CWNetworkLev4Address address;
+			int offsetFrame8023=0;
+			
+			unsigned char frame8023[CW_BUFFER_SIZE];
+				int frame8023len=0;
+				nodeAVL* tmpNode=NULL;
+				struct CWFrameDataHdr dataFrame;
+				int write_bytes;
+				int indexWTP;
+				int indexRadio=0, indexWlan=0, stop=0;
+				unsigned char * dataFrameBuffer;
+				int offsetDataFrame=0;
+				
 	msgPtr->offset = 0;
 	if(dataFlag){
 		/* We have received a Data Message... now just log this event and do actions by the dataType */
 		
-		CWDebugLog("--> Received a DATA Message");
+	//	CWDebugLog("--> Received a DATA Message: Type: %d", msgPtr->data_msgType);
 
 		if(msgPtr->data_msgType == CW_DATA_MSG_FRAME_TYPE)	{
+
+			/*Retrive mac address station from msg*/
+			memset(StationMacAddr, 0, MAC_ADDR_LEN);
+			memcpy(StationMacAddr, msgPtr->msg+SOURCE_ADDR_START, MAC_ADDR_LEN);
 		
-		/*Retrive mac address station from msg*/
-		memset(StationMacAddr, 0, MAC_ADDR_LEN);
-		memcpy(StationMacAddr, msgPtr->msg+SOURCE_ADDR_START, MAC_ADDR_LEN);
-	
-		int seqNum = CWGetSeqNum();
+			int seqNum = CWGetSeqNum();
 
-		//Send a Station Configuration Request
-			if (CWAssembleStationConfigurationRequest(&(gWTPs[WTPIndex].messages),
-							  &(gWTPs[WTPIndex].messagesCount),
-							  gWTPs[WTPIndex].pathMTU,
-							  seqNum,StationMacAddr,
-							  CW_MSG_ELEMENT_ADD_STATION_CW_TYPE)) {
-
-				if(CWACSendAcknowledgedPacket(WTPIndex, 
-						      CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
-						      seqNum)) 
-				return CW_TRUE;
-			else
-				CWACStopRetransmission(WTPIndex);
-			}
-			
-			CWDebugLog("Send a Station Configuration Request");
-		}else if(msgPtr->data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE){
+			CWLog("CW_DATA_MSG_FRAME_TYPE. Non faccio nulla?");
+		}
+		else if(msgPtr->data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE){
 			
 			char * valPtr=NULL;
 			CWProtocolMessage *messages = NULL;
@@ -204,7 +212,10 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			CWParseFormatMsgElem(msgPtr, &elemType, &elemLen);
 			valPtr = CWParseSessionID(msgPtr, elemLen);
 			CWAssembleMsgElemSessionID(&sessionIDmsgElem, valPtr);
-			
+			/*
+			 * Elena Agostini - 02/2014: BUG Valgrind: sessionIDmsgElem.data_msgType not initialized
+			 */
+			sessionIDmsgElem.data_msgType = CW_DATA_MSG_KEEP_ALIVE_TYPE;
 			if (!CWAssembleDataMessage(&messages, 
 				  &fragmentsNum, 
 				  gWTPs[WTPIndex].pathMTU, 
@@ -223,6 +234,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				return CW_FALSE;
 			}
 
+#ifndef CW_DTLS_DATA_CHANNEL
 			for(i = 0; i < gACSocket.count; i++) {
 			    if (gACSocket.interfaces[i].sock == gWTPs[WTPIndex].socket){
 				dataSocket = gACSocket.interfaces[i].dataSock;
@@ -235,12 +247,20 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			      CWLog("data socket of WTP %d isn't ready.");
 			      return CW_FALSE;
 			}
+#endif
 
+//Elena
 			for(i = 0; i < fragmentsNum; i++) {
-				if(!CWNetworkSendUnsafeUnconnected(	dataSocket, 
-									&(address), 
-									messages[i].msg, 
-									 messages[i].offset))
+
+			/*
+			 * Elena Agostini - 03/2014: DTLS Data Session AC
+			 */
+			 
+#ifdef CW_DTLS_DATA_CHANNEL
+				if(!(CWSecuritySend(gWTPs[WTPIndex].sessionData, messages[i].msg, messages[i].offset)))
+#else
+				if(!CWNetworkSendUnsafeUnconnected(	dataSocket, &(address), messages[i].msg, messages[i].offset))
+#endif
 				{
 					CWLog("Failure sending  KeepAlive Request");
 					int k;
@@ -250,63 +270,685 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CW_FREE_OBJECT(messages);
 					break;
 				}
+
 			}
+
+			CWLog("Inviato KeepAlive");
 
 			int k;
 			for(k = 0; messages && k < fragmentsNum; k++) {
 				CW_FREE_PROTOCOL_MESSAGE(messages[k]);
 			}	
 			CW_FREE_OBJECT(messages);
+
 			
 		}else if(msgPtr->data_msgType == CW_IEEE_802_3_FRAME_TYPE){
 			
 			CWDebugLog("Write 802.3 data to TAP[%d], len:%d",gWTPs[WTPIndex].tap_fd,msglen);
-			write(gWTPs[WTPIndex].tap_fd, msgPtr->msg, msglen);
-			
-		}else if(msgPtr->data_msgType == CW_IEEE_802_11_FRAME_TYPE)	{
-			
-			struct ieee80211_hdr *hdr;
-			u16 fc;
-			hdr = (struct ieee80211_hdr *) msgPtr->msg;
-			fc = le_to_host16(hdr->frame_control);
- 
-			if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT || isEAPOL_Frame(msgPtr->msg,msglen) ){
+			//write(gWTPs[WTPIndex].tap_fd, msgPtr->msg, msglen);
+			write(ACTap_FD, msgPtr->msg, msglen);
+		}
+		/* Elena Agostini: 80211 Frame Management or Data */
+		else if(msgPtr->data_msgType == CW_IEEE_802_11_FRAME_TYPE)	{
 				
-				CWACsend_data_to_hostapd(WTPIndex,msgPtr->msg, msglen);
+			if(!CW80211ParseFrameIEControl(msgPtr->msg, &(offsetFrameReceived), &(frameControl)))
+				return CW_FALSE;
+
+#ifdef SPLIT_MAC
+
+			//if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC)	
+			if( WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_DATA )
+			{
+				if(!CW80211ParseDataFrameToDS(msgPtr->msg, &(dataFrame)))
+				{
+					CWLog("CW80211: Error parsing data frame");
+					return CW_FALSE;
+				}
+/*
+				CWLog("**RICEVUTO DA WTP FRAME**");
+				CWLog("dataFrame.frameControl: %02x", dataFrame.frameControl);
+				CWLog("dataFrame.DA: %02x: --- :%02x: --", (int) dataFrame.DA[0], (int) dataFrame.DA[4]);
+				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
+				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
+*/
+				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, &(offsetDataFrame), 0, 1);
+				if(dataHdr == NULL)
+					return CW_FALSE;
+				CW_CREATE_ARRAY_CALLOC_ERR(dataFrameBuffer, msglen, char, { return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); });
+				CW_COPY_MEMORY(dataFrameBuffer, dataHdr, HLEN_80211);
+				CW_COPY_MEMORY(dataFrameBuffer+HLEN_80211, msgPtr->msg+HLEN_80211, msglen-HLEN_80211);
 				
-			}else if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
-				
-				if( WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_NULLFUNC ){
-					
-					CWACsend_data_to_hostapd(WTPIndex,msgPtr->msg, msglen);
-					
-				}else{
-					
-					int write_bytes = write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
-			
-			
-					if(write_bytes != (msglen - 24)){
-						CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0],
-																	msgPtr->msg[1],
-																	msgPtr->msg[2],
-																	msgPtr->msg[3],
-																	msgPtr->msg[4],
-																	msgPtr->msg[5]);
+				//Broadcast
+				if(checkAddressBroadcast(dataFrame.DA))
+				{
+					if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
+							return CW_FALSE;
 						
-						CWLog("Error:. RecvByte:%d, write_Byte:%d ",msglen - 24,write_bytes);
+					write_bytes = write(ACTap_FD, frame8023, frame8023len);
+					if(write_bytes != frame8023len){
+							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
+					}
+					
+					
+					for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
+					{
+						for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
+						{
+							for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
+							{
+								if(
+									gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
+									gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL
+								)
+								{
+	//								CWLog("Invio a WTP %d radio %d wlan %d frameRespLen: %d msglen: %d", indexWTP, indexRadio, indexWlan, frameRespLen, msglen);
+									CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, {return CW_FALSE;} );
+									CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, msglen, {return CW_FALSE;} );
+									/*
+									 * FromDS per le stazioni riceventi
+									 * DA: broadcast
+									 * BSSID: quello del WTP/radio (byte 10)
+									 * SA: STAx
+									 */
+									 
+									CW_COPY_MEMORY(
+										(dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
+										gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, 
+										ETH_ALEN);									
+																			
+									CW_COPY_MEMORY(msgFrame->msg, dataFrameBuffer, msglen);
+									msgFrame->offset=msglen;
+									msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+										
+									if (!CWAssembleDataMessage(&completeMsgPtr, &fragmentsNum, gWTPs[WTPIndex].pathMTU, msgFrame, NULL,
+								#ifdef CW_DTLS_DATA_CHANNEL
+										CW_PACKET_CRYPT,
+								#else
+										CW_PACKET_PLAIN,
+								#endif	
+										0))
+									{
+											for(k = 0; k < fragmentsNum; k++){
+												CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+											}
+											CW_FREE_OBJECT(completeMsgPtr);
+											CW_FREE_PROTOCOL_MESSAGE(*msgFrame);
+											CW_FREE_OBJECT(msgFrame);
+									}
+
+
+									#ifndef CW_DTLS_DATA_CHANNEL
+										for(i = 0; i < gACSocket.count; i++) {
+											if (gACSocket.interfaces[i].sock == gWTPs[indexWTP].socket){
+											dataSocket = gACSocket.interfaces[i].dataSock;
+											CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[indexWTP].dataaddress));
+											break;
+											}
+										}
+
+										if (dataSocket == 0){
+											  CWLog("data socket of WTP %d isn't ready.");
+											  return CW_FALSE;
+										}
+									#endif
+										for(i = 0; i < fragmentsNum; i++) {
+										#ifdef CW_DTLS_DATA_CHANNEL
+											if(!(CWSecuritySend(gWTPs[indexWTP].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset)))
+										#else
+											if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset))
+										#endif
+											{
+												CWLog("Failure sending  KeepAlive Request");
+												int k;
+												for(k = 0; k < fragmentsNum; k++) {
+													CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+												}	
+												CW_FREE_OBJECT(completeMsgPtr);
+												break;
+											}
+										}
+
+										CWLog("Inviato Frame 80211 a WTP");
+
+										int k;
+										for(k = 0; messages && k < fragmentsNum; k++) {
+											CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+										}
+										CW_FREE_OBJECT(completeMsgPtr);
+								}	
+							}
+						}
 					}
 					
 				}
+				else 
+				{
+					//---- Search AVL node
+					CWThreadMutexLock(&mutexAvlTree);
+					tmpNode = AVLfind(dataFrame.DA, avlTree);
+					CWThreadMutexUnlock(&mutexAvlTree);
+					//----
+					//Destinatario non associato
+					if(tmpNode == NULL)
+					{
+					//	CWLog("Destinatario non associato");
+						if(!CWConvertDataFrame_80211_to_8023(msgPtr->msg, msglen, frame8023, &(frame8023len)))
+							return CW_FALSE;
+						
+						write_bytes = write(ACTap_FD, frame8023, frame8023len);
+						if(write_bytes != frame8023len){
+							CWLog("%02X %02X %02X %02X %02X %02X ",msgPtr->msg[0], msgPtr->msg[1], msgPtr->msg[2], msgPtr->msg[3], msgPtr->msg[4], msgPtr->msg[5]);
+							CWLog("Error:. ByteToWrite:%d, ByteWritten:%d ",frame8023len, write_bytes);
+						}
+					}
+					//Destinatario associato ad un WTP
+					else
+					{
+//						CWLog("Destinatario associato");
+						CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
+						CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, msglen, { return CW_FALSE;} );
 
-				
-			}else{
-				write(gWTPs[WTPIndex].tap_fd, msgPtr->msg + HLEN_80211, msglen - HLEN_80211);
-				CWDebugLog("Control Frame !!!\n");
+						CW_COPY_MEMORY((dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), tmpNode->BSSID, ETH_ALEN);
+						struct CWFrameDataHdr dataFrameFromDS;
+						if(!CW80211ParseDataFrameFromDS(dataFrameBuffer, &(dataFrameFromDS)))
+						{
+							CWLog("CW80211: Error parsing data frame");
+							return CW_FALSE;
+						}
+/*
+						CWLog("**Invio a WTP %d frame interno 802.11**", tmpNode->index);
+						CWLog("FrameControl: %02x", dataFrameFromDS.frameControl);
+						CWLog("DA: %02x: --- :%02x: --", (int) dataFrameFromDS.DA[0], (int) dataFrameFromDS.DA[4]);
+						CWLog("SA: %02x: --- :%02x: --", (int) dataFrameFromDS.SA[0], (int) dataFrameFromDS.SA[4]);
+						CWLog("BSSID: %02x: --- :%02x: --", (int) dataFrameFromDS.BSSID[0], (int) dataFrameFromDS.BSSID[4]);
+	*/											
+						memcpy(msgFrame->msg, dataFrameBuffer, msglen);
+						msgFrame->offset=msglen;
+						msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+									
+//						CWLog("STA trovata[%02x:%02x:%02x:%02x:%02x:%02x]", (int) dataFrame.DA[0], (int) dataFrame.DA[1], (int) dataFrame.DA[2], (int) dataFrame.DA[3], (int) dataFrame.DA[4], (int) dataFrame.DA[5]);
+						
+							if (!CWAssembleDataMessage(&completeMsgPtr, &fragmentsNum, gWTPs[tmpNode->index].pathMTU, msgFrame, NULL,
+								#ifdef CW_DTLS_DATA_CHANNEL
+										CW_PACKET_CRYPT,
+								#else
+										CW_PACKET_PLAIN,
+								#endif	
+										0))
+									{
+											for(k = 0; k < fragmentsNum; k++){
+												CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+											}
+											CW_FREE_OBJECT(completeMsgPtr);
+											CW_FREE_PROTOCOL_MESSAGE(*msgFrame);
+											CW_FREE_OBJECT(msgFrame);
+									}
+
+
+						#ifndef CW_DTLS_DATA_CHANNEL
+							for(i = 0; i < gACSocket.count; i++) {
+								if (gACSocket.interfaces[i].sock == gWTPs[tmpNode->index].socket){
+								dataSocket = gACSocket.interfaces[i].dataSock;
+								CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[tmpNode->index].dataaddress));
+								break;
+								}
+							}
+
+							if (dataSocket == 0){
+								  CWLog("data socket of WTP %d isn't ready.");
+								  return CW_FALSE;
+							}
+						#endif
+							for(i = 0; i < fragmentsNum; i++) {
+							#ifdef CW_DTLS_DATA_CHANNEL
+								if(!(CWSecuritySend(gWTPs[tmpNode->index].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset)))
+							#else
+								if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset))
+							#endif
+								{
+									CWLog("Failure sending  KeepAlive Request");
+									int k;
+									for(k = 0; k < fragmentsNum; k++) {
+										CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+									}	
+									CW_FREE_OBJECT(completeMsgPtr);
+									break;
+								}
+							}
+
+							CWLog("Inviato Frame 80211 a WTP %d su socket dati: %d", tmpNode->index, dataSocket);
+
+							int k;
+							for(k = 0; messages && k < fragmentsNum; k++) {
+								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+							}	
+							CW_FREE_OBJECT(completeMsgPtr);
+							tmpNode=NULL;
+					}
+				}
+				return CW_TRUE;
 			}
-			
+#endif
+
+			if(WLAN_FC_GET_TYPE(frameControl) == WLAN_FC_TYPE_MGMT)
+			{
+				int subtype = (int) WLAN_FC_GET_STYPE(frameControl);
+
+				CWLog("CW80211: Management Frame Received. Subtype: %d", subtype);
+				
+#ifdef SPLIT_MAC
+				/*
+				 * In SplitMAC mode, WTP forward probe request to AC for optional decision.
+				 * For now, there isn't an AC logic, so I'll log this event only
+				 */
+				if(subtype == WLAN_FC_STYPE_PROBE_REQ)
+				{
+					CWLog("CW80211: Management Probe request received");
+					//Do some stuff with AC logic...
+				}
+				
+				/*
+				 * In SplitMAC mode AC is responsible for auth response to client
+				 */
+				if(subtype == WLAN_FC_STYPE_AUTH)
+				{
+					CWLog("CW80211: Management Auth request received");
+
+					struct CWFrameAuthRequest authRequest;
+					if(!CW80211ParseAuthRequest(msgPtr->msg, &authRequest))
+						return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);
+
+					frameResponse = CW80211AssembleAuthResponse(authRequest.DA, &authRequest, &frameRespLen);
+					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE; });
+					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE; });
+					memcpy(msgFrame->msg, frameResponse, frameRespLen);
+					msgFrame->offset=frameRespLen;
+					msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+						
+					if (!CWAssembleDataMessage(&completeMsgPtr, &fragmentsNum, gWTPs[WTPIndex].pathMTU, msgFrame, NULL,
+				#ifdef CW_DTLS_DATA_CHANNEL
+						CW_PACKET_CRYPT, 
+				#else
+					CW_PACKET_PLAIN,
+				#endif	
+						0)){
+							for(k = 0; k < fragmentsNum; k++){
+								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+							}
+							CW_FREE_OBJECT(completeMsgPtr);
+							CW_FREE_PROTOCOL_MESSAGE(*msgFrame);
+							CW_FREE_OBJECT(msgFrame);
+					}
+
+				#ifndef CW_DTLS_DATA_CHANNEL
+					for(i = 0; i < gACSocket.count; i++) {
+						if (gACSocket.interfaces[i].sock == gWTPs[WTPIndex].socket){
+						dataSocket = gACSocket.interfaces[i].dataSock;
+						CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[WTPIndex].dataaddress));
+						break;
+						}
+					}
+
+					if (dataSocket == 0){
+						  CWLog("data socket of WTP %d isn't ready.");
+						  return CW_FALSE;
+					}
+				#endif
+					for(i = 0; i < fragmentsNum; i++) {
+
+					#ifdef CW_DTLS_DATA_CHANNEL
+						if(!(CWSecuritySend(gWTPs[WTPIndex].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset)))
+					#else
+						if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset))
+					#endif
+						{
+							CWLog("Failure sending  KeepAlive Request");
+							int k;
+							for(k = 0; k < fragmentsNum; k++) {
+								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+							}	
+							CW_FREE_OBJECT(completeMsgPtr);
+							break;
+						}
+					}
+
+					CWLog("Inviato Frame 80211 a WTP");
+
+					int k;
+					for(k = 0; messages && k < fragmentsNum; k++) {
+						CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+					}	
+					CW_FREE_OBJECT(completeMsgPtr);
+					
+				}
+#endif
+				if(subtype == WLAN_FC_STYPE_ASSOC_REQ || subtype == WLAN_FC_STYPE_REASSOC_REQ)
+				{
+					CWLog("CW80211: Management Association request received");
+					
+#ifdef SPLIT_MAC
+					/* In caso di SPLIT MAC, se AC riceve AssReq deve prima generare AssResp ed inviarlo al WTP.. */
+					struct CWFrameAssociationRequest assRequest;
+					if(!CW80211ParseAssociationRequest(msgPtr->msg, &assRequest))
+						return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+					
+					if(assRequest.BSSID == NULL || assRequest.DA == NULL || assRequest.SA == NULL)
+						return CW_FALSE;
+					
+					int indexRadio=0, indexWlan=0, stop=0;
+					for(indexRadio=0; indexRadio<gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
+					{
+						for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
+						{
+							/*
+							CWLog("Ricerca BSSID %02x:%02x:%02x:%02x:%02x:%02x radio[%d] wlan[%d]", (int)assRequest.BSSID[0],
+							(int)assRequest.BSSID[1],
+							(int)assRequest.BSSID[2],
+							(int)assRequest.BSSID[3],
+							(int)assRequest.BSSID[4],
+							(int)assRequest.BSSID[5],
+							indexRadio, indexWlan);
+							
+							CWLog("Esamino radio %d wlan %d: tipoInterfaccia: %d, BSSID:%02x:%02x:%02x:%02x:%02x:%02x",
+							indexRadio, indexWlan,
+							gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface,
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[0],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[1],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[2],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[3],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[4],
+							(int)gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[5]
+							);
+							*/
+							
+							if(
+								gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
+								gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL && 
+								strncmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, assRequest.BSSID, ETH_ALEN) == 0
+							)
+							{
+								stop++;
+								break; 
+							}
+						}
+						if(stop == 1)
+							break;
+					}
+					
+					if(stop == 0)
+						return CW_TRUE;
+						
+					CW_CREATE_ARRAY_CALLOC_ERR(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, ETH_ALEN, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+					CW_COPY_MEMORY(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, assRequest.DA, ETH_ALEN);
+					
+					short int staAID;
+					CW80211SetAssociationID(&staAID);
+					
+					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_ASSOC_REQ)
+						frameResponse = CW80211AssembleAssociationResponseAC(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, 
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit,
+																		staAID,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.supportedRates,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.lenSupportedRates,
+																		&(assRequest), &(frameRespLen));
+					if(WLAN_FC_GET_STYPE(frameControl) == WLAN_FC_STYPE_REASSOC_REQ)
+						frameResponse = CW80211AssembleReassociationResponseAC(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].MACaddr, 
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].capabilityBit,
+																		staAID,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.supportedRates,
+																		gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.lenSupportedRates,
+																		&(assRequest), &(frameRespLen));
+																		
+					if(frameResponse == NULL)
+					{
+						CWLog("Nessun frame di risposta. Esco");
+						return CW_TRUE;
+					}
+					CW_CREATE_OBJECT_ERR(msgFrame, CWProtocolMessage, { return CW_FALSE;} );
+					CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, frameRespLen, { return CW_FALSE;} );
+					
+					memcpy(msgFrame->msg, frameResponse, frameRespLen);
+
+					msgFrame->offset=frameRespLen;
+					msgFrame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+						
+					if (!CWAssembleDataMessage(&completeMsgPtr, &fragmentsNum, gWTPs[WTPIndex].pathMTU, msgFrame, NULL,
+				#ifdef CW_DTLS_DATA_CHANNEL
+						CW_PACKET_CRYPT,
+				#else
+						CW_PACKET_PLAIN,
+				#endif	
+						0)){
+							for(k = 0; k < fragmentsNum; k++){
+								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+							}
+							CW_FREE_OBJECT(completeMsgPtr);
+							CW_FREE_PROTOCOL_MESSAGE(*msgFrame);
+							CW_FREE_OBJECT(msgFrame);
+						}
+
+				#ifndef CW_DTLS_DATA_CHANNEL
+					for(i = 0; i < gACSocket.count; i++) {
+						if (gACSocket.interfaces[i].sock == gWTPs[WTPIndex].socket){
+							dataSocket = gACSocket.interfaces[i].dataSock;
+							CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[WTPIndex].dataaddress));
+							break;
+						}
+					}
+
+					if (dataSocket == 0){
+						  CWLog("data socket of WTP %d isn't ready.");
+						  return CW_FALSE;
+					}
+				#endif
+					for(i = 0; i < fragmentsNum; i++) {
+
+					#ifdef CW_DTLS_DATA_CHANNEL
+						if(!(CWSecuritySend(gWTPs[WTPIndex].sessionData, completeMsgPtr[i].msg, completeMsgPtr[i].offset)))
+					#else
+						if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[i].msg, completeMsgPtr[i].offset))
+					#endif
+						
+						{
+							CWLog("Failure sending  KeepAlive Request");
+							int k;
+							for(k = 0; k < fragmentsNum; k++) {
+								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+							}	
+							CW_FREE_OBJECT(completeMsgPtr);
+							break;
+						}
+					}
+					CWLog("Inviato Frame 80211 a WTP");
+
+					int k;
+					for(k = 0; messages && k < fragmentsNum; k++) {
+						CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+					}	
+					CW_FREE_OBJECT(completeMsgPtr);
+					
+					CWFrameAssociationResponse assocResponse;
+					if(!CW80211ParseAssociationResponse(frameResponse, &(assocResponse)))
+						return CW_FALSE;
+						
+					nodeAVL * tmpNodeSta=NULL;
+					CWBool toSendEventRequestDelete=CW_FALSE;
+					
+					/* ... e poi inviare il Station Request ed inviarlo */
+					int seqNum = CWGetSeqNum();
+
+					//Send a Station Configuration Request
+					if (CWAssembleStationConfigurationRequest(&(gWTPs[WTPIndex].messages),
+									  &(gWTPs[WTPIndex].messagesCount),
+									  gWTPs[WTPIndex].pathMTU,
+									  seqNum, assocResponse, WTPIndex,
+									  CW_MSG_ELEMENT_ADD_STATION_CW_TYPE)) {
+
+						if(CWACSendAcknowledgedPacket(WTPIndex, 
+									  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
+									  seqNum)) 
+						{
+							//---- Elena : Insert new AVL node
+							CWThreadMutexLock(&mutexAvlTree);
+							
+							//Se la STA era gia registrata ma con un altro radioID o WTPIndex, AC elimina dal suo AVL
+							// e manda subito un event request
+							tmpNodeSta = AVLfind(assocResponse.DA, avlTree);
+							if(tmpNodeSta != NULL)
+							{
+								if(
+									tmpNodeSta->radioID != gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID ||
+									tmpNodeSta->index != WTPIndex
+								)
+								{
+									toSendEventRequestDelete=CW_TRUE;
+									avlTree = AVLdeleteNode(avlTree, assocResponse.DA, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+									avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
+								}
+								//Qui non faccio insert se la STA era gia presente in AVl e
+								//WTPIndex e radioID coincidono
+							}
+							else
+								avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
+							CWThreadMutexUnlock(&mutexAvlTree);
+							//----
+							
+							if(tmpNodeSta != NULL && toSendEventRequestDelete == CW_TRUE)
+							{								
+								CWFrameAssociationResponse assocResponseFake;
+								CW_COPY_MEMORY(assocResponseFake.DA, tmpNodeSta->staAddr, ETH_ALEN);
+								CW_COPY_MEMORY(assocResponseFake.BSSID, tmpNodeSta->BSSID, ETH_ALEN);
+
+								//Send a Station Configuration Request DELETE STA
+								if (CWAssembleStationConfigurationRequest(&(gWTPs[tmpNodeSta->index].messages),
+												  &(gWTPs[tmpNodeSta->index].messagesCount),
+												  gWTPs[tmpNodeSta->index].pathMTU,
+												  seqNum, assocResponse, tmpNodeSta->index,
+												  CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE)) {
+
+									if(CWACSendAcknowledgedPacket(tmpNodeSta->index, 
+												  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
+												  seqNum)) 
+										CWLog("AC send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+									else
+									{	
+										CWLog("AC couldn't send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+										CWACStopRetransmission(tmpNodeSta->index);
+									}
+								}
+								return CW_TRUE;
+							}
+						}
+						else
+							CWACStopRetransmission(WTPIndex);
+					}
+#endif
+				}
+
+#ifndef SPLIT_MAC
+				/* In caso di LOCAL MAC, AC riceve anche AssResp per poter inviare uno Station Configuration Request coerente */
+				if(subtype == WLAN_FC_STYPE_ASSOC_RESP)
+				{
+					CWLog("CW80211: Management Association response received");
+					
+					CWFrameAssociationResponse assocResponse;
+					if(!CW80211ParseAssociationResponse(msgPtr->msg, &(assocResponse)))
+						return CW_FALSE;
+						
+					/* ... e poi inviare il Station Request ed inviarlo */
+					int seqNum = CWGetSeqNum();
+
+					//Send a Station Configuration Request
+					if (CWAssembleStationConfigurationRequest(&(gWTPs[WTPIndex].messages),
+									  &(gWTPs[WTPIndex].messagesCount),
+									  gWTPs[WTPIndex].pathMTU,
+									  seqNum, assocResponse, WTPIndex,
+									  CW_MSG_ELEMENT_ADD_STATION_CW_TYPE)) {
+
+						if(CWACSendAcknowledgedPacket(WTPIndex, 
+									  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
+									  seqNum))
+						{
+							nodeAVL * tmpNodeSta=NULL;
+							CWBool toSendEventRequestDelete=CW_FALSE;
+							
+							int indexRadio=0, indexWlan=0, stop=0;
+							for(indexRadio=0; indexRadio<gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
+							{
+								for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
+								{
+									if(
+										gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
+										gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL && 
+										strncmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, assocResponse.BSSID, ETH_ALEN) == 0
+									)
+									{
+										stop++;
+										break; 
+									}
+								}
+								if(stop == 1)
+									break;
+							}
+							
+							//---- Elena : Insert new AVL node
+							CWThreadMutexLock(&mutexAvlTree);
+							
+							//Se la STA era gia registrata ma con un altro radioID o WTPIndex, AC elimina dal suo AVL
+							// e manda subito un event request
+							tmpNodeSta = AVLfind(assocResponse.DA, avlTree);
+							if(
+								tmpNodeSta->radioID != gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID ||
+								tmpNodeSta->index != WTPIndex
+							)
+							{
+								toSendEventRequestDelete=CW_TRUE;
+								avlTree = AVLdeleteNode(avlTree, assocResponse.DA, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+							}
+							avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
+							CWThreadMutexUnlock(&mutexAvlTree);
+							//----
+							
+							if(tmpNodeSta != NULL && toSendEventRequestDelete == CW_TRUE)
+							{
+								CWFrameAssociationResponse assocResponseFake;
+								CW_COPY_MEMORY(assocResponseFake.DA, tmpNodeSta->staAddr, ETH_ALEN);
+								CW_COPY_MEMORY(assocResponseFake.BSSID, tmpNodeSta->BSSID, ETH_ALEN);
+
+								//Send a Station Configuration Request DELETE STA
+								if (CWAssembleStationConfigurationRequest(&(gWTPs[tmpNodeSta->index].messages),
+												  &(gWTPs[tmpNodeSta->index].messagesCount),
+												  gWTPs[tmpNodeSta->index].pathMTU,
+												  seqNum, assocResponse, tmpNodeSta->index,
+												  CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE)) {
+
+									if(CWACSendAcknowledgedPacket(tmpNodeSta->index, 
+												  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
+												  seqNum)) 
+										CWLog("AC send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+									else
+									{	
+										CWLog("AC can't send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+										CWACStopRetransmission(tmpNodeSta->index);
+									}
+								}
+							}
+							return CW_TRUE;
+						}
+						else
+							CWACStopRetransmission(WTPIndex);
+					}
+					
+				}
+#endif
+			}
+			else
+				CWLog("Frame Unknown");		
 			//flush_pcap(msgPtr->msg, msglen, "cap_wtp_to_ac.txt");
-			
-		}else{
+		}
+		else{
 			CWDebugLog("Manage special data packets with frequency");
 
 			/************************************************************
@@ -395,26 +1037,26 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					  return CW_FALSE;
     				}
 				  
-				  memset(&(UnixSocksArray[WTPIndex].clntaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].clntaddr));
-				  UnixSocksArray[WTPIndex].clntaddr.sun_family = AF_UNIX;
-				  
-				  //make unix socket client path name by index i 
-				snprintf(string,sizeof(string),"%d",WTPIndex);
-				string[sizeof(string)-1]=0;
-				strcpy(socketctl_path_name,SOCKET_PATH_AC);
-				strcat(socketctl_path_name,string);
-				strcpy(UnixSocksArray[WTPIndex].clntaddr.sun_path,socketctl_path_name);
-				
-				unlink(socketctl_path_name);
-				
-				memset(&(UnixSocksArray[WTPIndex].servaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].servaddr));
-				UnixSocksArray[WTPIndex].servaddr.sun_family = AF_UNIX;
+					  memset(&(UnixSocksArray[WTPIndex].clntaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].clntaddr));
+					  UnixSocksArray[WTPIndex].clntaddr.sun_family = AF_UNIX;
+					  
+					  //make unix socket client path name by index i 
+					snprintf(string,sizeof(string),"%d",WTPIndex);
+					string[sizeof(string)-1]=0;
+					strcpy(socketctl_path_name,SOCKET_PATH_AC);
+					strcat(socketctl_path_name,string);
+					strcpy(UnixSocksArray[WTPIndex].clntaddr.sun_path,socketctl_path_name);
+					
+					unlink(socketctl_path_name);
+					
+					memset(&(UnixSocksArray[WTPIndex].servaddr),(int)NULL, sizeof(UnixSocksArray[WTPIndex].servaddr));
+					UnixSocksArray[WTPIndex].servaddr.sun_family = AF_UNIX;
 
-				//make unix socket server path name by index i 
-				strcpy(socketserv_path_name, SOCKET_PATH_RECV_AGENT);
-				strcat(socketserv_path_name, string);
-				strcpy(UnixSocksArray[WTPIndex].servaddr.sun_path, socketserv_path_name);
-				printf("\n%s\t%s",socketserv_path_name,socketctl_path_name);fflush(stdout);
+					//make unix socket server path name by index i 
+					strcpy(socketserv_path_name, SOCKET_PATH_RECV_AGENT);
+					strcat(socketserv_path_name, string);
+					strcpy(UnixSocksArray[WTPIndex].servaddr.sun_path, socketserv_path_name);
+					printf("\n%s\t%s",socketserv_path_name,socketctl_path_name);fflush(stdout);
 				}
 			  
 
@@ -583,9 +1225,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 		}
 		case CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_RESPONSE:
 		{
-			CWProtocolResultCode resultCode;
-			if(!(CWParseWLANConfigurationResponseMessage(msgPtr, controlVal.msgElemsLen, &resultCode)))
+			/*
+			 * Elena Agostini: 09/2014. IEEE WLAN configuration message
+			 */
+			if(!CWParseIEEEConfigurationResponseMessage(msgPtr, controlVal.msgElemsLen, WTPIndex))
 				return CW_FALSE;
+			
 			CWACStopRetransmission(WTPIndex);
 			if (timerSet) {
 				if(!CWRestartNeighborDeadTimer(WTPIndex)) {
@@ -596,7 +1241,6 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 					CWCloseThread();
 				}
 			}
-			
 			
 			if (gWTPs[WTPIndex].interfaceCommandProgress == CW_TRUE)
 			{
@@ -685,12 +1329,13 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 			if(!CWNetworkSendUnsafeUnconnected(gWTPs[WTPIndex].socket, 
 							   &gWTPs[WTPIndex].address, 
 							   messages[i].msg, 
-							   messages[i].offset)	) {
+							   messages[i].offset)	) 
 #else
 			if(!(CWSecuritySend(gWTPs[WTPIndex].session,
 					    messages[i].msg,
-					    messages[i].offset))) {
+					    messages[i].offset)))
 #endif
+			{
 				CWFreeMessageFragments(messages, messagesCount);
 				CW_FREE_OBJECT(messages);
 				return CW_FALSE;
@@ -724,12 +1369,17 @@ CWBool CWACParseGenericRunMessage(int WTPIndex,
 
 		return CW_TRUE;	
 	}
-
-	if((gWTPs[WTPIndex].responseSeqNum != controlVal->seqNum) ||
-	   (gWTPs[WTPIndex].responseType != controlVal->messageTypeValue)) {
-
-		CWDebugLog("gWTPs: %d\n", gWTPs[WTPIndex].responseSeqNum);
-		CWDebugLog("controlVal: %d\n", controlVal->seqNum);
+		
+	if((gWTPs[WTPIndex].responseSeqNum != controlVal->seqNum)) {
+		/* Elena Agostini: gWTPs[WTPIndex].responseType is never set if it is a response
+		 * || (gWTPs[WTPIndex].responseType != controlVal->messageTypeValue)*/
+/*
+		CWLog("gWTPs seqNum: %d\n", gWTPs[WTPIndex].responseSeqNum);
+		CWLog("controlVal seqNum: %d\n", controlVal->seqNum);
+		
+		CWLog("gWTPs responseType: %d\n", gWTPs[WTPIndex].responseType);
+		CWLog("controlVal responseType: %d\n", controlVal->messageTypeValue);
+*/
 		CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Seq Num or Msg Type not valid!");
 		return CW_FALSE;
 	}
@@ -821,40 +1471,6 @@ CWBool CWParseConfigurationUpdateResponseMessage(CWProtocolMessage* msgPtr,
 	return CW_TRUE;	
 }
 
-CWBool CWParseWLANConfigurationResponseMessage(CWProtocolMessage* msgPtr, int len, CWProtocolResultCode* resultCode)
-{
-	int offsetTillMessages;
-
-	if(msgPtr == NULL || resultCode==NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	if((msgPtr->msg) == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	
-	offsetTillMessages = msgPtr->offset;
-	
-	CWLog("Parsing WLAN Configuration Response...");
-
-	// parse message elements
-	while((msgPtr->offset - offsetTillMessages) < len) {
-		unsigned short int elemType=0;
-		unsigned short int elemLen=0;
-		
-		CWParseFormatMsgElem(msgPtr, &elemType, &elemLen);
-		
-		switch(elemType) {
-			case CW_MSG_ELEMENT_RESULT_CODE_CW_TYPE:
-				*resultCode = CWProtocolRetrieve32(msgPtr);
-				break;	
-			default:
-				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element in Configuration WLAN Response");
-				break;	
-		}
-	}
-	
-	if((msgPtr->offset - offsetTillMessages) != len) return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
-
-	CWLog("WLAN Configuration Response Parsed");
-
-	return CW_TRUE;	
-}	
 
 CWBool CWParseClearConfigurationResponseMessage(CWProtocolMessage* msgPtr, int len, CWProtocolResultCode* resultCode)
 {
@@ -912,6 +1528,7 @@ CWBool CWParseStationConfigurationResponseMessage(CWProtocolMessage* msgPtr, int
 		switch(elemType) {
 			case CW_MSG_ELEMENT_RESULT_CODE_CW_TYPE:
 				*resultCode=CWProtocolRetrieve32(msgPtr);
+				CWLog("Result Code: %d", (*resultCode));
 				break;	
 			default:
 				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element in Station Configuration Response");
@@ -1104,6 +1721,7 @@ CWBool CWParseWTPEventRequestMessage(CWProtocolMessage *msgPtr,
 	valuesPtr->WTPRadioStatisticsCount = 0;
 	valuesPtr->WTPRadioStatistics = NULL;
 	valuesPtr->WTPRebootStatistics = NULL;
+	valuesPtr->WTPStaDeleteInfo = NULL;
 
 	/* parse message elements */
 	while((msgPtr->offset - offsetTillMessages) < len) {
@@ -1162,6 +1780,12 @@ CWBool CWParseWTPEventRequestMessage(CWProtocolMessage *msgPtr,
 						     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
 				if (!(CWParseWTPRebootStatistics(msgPtr, elemLen, valuesPtr->WTPRebootStatistics)))
+					return CW_FALSE;	
+				break;
+			//Elena Agostini - 11/2014: Delete Station MsgElem
+			case CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE:
+				CW_CREATE_OBJECT_ERR(valuesPtr->WTPStaDeleteInfo, CWMsgElemDataDeleteStation, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				if (!(CWParseWTPDeleteStation(msgPtr, elemLen, valuesPtr->WTPStaDeleteInfo)))
 					return CW_FALSE;	
 				break;
 			default:
@@ -1294,6 +1918,22 @@ CWBool CWSaveWTPEventRequestMessage(CWProtocolWTPEventRequestValues *WTPEventReq
 	CW_FREE_OBJECT(WTPEventRequest->WTPOperationalStatistics);
 	CW_FREE_OBJECT(WTPEventRequest->WTPRadioStatistics);
 	/*CW_FREE_OBJECT(WTPEventRequest);*/
+	
+	//Elena Agostini - 11/2014: Delete Station MsgElem
+	if(WTPEventRequest->WTPStaDeleteInfo != NULL)
+	{
+		int heightAVL = -1;
+				
+		if(WTPEventRequest->WTPStaDeleteInfo->staAddr == NULL)
+			return CW_FALSE;
+
+		nodeAVL * tmpRoot;
+		//---- Delete AVL node (per ora solo per STA addr)
+		CWThreadMutexLock(&mutexAvlTree);
+		avlTree = AVLdeleteNode(avlTree, WTPEventRequest->WTPStaDeleteInfo->staAddr, WTPEventRequest->WTPStaDeleteInfo->radioID);
+		CWThreadMutexUnlock(&mutexAvlTree);
+		//----
+	}
 
 	return CW_TRUE;
 }
@@ -1462,10 +2102,8 @@ CWBool CWSaveChangeStateEventRequestMessage(CWProtocolChangeStateEventRequestVal
 	
 		int i,k;
 		for(i=0; i<(valuesPtr->radioOperationalInfo.radiosCount); i++) {
-
 			found=CW_FALSE;
 			for(k=0; k<(WTPProtocolManager->radiosInfo).radioCount; k++) {
-
 				if((WTPProtocolManager->radiosInfo).radiosInfo[k].radioID == (valuesPtr->radioOperationalInfo.radios[i]).ID) {
 
 					found=CW_TRUE;
@@ -1473,7 +2111,7 @@ CWBool CWSaveChangeStateEventRequestMessage(CWProtocolChangeStateEventRequestVal
 					(WTPProtocolManager->radiosInfo).radiosInfo[k].operationalCause = (valuesPtr->radioOperationalInfo.radios[i]).cause;
 				}
 				if(!found) 
-					retValue= CW_FALSE;
+					retValue= CW_FALSE;	
 			}
 		}
 	}
@@ -1515,7 +2153,7 @@ CWBool CWParseEchoRequestMessage(CWProtocolMessage *msgPtr, int len) {
 	if((msgPtr->offset - offsetTillMessages) != len) 
 		return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Garbage at the End of the Message");
 	
-	CWLog("Echo Request Parsed");
+//	CWLog("Echo Request Parsed");
 	
 	return CW_TRUE;
 }
@@ -1657,91 +2295,51 @@ CWBool CWAssembleClearConfigurationRequest(CWProtocolMessage **messagesPtr, int 
 }
 
 
-CWBool CWAssembleWLANConfigurationRequest(CWProtocolMessage **messagesPtr, int *fragmentsNumPtr, int PMTU, int seqNum,unsigned char* recv_packet,int Operation, int len_packet) {
-	
-	CWProtocolMessage *msgElemsBinding = NULL;
-	int msgElemBindingCount=0;
-	CWProtocolMessage *msgElems = NULL;
-	int msgElemCount=1;
-	int k = -1;
-	
-		
-	if(messagesPtr == NULL || fragmentsNumPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-	
-	CWLog("Assembling WLAN 802.11 Configuration Request...");
-	
-	CW_CREATE_PROTOCOL_MSG_ARRAY_ERR(msgElems, msgElemCount, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	// Assemble Message Elements
-	
-	if( Operation==CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE ){
-		if (!(CWAssembleMsgElemAddWLAN(0,&(msgElems[++k]), recv_packet, len_packet)))   //radioID = 0 -valore predefinito-
-		{
-			
-			CWErrorHandleLast();
-			int i;
-			for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
-			CW_FREE_OBJECT(msgElems);
-			return CW_FALSE; // error will be handled by the caller
-		}
-		
-	}else if( Operation==CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE ){
-		
-		if (!(CWAssembleMsgElemDeleteWLAN(0,&(msgElems[++k]),recv_packet, len_packet)))   //radioID = 0 -valore predefinito-
-		{
-			CWErrorHandleLast();
-			int i;
-			for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
-			CW_FREE_OBJECT(msgElems);
-			return CW_FALSE; // error will be handled by the caller
-		}
-	}
-	
-
-/*  to be implemented in a case of Binding with appropriate messages elements -- see draft capwap-spec && capwap-binding 
-	if(!CWBindingAssembleConfigurationUpdateRequest(&msgElemsBinding, &msgElemBindingCount)){
-		return CW_FALSE;
-	}
-*/
-	if(!(CWAssembleMessage(messagesPtr, 
-	                       fragmentsNumPtr, 
-	                       PMTU, 
-	                       seqNum,
-	                       CW_MSG_TYPE_VALUE_WLAN_CONFIGURATION_REQUEST, 
-	                       msgElems, 
-	                       msgElemCount, 
-	                       msgElemsBinding, 
-	                       msgElemBindingCount, 
-#ifdef CW_NO_DTLS
-						   CW_PACKET_PLAIN)))
-#else
-						   CW_PACKET_CRYPT)))
-#endif
-		return CW_FALSE;
-	
-	CWLog("Station WLAN 802.11 Configuration Request Assembled");
-	
-	return CW_TRUE;
-}
-
-
-CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, int *fragmentsNumPtr, int PMTU, int seqNum,unsigned char* StationMacAddr,int Operation) 
+CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, int *fragmentsNumPtr, int PMTU, int seqNum, CWFrameAssociationResponse associationResponse, int WTPIndex, int Operation) 
 {
 	
 	CWProtocolMessage *msgElemsBinding = NULL;
 	int msgElemBindingCount=0;
 	CWProtocolMessage *msgElems = NULL;
-	int msgElemCount=1;
+	int msgElemCount=2;
 	int k = -1;
+	int radioID, wlanID;
 	
-		
 	if(messagesPtr == NULL || fragmentsNumPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	CWLog("Assembling Station Configuration Request...");
 	
+	int indexRadio=0, indexWlan=0, stop=0;
+	for(indexRadio=0; indexRadio<WTP_RADIO_MAX; indexRadio++)
+	{
+		for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
+		{
+			if(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL && !strcmp(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, associationResponse.BSSID))
+			{
+				stop++;
+				break; 
+			}
+		}
+		if(stop == 1)
+			break;
+	}
+	
 	CW_CREATE_PROTOCOL_MSG_ARRAY_ERR(msgElems, msgElemCount, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	// Assemble Message Elements
 	if( Operation==CW_MSG_ELEMENT_ADD_STATION_CW_TYPE ){
-		if (!(CWAssembleMsgElemAddStation(0,&(msgElems[++k]),StationMacAddr)))   //radioID = 0 -valore predefinito-
+		if (!(CWAssembleMsgElemAddStation(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, &(msgElems[++k]), associationResponse.DA)))
+		{
+			CWErrorHandleLast();
+			int i;
+			for(i = 0; i <= k; i++) {CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
+			CW_FREE_OBJECT(msgElems);
+			return CW_FALSE; // error will be handled by the caller
+		}
+		
+		if (!(CWAssembleMsgElem80211Station(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, 
+											gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].wlanID, 
+											&(msgElems[++k]), 
+											associationResponse)))
 		{
 			CWErrorHandleLast();
 			int i;
@@ -1751,7 +2349,7 @@ CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, in
 		}
 		
 	}else if( Operation==CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE ){
-		if (!(CWAssembleMsgElemDeleteStation(0,&(msgElems[++k]),StationMacAddr)))   //radioID = 0 -valore predefinito-
+		if (!(CWAssembleMsgElemDeleteStation(gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, &(msgElems[++k]),associationResponse.DA)))
 		{
 			CWErrorHandleLast();
 			int i;
@@ -1833,7 +2431,7 @@ CWBool CWRestartNeighborDeadTimer(int WTPIndex) {
 	
 	CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
 	
-	CWDebugLog("NeighborDeadTimer restarted");
+//	CWDebugLog("NeighborDeadTimer restarted");
 	return CW_TRUE;
 }
 
@@ -1846,6 +2444,101 @@ CWBool CWRestartNeighborDeadTimerForEcho(int WTPIndex) {
 
 	CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
 	
-	CWDebugLog("NeighborDeadTimer restarted for Echo interval");
+//	CWDebugLog("NeighborDeadTimer restarted for Echo interval");
 	return CW_TRUE;
+}
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * AC Thread for Data Channel packet (DTLS && Plain)
+ */
+CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg) {
+
+	int 		i = ((CWACThreadArg*)arg)->index;
+	CWSocket 	sock = ((CWACThreadArg*)arg)->sock;
+	
+	int dataSocket=0, countPacketDataList=0, readBytes, pathMTU, indexLocal=0;
+	CWNetworkLev4Address address;
+	CWBool sessionDataActiveLocal = CW_FALSE;
+	char* pData;
+	
+	
+	for(indexLocal = 0; indexLocal < gACSocket.count; indexLocal++) {	
+		if (gACSocket.interfaces[indexLocal].sock == gWTPs[i].socket){
+			dataSocket = gACSocket.interfaces[indexLocal].dataSock;
+			CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[i].dataaddress));
+			break;
+		}
+	}
+
+	if (dataSocket == 0){
+		CWLog("data socket of WTP isn't ready.");
+		/* critical error, close session */
+		CWErrorHandleLast();
+		CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+		CWCloseThread();
+	}
+
+	/* Info Socket Dati */
+	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(address);
+	CWLog("New DTLS Session Data. %s:%d, socket: %d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
+
+	/* Sessione DTLS Dati */
+	if(!CWErr(CWSecurityInitSessionServerDataChannel(&(gWTPs[i]),	
+									&(address),
+									dataSocket,
+									gACSecurityContext,
+									&(gWTPs[i].sessionData),
+									&(gWTPs[i].pathMTU))))
+	{
+		CWErrorHandleLast();
+		CWTimerCancel(&(gWTPs[i].currentTimer));
+		CWCloseThread();
+	}
+	
+	/* Leggo i dati dalla packetList e li riscrivo decifrati */	
+	CW_REPEAT_FOREVER {
+		countPacketDataList=0;
+		
+		CWThreadMutexLock(&gWTPs[i].interfaceMutex);
+		sessionDataActiveLocal = gWTPs[i].sessionDataActive;
+		CWThreadMutexUnlock(&gWTPs[i].interfaceMutex);
+		if(sessionDataActiveLocal == CW_TRUE)
+		{
+			//Se ci sono pacchetti sulla lista dati ... 
+			CWLockSafeList(gWTPs[i].packetReceiveDataList);
+			countPacketDataList = CWGetCountElementFromSafeList(gWTPs[i].packetReceiveDataList);
+			CWUnlockSafeList(gWTPs[i].packetReceiveDataList);
+			
+			if(countPacketDataList > 0) {
+				// ... li legge cifrati ... 
+	//			CWLog("+++ Thread DTLS Session Data. %s:%d, socket: %d. Ricevuto pacchetto dati.", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port), dataSocket);
+				if(!CWErr(CWSecurityReceive(gWTPs[i].sessionData,
+											gWTPs[i].buf,
+											CW_BUFFER_SIZE - 1,
+											&readBytes)))
+				{		
+					CWDebugLog("Error during security receive");
+					CWThreadSetSignals(SIG_UNBLOCK, 1, CW_SOFT_TIMER_EXPIRED_SIGNAL);
+					continue;
+				}
+				
+				//... e decifrato il pacchetto dati lo mette sulla packetList ufficiale
+				CW_CREATE_OBJECT_SIZE_ERR(pData, readBytes, { CWLog("Out Of Memory"); return NULL; });
+				memcpy(pData, gWTPs[i].buf, readBytes);
+
+				CWLockSafeList(gWTPs[i].packetReceiveList);
+				CWAddElementToSafeListTailwitDataFlag(gWTPs[i].packetReceiveList, pData, readBytes, CW_TRUE);
+				CWUnlockSafeList(gWTPs[i].packetReceiveList);
+				
+				//Free
+			}
+		}
+		else break;
+	}
+	
+	gWTPs[i].sessionData = NULL;
+	
+	return NULL;
 }

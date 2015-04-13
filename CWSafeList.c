@@ -219,11 +219,11 @@ void* CWRemoveHeadElementFromSafeList(CWSafeList safeList, int* pSize)
 }
 
 // No thread-safe
-void* CWRemoveHeadElementFromSafeListwithDataFlag(CWSafeList safeList, int* pSize,CWBool * dataFlag)
+void* CWRemoveHeadElementFromSafeListwithDataFlag(CWSafeList safeList, int* pSize, CWBool * dataFlag)
 {
 	CWPrivateSafeList* pList = (CWPrivateSafeList*)safeList;
 	CWPrivateSafeElement* pElement;
-	void* pData;
+	void* pData=NULL;
 
 	if ((pList == NULL) || (pList->pFirstElement == NULL))
 		return NULL;

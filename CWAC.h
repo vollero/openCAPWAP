@@ -48,7 +48,6 @@
 #include "ACInterface.h"
 #include "ACBinding.h"
 
-
 #include <ctype.h>
 #include <netinet/in.h>
 #include <sys/un.h>
@@ -105,6 +104,7 @@ applicationsManager appsManager;
 /*_____________________________________________________*/
 /*  *******************___TYPES___*******************  */
 
+
 /* 
  * Struct that describes a WTP from the AC's point of view 
  */
@@ -113,6 +113,11 @@ typedef struct {
 	CWNetworkLev4Address dataaddress;
 	CWThread thread;
 	CWSecuritySession session;
+	/*
+	 * Elena Agostini - 03/2014
+	 * DTLS Data Session AC
+	 */
+	CWSecuritySession sessionData;
 	CWBool isNotFree;
 	CWBool isRequestClose;
 	CWStateTransition currentState;
@@ -125,6 +130,12 @@ typedef struct {
 		CW_COMPLETED,
 	} subState;		
 	CWSafeList packetReceiveList;
+	
+	/*
+	 * Elena Agostini - 03/2014: DTLS Data Channel
+	 */
+	CWSafeList packetReceiveDataList;
+	CWBool sessionDataActive;
 	
 	/* depends on the current state: WaitJoin, NeighborDead */
 	CWTimerID currentTimer;
@@ -155,9 +166,11 @@ typedef struct {
 	CWProtocolVendorSpecificValues* vendorValues;
 	int applicationIndex;
 	
-	/**** ACInterface ****/
 	
+	/**** ACInterface ****/
 	CWWTPProtocolManager WTPProtocolManager;
+	//Elena Agostini - 09/2014: WUM channel for WLAN Iface operations
+	WUMWLANCmdParameters * cmdWLAN;
 	
 	/* Retransmission */
 	CWProtocolMessage *messages;
@@ -185,9 +198,31 @@ typedef struct {
 
 } CWWTPManager;	
 
+//Elena Agostini - 07/2014: max num contemporary threads of generic DTLS data session
+#define WTP_MAX_TMP_THREAD_DTLS_DATA 30
+
+
+/* Elena Agostini - 04/2014: DTLS Data Channel Generic Thread */
+typedef struct genericHandshakeThread {
+	CWThread thread_GenericDataChannelHandshake;
+	CWSocket dataSock;
+	CWNetworkLev4Address addressWTPPtr;
+	CWSafeList packetDataList;
+	CWThreadMutex interfaceMutex;
+	CWThreadCondition interfaceWait;
+	struct genericHandshakeThread * next;
+} genericHandshakeThread;
+typedef genericHandshakeThread * genericHandshakeThreadPtr;
+/* Start list generic threads DTLS Data Channel Handshake*/
+extern genericHandshakeThreadPtr listGenericThreadDTLSData[WTP_MAX_TMP_THREAD_DTLS_DATA];
+
 /*________________________________________________________________*/
 /*  *******************___EXTERN VARIABLES___*******************  */
 extern CWWTPManager gWTPs[CW_MAX_WTP];
+//Elena Agostini: Unique TAP interface
+extern int ACTap_FD;
+extern char * ACTap_name;
+
 extern CWThreadMutex gWTPsMutex;
 extern CWSecurityContext gACSecurityContext;
 extern int gACHWVersion;
@@ -215,8 +250,25 @@ extern WTPQosValues* gDefaultQosValues;
 extern int gHostapd_port;
 extern char* gHostapd_unix_path;
 extern unsigned char WTPRadioInformationType;
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+extern int gACECNSupport;
 
+/*
+ * Elena Agostini - 02/2014
+ * OpenSSL params variables
+ */
+extern char *gACCertificate;
+extern char *gACKeyfile;
+extern char *gACPassword;
 
+/*
+ * Elena Agostini - 03/2014: DTLS Data Channel
+ */
+extern CWBool ACSessionDataActive;
 
 /*________________________________________________________________*/
 
@@ -234,7 +286,6 @@ UNIX_SOCKS_INFO UnixSocksArray[CW_MAX_WTP];
 
 /* in AC.c */
 void CWACInit(void);
-void CWCreateConnectionWithHostapdAC(void);
 void CWACEnterMainLoop(void);
 CWBool CWACSendAcknowledgedPacket(int WTPIndex, int msgType, int seqNum);
 CWBool CWACResendAcknowledgedPacket(int WTPIndex);
@@ -250,6 +301,11 @@ CWBool CWSaveChangeStateEventRequestMessage(CWProtocolChangeStateEventRequestVal
 
 
 CW_THREAD_RETURN_TYPE CWACipc_with_ac_hostapd(void *arg);
+
+/*
+ * Elena Agostini - 03/2014: DTLS Data Channel Receive Packet
+ */
+CW_THREAD_RETURN_TYPE CWACReceiveDataChannel(void *arg);
 //send_data_to_hostapd(unsigned char *, int);
 /****************************************************************
  * 2009 Updates:												*
@@ -263,18 +319,15 @@ CWBool CWAssembleConfigurationUpdateRequest(CWProtocolMessage **messagesPtr,
 						int seqNum,
 						int msgElement);
 
-CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr,
-					     int *fragmentsNumPtr,
-					     int PMTU, int seqNum,
-					     unsigned char* StationMacAddr,
-					     int Operation); 
+CWBool CWAssembleStationConfigurationRequest(CWProtocolMessage **messagesPtr, int *fragmentsNumPtr, int PMTU, int seqNum, CWFrameAssociationResponse associationResponse, int WTPIndex, int Operation);
+
 
 CWBool CWAssembleClearConfigurationRequest(CWProtocolMessage **messagesPtr,
 					   int *fragmentsNumPtr, int PMTU,
 					   int seqNum);
 
 /* in ACDiscoveryState.c */
-CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum);
+CWBool CWAssembleDiscoveryResponse(CWProtocolMessage **messagesPtr, int seqNum, WTPglobalPhyInfo * tmp);
 CWBool CWParseDiscoveryRequestMessage(char *msg,
 				      int len,
 				      int *seqNumPtr,
@@ -303,6 +356,7 @@ void CWACManageIncomingPacket(CWSocket sock,
 
 void *CWManageWTP(void *arg);
 void CWCloseThread();
+CW_THREAD_RETURN_TYPE CWGenericWTPDataHandshake(void *arg);
 
 /* in CWSecurity.c */
 CWBool CWSecurityInitSessionServer(CWWTPManager* pWtp,
@@ -315,7 +369,27 @@ CWBool ACEnterJoin(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterDataCheck(int WTPIndex, CWProtocolMessage *msgPtr);
 CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag);
+//Elena Agostini: 09/2014. IEEE Binding
+/* ACIEEEConfigurationState.c */
+CWBool CWParseIEEEConfigurationResponseMessage(CWProtocolMessage *msgPtr, int len, int WTPIndex);
+CWBool CWAssembleIEEEConfigurationRequest(CWProtocolMessage **messagesPtr,
+				   int *fragmentsNumPtr,
+				   int PMTU,
+				   int seqNum,
+				   int operation,
+				   int radioID,
+				   int wlanNum,
+				   int WTPIndex);
+CWBool ACUpdateInfoWlanInterface(WTPInterfaceInfo * interfaceInfo, int wlanID, char * SSID, int tunnelMode);
 
+
+CWBool CWSecurityInitSessionServerDataChannel(CWWTPManager* pWtp, 
+					CWNetworkLev4Address * address,
+				   CWSocket sock,
+				   CWSecurityContext ctx,
+				   CWSecuritySession *sessionPtr,
+				   int *PMTUPtr);
+				   
 CW_THREAD_RETURN_TYPE CWInterface(void* arg);
 /* void CWTimerExpiredHandler(int arg); */
 

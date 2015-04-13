@@ -33,7 +33,8 @@
  *           Giovannini Federica (giovannini.federica@gmail.com)								*
  *           Massimo Vellucci (m.vellucci@unicampus.it)											*
  *           Mauro Bisson (mauro.bis@gmail.com)													*
- *	         Antonio Davoli (antonio.davoli@gmail.com)											*
+ *	         Antonio Davoli (antonio.davoli@gmail.com)		
+ * 			 Elena Agostini (elena.ago@gmail.com)												*
  ************************************************************************************************/
 
 #include "CWWTP.h"
@@ -53,7 +54,8 @@ CW_THREAD_RETURN_TYPE gogo(void *arg);
 
 int 	gEnabledLog;
 int 	gMaxLogFileSize;
-char 	gLogFileName[] = WTP_LOG_FILE_NAME;
+//Elena Agostini - 05/2014
+char 	gLogFileName[512];// = WTP_LOG_FILE_NAME;
 
 /* addresses of ACs for Discovery */
 char	**gCWACAddresses;
@@ -77,15 +79,41 @@ CWSocket 		gWTPDataSocket;
 CWSecurityContext	gWTPSecurityContext;
 CWSecuritySession 	gWTPSession;
 
+/* Elena Agostini - 03/2014: DTLS Data Session WTP */
+CWSecuritySession gWTPSessionData;
+CWSecurityContext gWTPSecurityContextData;
+
+/* Elena Agostini - 02/2014: OpenSSL params variables */
+char *gWTPCertificate=NULL;
+char *gWTPKeyfile=NULL;
+char *gWTPPassword=NULL;
+
+/* Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages */
+int gWTPECNSupport=0;
+
 /* list used to pass frames from wireless interface to main thread */
 CWSafeList 		gFrameList;
 
 /* list used to pass CAPWAP packets from AC to main thread */
 CWSafeList 		gPacketReceiveList;
 
+/* Elena Agostini - 03/2014: Liste used to pass CAPWAP DATA packets from AC to DataThread */
+CWSafeList gPacketReceiveDataList;
+
+/* Elena Agostini - 02/2014: Port number params config.wtp */
+int WTP_PORT_CONTROL;
+int WTP_PORT_DATA;
+
+//Elena Agostini - 05/2014: single log_file foreach WTP
+char * wtpLogFile;
+
 /* used to synchronize access to the lists */
 CWThreadCondition    gInterfaceWait;
 CWThreadMutex 		gInterfaceMutex;
+
+//Elena Agostini: Mutex and Cond dedicated to Data Packet List
+CWThreadCondition    gInterfaceWaitData;
+CWThreadMutex 		gInterfaceMutexData;
 
 /* infos about the ACs to discover */
 CWACDescriptor *gCWACList = NULL;
@@ -100,13 +128,19 @@ CWWTPRadiosInfo gRadiosInfo;
 
 /* path MTU of the current session */
 int gWTPPathMTU = 0;
-
 int gWTPRetransmissionCount;
 
 CWPendingRequestMessage gPendingRequestMsgs[MAX_PENDING_REQUEST_MSGS];	
 
 CWBool WTPExitOnUpdateCommit = CW_FALSE;
+
+//Elena Agostini: nl80211 support
+struct WTPglobalPhyInfo * gWTPglobalPhyInfo;
+struct nl80211SocketUnit globalNLSock;
+
 #define CW_SINGLE_THREAD
+
+int wtpInRunState;
 
 /* 
  * Receive a message, that can be fragmented. This is useful not only for the Join State
@@ -169,6 +203,67 @@ CWBool CWReceiveMessage(CWProtocolMessage *msgPtr) {
 	return CW_TRUE;
 }
 
+/*
+ * Elena Agostini - 03/2014: PacketDataList + DTLS Data Session WTP
+ */
+CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr) {
+	CWList fragments = NULL;
+	int readBytes;
+	char buf[CW_BUFFER_SIZE];
+	CWBool dataFlag = CW_TRUE;
+	char *pkt_buffer = NULL;
+	
+	CW_REPEAT_FOREVER {
+		CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
+		readBytes=0;
+		pkt_buffer = NULL;
+		
+#ifdef CW_DTLS_DATA_CHANNEL
+	if(!CWSecurityReceive(gWTPSessionData, buf, CW_BUFFER_SIZE, &readBytes)) {return CW_FALSE;}
+#else
+		CWLockSafeList(gPacketReceiveDataList);
+		while (CWGetCountElementFromSafeList(gPacketReceiveDataList) == 0)
+			CWWaitElementFromSafeList(gPacketReceiveDataList);
+		pkt_buffer = (char*)CWRemoveHeadElementFromSafeListwithDataFlag(gPacketReceiveDataList, &readBytes,&dataFlag);
+		CWUnlockSafeList(gPacketReceiveDataList);
+		
+		if(pkt_buffer != NULL)
+		{
+			CW_COPY_MEMORY(buf, pkt_buffer, readBytes);
+			CW_FREE_OBJECT(pkt_buffer);
+		}
+#endif
+
+	if(!CWProtocolParseFragment(buf, readBytes, &fragments, msgPtr, &dataFlag, NULL)) {
+			if(CWErrorGetLastErrorCode()){
+				CWErrorCode error;
+				error=CWErrorGetLastErrorCode();
+				switch(error)
+				{
+					case CW_ERROR_SUCCESS: {CWDebugLog("ERROR: Success"); break;}
+					case CW_ERROR_OUT_OF_MEMORY: {CWDebugLog("ERROR: Out of Memory"); break;}
+					case CW_ERROR_WRONG_ARG: {CWDebugLog("ERROR: Wrong Argument"); break;}
+					case CW_ERROR_INTERRUPTED: {CWDebugLog("ERROR: Interrupted"); break;}
+					case CW_ERROR_NEED_RESOURCE: {CWDebugLog("ERROR: Need Resource"); break;}
+					case CW_ERROR_COMUNICATING: {CWDebugLog("ERROR: Comunicating"); break;}
+					case CW_ERROR_CREATING: {CWDebugLog("ERROR: Creating"); break;}
+					case CW_ERROR_GENERAL: {CWDebugLog("ERROR: General"); break;}
+					case CW_ERROR_OPERATION_ABORTED: {CWDebugLog("ERROR: Operation Aborted"); break;}
+					case CW_ERROR_SENDING: {CWDebugLog("ERROR: Sending"); break;}
+					case CW_ERROR_RECEIVING: {CWDebugLog("ERROR: Receiving"); break;}
+					case CW_ERROR_INVALID_FORMAT: {CWDebugLog("ERROR: Invalid Format"); break;}
+					case CW_ERROR_TIME_EXPIRED: {CWDebugLog("ERROR: Time Expired"); break;}
+					case CW_ERROR_NONE: {CWDebugLog("ERROR: None"); break;}
+				}
+			}
+		}
+		else break; // the message is fully reassembled
+	}
+	
+	return CW_TRUE;
+}
+
+
 CWBool CWWTPSendAcknowledgedPacket(int seqNum, 
 				   CWList msgElemlist,
 				   CWBool (assembleFunc)(CWProtocolMessage **, int *, int, int, CWList),
@@ -200,7 +295,159 @@ CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 	
 	while(gWTPRetransmissionCount < gCWMaxRetransmit) 
 	{
-		CWDebugLog("Transmission Num:%d", gWTPRetransmissionCount);
+//		CWLog("Transmission Num:%d", gWTPRetransmissionCount);
+		for(i = 0; i < fragmentsNum; i++) 
+		{
+#ifdef CW_NO_DTLS
+			if(!CWNetworkSendUnsafeConnected(gWTPSocket, 
+							 messages[i].msg,
+							 messages[i].offset))
+#else
+			if(!CWSecuritySend(gWTPSession,
+					   messages[i].msg, 
+					   messages[i].offset))
+#endif
+			{
+				CWLog("Failure sending Request");
+				goto cw_failure;
+			}
+		}
+		
+		timewait.tv_sec = time(0) + gTimeToSleep;
+		timewait.tv_nsec = 0;
+
+		CW_REPEAT_FOREVER 
+		{
+			CWThreadMutexLock(&gInterfaceMutex);
+
+			if (CWGetCountElementFromSafeList(gPacketReceiveList) > 0)
+				CWErrorRaise(CW_ERROR_SUCCESS, NULL);
+			else {
+				if (CWErr(CWWaitThreadConditionTimeout(&gInterfaceWait, &gInterfaceMutex, &timewait)))
+					CWErrorRaise(CW_ERROR_SUCCESS, NULL);
+			}
+
+			CWThreadMutexUnlock(&gInterfaceMutex);
+
+			switch(CWErrorGetLastErrorCode()) {
+
+				case CW_ERROR_TIME_EXPIRED:
+				{
+					gWTPRetransmissionCount++;
+					goto cw_continue_external_loop;
+					break;
+				}
+
+				case CW_ERROR_SUCCESS:
+				{
+					/* there's something to read */
+					if(!(CWReceiveMessage(&msg))) 
+					{
+						CW_FREE_PROTOCOL_MESSAGE(msg);
+						CWLog("Failure Receiving Response");
+						goto cw_failure;
+					}
+					
+					if(!(parseFunc(msg.msg, msg.offset, seqNum, valuesPtr))) 
+					{
+						if(CWErrorGetLastErrorCode() != CW_ERROR_INVALID_FORMAT) {
+
+							CW_FREE_PROTOCOL_MESSAGE(msg);
+							CWLog("Failure Parsing Response");
+							goto cw_failure;
+						}
+						else {
+							CWErrorHandleLast();
+							{ 
+								gWTPRetransmissionCount++;
+								goto cw_continue_external_loop;
+							}
+							break;
+						}
+					}
+					
+					if((saveFunc(valuesPtr))) {
+
+						goto cw_success;
+					} 
+					else {
+						if(CWErrorGetLastErrorCode() != CW_ERROR_INVALID_FORMAT) {
+							CW_FREE_PROTOCOL_MESSAGE(msg);
+							CWLog("Failure Saving Response");
+							goto cw_failure;
+						} 
+					}
+					break;
+				}
+
+				case CW_ERROR_INTERRUPTED: 
+				{
+					gWTPRetransmissionCount++;
+					goto cw_continue_external_loop;
+					break;
+				}	
+				default:
+				{
+					CWErrorHandleLast();
+					CWDebugLog("Failure");
+					goto cw_failure;
+					break;
+				}
+			}
+		}
+		
+		cw_continue_external_loop:
+			CWDebugLog("Retransmission time is over");
+			
+			gTimeToSleep<<=1;
+			if ( gTimeToSleep > gMaxTimeToSleep ) gTimeToSleep = gMaxTimeToSleep;
+	}
+
+	/* too many retransmissions */
+	return CWErrorRaise(CW_ERROR_NEED_RESOURCE, "Peer Dead");
+	
+cw_success:	
+	for(i = 0; i < fragmentsNum; i++) {
+		CW_FREE_PROTOCOL_MESSAGE(messages[i]);
+	}
+	
+	CW_FREE_OBJECT(messages);
+	CW_FREE_PROTOCOL_MESSAGE(msg);
+	
+	return CW_TRUE;
+	
+cw_failure:
+	if(messages != NULL) {
+		for(i = 0; i < fragmentsNum; i++) {
+			CW_FREE_PROTOCOL_MESSAGE(messages[i]);
+		}
+		CW_FREE_OBJECT(messages);
+	}
+	CWDebugLog("Failure");
+	return CW_FALSE;
+}
+
+/* Elena Agostini - 03/2014: Retransmission Request Messages with custom interval */
+CWBool CWWTPRequestPacketRetransmissionCustomTimeInterval(int retransmissionTimeInterval, 
+				int seqNum, 
+				CWProtocolMessage *messages,
+				CWBool (parseFunc)(char*, int, int, void*), 
+				CWBool (saveFunc)(void*),
+				void *valuesPtr) {
+
+	CWProtocolMessage msg;
+	int fragmentsNum = 0, i;
+
+	struct timespec timewait;
+	
+	int gTimeToSleep = retransmissionTimeInterval;
+	int gMaxTimeToSleep = CW_ECHO_INTERVAL_DEFAULT/2;
+
+	gWTPRetransmissionCount= 0;
+	
+	while(gWTPRetransmissionCount < gCWMaxRetransmit) 
+	{
+//		CWDebugLog("Transmission Num:%d", gWTPRetransmissionCount);
 		for(i = 0; i < fragmentsNum; i++) 
 		{
 #ifdef CW_NO_DTLS
@@ -357,19 +604,28 @@ int main (int argc, const char * argv[]) {
 
 	
 	CWStateTransition nextState = CW_ENTER_DISCOVERY;
-	CWLogInitFile(WTP_LOG_FILE_NAME);
+	//Elena to move line 611
+	//CWLogInitFile(WTP_LOG_FILE_NAME);
 
+//Elena: This is useless
+/*
 #ifndef CW_SINGLE_THREAD
 	CWDebugLog("Use Threads");
 #else
 	CWDebugLog("Don't Use Threads");
 #endif
+*/
 	CWErrorHandlingInitLib();
 	if(!CWParseSettingsFile()){
-		CWLog("Can't start WTP");
+		//Elena: fprintf
+		fprintf(stderr, "Can't start WTP");
 		exit(1);
 	}
-
+	
+	//Elena Agostini - 05/2014
+	CWLogInitFile(wtpLogFile);
+	strncpy(gLogFileName, wtpLogFile, strlen(wtpLogFile));
+	
 	/* Capwap receive packets list */
 	if (!CWErr(CWCreateSafeList(&gPacketReceiveList)))
 	{
@@ -377,6 +633,13 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	}
 
+	/* Capwap receive packets list */
+	if (!CWErr(CWCreateSafeList(&gPacketReceiveDataList)))
+	{
+		CWLog("Can't start WTP");
+		exit(1);
+	}
+	
 	/* Capwap receive frame list */
 	if (!CWErr(CWCreateSafeList(&gFrameList)))
 	{
@@ -391,6 +654,13 @@ int main (int argc, const char * argv[]) {
 	CWSetConditionSafeList(gPacketReceiveList, &gInterfaceWait);
 	CWSetConditionSafeList(gFrameList, &gInterfaceWait);
 
+	//Elena Agostini: Mutex and Cond dedicated to Data Packet List
+	CWCreateThreadMutex(&gInterfaceMutexData);
+	CWCreateThreadCondition(&gInterfaceWaitData);
+	CWSetMutexSafeList(gPacketReceiveDataList, &gInterfaceMutexData);
+	CWSetConditionSafeList(gPacketReceiveDataList, &gInterfaceWaitData);
+
+
 	CWLog("Starting WTP...");
 	
 	CWRandomInitLib();
@@ -403,7 +673,8 @@ int main (int argc, const char * argv[]) {
 	}
 
 
-#ifdef CW_NO_DTLS
+/* Elena Agostini - 04/2014: DTLS Data Channel || DTLS Control Channel */
+#if defined(CW_NO_DTLS) && !defined(CW_DTLS_DATA_CHANNEL)
 	if( !CWErr(CWWTPLoadConfiguration()) ) {
 #else
 	if( !CWErr(CWSecurityInitLib())	|| !CWErr(CWWTPLoadConfiguration()) ) {
@@ -419,39 +690,34 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	}
 
-#ifdef SOFTMAC
-	CWThread thread_ipc_with_wtp_hostapd;
-	if(!CWErr(CWCreateThread(&thread_ipc_with_wtp_hostapd, CWWTPThread_read_data_from_hostapd, NULL))) {
-		CWLog("Error starting Thread that receive command and 802.11 frame from hostapd (WTP side)");
-		exit(1);
-	}
-#endif
-
-
+#ifdef SPLIT_MAC
+	//We need monitor interface only in SPLIT_MAC mode with tunnel
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, CWWTPReceiveFrame, NULL))) {
 		CWLog("Error starting Thread that receive binding frame");
 		exit(1);
 	}
+#endif
 
-
+/*
 	CWThread thread_receiveStats;
 	if(!CWErr(CWCreateThread(&thread_receiveStats, CWWTPReceiveStats, NULL))) {
 		CWLog("Error starting Thread that receive stats on monitoring interface");
 		exit(1);
 	}
-
+*/
 	/****************************************
 	 * 2009 Update:							*
 	 *				Spawn Frequency Stats	*
 	 *				Receiver Thread			*
 	 ****************************************/
-
+/*
 	CWThread thread_receiveFreqStats;
 	if(!CWErr(CWCreateThread(&thread_receiveFreqStats, CWWTPReceiveFreqStats, NULL))) {
 		CWLog("Error starting Thread that receive frequency stats on monitoring interface");
 		exit(1);
 	}
+	*/
 
 	/* if AC address is given jump Discovery and use this address for Joining */
 	if(gWTPForceACAddress != NULL)	nextState = CW_ENTER_JOIN;
@@ -470,7 +736,7 @@ int main (int argc, const char * argv[]) {
 				break;
 			case CW_ENTER_CONFIGURE:
 				nextState = CWWTPEnterConfigure();
-				break;	
+				break;
 			case CW_ENTER_DATA_CHECK:
 				nextState = CWWTPEnterDataCheck();
 				break;	
@@ -478,15 +744,7 @@ int main (int argc, const char * argv[]) {
 				nextState = CWWTPEnterRun();
 				break;
 			case CW_ENTER_RESET:
-				/*
-				 * CWStopHeartbeatTimer();
-				 * CWStopNeighborDeadTimer();
-				 * CWNetworkCloseSocket(gWTPSocket);
-				 * CWSecurityDestroySession(gWTPSession);
-				 * CWSecurityDestroyContext(gWTPSecurityContext);
-				 * gWTPSecurityContext = NULL;
-				 * gWTPSession = NULL;
-				 */
+				CWLog("------ Enter Reset State ------");
 				nextState = CW_ENTER_DISCOVERY;
 				break;
 			case CW_QUIT:
@@ -548,60 +806,43 @@ void CWWTPDestroy() {
 	
 	CWLog("Destroy WTP");
 	
+	/*
+	 * Elena Agostini - 07/2014: Memory leak
+	 */
+#ifndef CW_NO_DTLS
+	if(gWTPSession)
+		CWSecurityDestroySession(gWTPSession);
+	if(gWTPSecurityContext)
+		CWSecurityDestroyContext(gWTPSecurityContext);
+	
+	gWTPSecurityContext = NULL;
+	gWTPSession = NULL;
+#endif
+
 	for(i = 0; i < gCWACCount; i++) {
 		CW_FREE_OBJECT(gCWACList[i].address);
 	}
 	
 	timer_destroy();
-
+//Elena
+#ifdef SPLIT_MAC
+	close(rawInjectSocket);
+#endif
 	CW_FREE_OBJECT(gCWACList);
 	CW_FREE_OBJECT(gRadiosInfo.radiosInfo);
 }
 
 CWBool CWWTPInitConfiguration() {
-	CWDebugLog("CWWTPInitConfiguration"); 
-	int i;
+	int i, err;
 
 	//Generate 128-bit Session ID,
-	initWTPSessionID(&gWTPSessionID[0]);
-
+	initWTPSessionID(gWTPSessionID);
+	
 	CWWTPResetRebootStatistics(&gWTPRebootStatistics);
-
-	gRadiosInfo.radioCount = CWWTPGetMaxRadios();
-
-	CW_CREATE_ARRAY_ERR(gRadiosInfo.radiosInfo, gRadiosInfo.radioCount, CWWTPRadioInfoValues, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	gRadiosInfo.radiosInfo[0].radioID= 0;
-
-	/* gRadiosInfo.radiosInfo[0].numEntries = 0; */
-	gRadiosInfo.radiosInfo[0].decryptErrorMACAddressList = NULL;
-	gRadiosInfo.radiosInfo[0].reportInterval= CW_REPORT_INTERVAL_DEFAULT;
-	gRadiosInfo.radiosInfo[0].adminState= ENABLED;
-	gRadiosInfo.radiosInfo[0].adminCause= AD_NORMAL;
-	gRadiosInfo.radiosInfo[0].operationalState= ENABLED;
-	gRadiosInfo.radiosInfo[0].operationalCause= OP_NORMAL;
-	gRadiosInfo.radiosInfo[0].TxQueueLevel= 0;
-	gRadiosInfo.radiosInfo[0].wirelessLinkFramesPerSec= 0;
-
-	CWWTPResetRadioStatistics(&(gRadiosInfo.radiosInfo[0].statistics));
-
-	if(!CWWTPInitBinding(0)) {return CW_FALSE;}
-
-	for (i=1; i<gRadiosInfo.radioCount; i++)
-	{
-		gRadiosInfo.radiosInfo[i].radioID= i;
-		/* gRadiosInfo.radiosInfo[i].numEntries = 0; */
-		gRadiosInfo.radiosInfo[i].decryptErrorMACAddressList = NULL;
-		gRadiosInfo.radiosInfo[i].reportInterval= CW_REPORT_INTERVAL_DEFAULT;
-		/* Default value for CAPWA� */
-		gRadiosInfo.radiosInfo[i].adminState= ENABLED; 
-		gRadiosInfo.radiosInfo[i].adminCause= AD_NORMAL;
-		gRadiosInfo.radiosInfo[i].operationalState= DISABLED;
-		gRadiosInfo.radiosInfo[i].operationalCause= OP_NORMAL;
-		gRadiosInfo.radiosInfo[i].TxQueueLevel= 0;
-		gRadiosInfo.radiosInfo[i].wirelessLinkFramesPerSec= 0;
-		CWWTPResetRadioStatistics(&(gRadiosInfo.radiosInfo[i].statistics));
-		if(!CWWTPInitBinding(i)) {return CW_FALSE;}
-	}
-
+	
+	//Elena Agostini - 07/2014: nl80211 support
+	if(CWWTPGetRadioGlobalInfo() == CW_FALSE)
+		return CW_FALSE;
+	
 	return CW_TRUE;
 }

@@ -51,14 +51,13 @@ CWBool CWAssembleConfigureResponse(CWProtocolMessage **messagesPtr,
 CWBool CWParseConfigureRequestMessage(char *msg,
 				      int len,
 				      int *seqNumPtr,
-				      CWProtocolConfigureRequestValues *valuesPtr, char*, char*, char*);
+				      CWProtocolConfigureRequestValues *valuesPtr, char*, char*);
 
 CWBool CWSaveConfigureRequestMessage(CWProtocolConfigureRequestValues *configureRequest,
 				     CWWTPProtocolManager *WTPProtocolManager);
 
 
 CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
-	
 
 	/*** tmp Radio Info ***/
 	char tmp_RadioInformationABGN;
@@ -77,7 +76,6 @@ CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
 										&seqNum, 
 										&configureRequest,
 										&tmp_RadioInformationABGN,
-										tmp_SuppRates,
 										tmp_MultiDomCapa))) {
 		/* note: we can kill our thread in case of out-of-memory 
 		 * error to free some space.
@@ -93,6 +91,7 @@ CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
 	}
 	
 	
+	//Elena Agostini note: useless?
 	/* Store Radio Info in gWTPs */
 	gWTPs[WTPIndex].RadioInformationABGN = tmp_RadioInformationABGN;
 	memcpy( gWTPs[WTPIndex].SuppRates, tmp_SuppRates, 8 );
@@ -122,7 +121,13 @@ CWBool ACEnterConfigure(int WTPIndex, CWProtocolMessage *msgPtr) {
 
 		CWCloseThread();
 	}
-
+	
+	/* Elena Agostini: 09/2014 IEEE 802.11 Binding */
+/*	if(!ACEnterIEEEConfiguration(WTPIndex, NULL))
+		return CW_FALSE;
+		
+	gWTPs[WTPIndex].currentState = CW_ENTER_IEEEE_CONFIGURATION;
+*/
 	gWTPs[WTPIndex].currentState = CW_ENTER_DATA_CHECK;
 	return CW_TRUE;
 }
@@ -132,12 +137,13 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 				      int *seqNumPtr,
 				      CWProtocolConfigureRequestValues *valuesPtr,
 				      char *tmp_RadioInformationABGN,
-				      char *tmp_SuppRates,
 				      char *tmp_MultiDomCapa) {
 
 	CWControlHeaderValues controlVal;
 	int i,j;
 	int offsetTillMessages;
+	char * tmpSuppRates;
+	int radioID, rateLen, indexRadio;
 	
 	CWProtocolMessage completeMsg;
 	
@@ -145,6 +151,12 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 		return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	CWDebugLog("Parsing Configure Request...");
+	
+	//Elena Agostini: nl80211 support
+	valuesPtr->tmpPhyInfo.numPhyActive=0;
+	CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->tmpPhyInfo.singlePhyInfo, WTP_RADIO_MAX, WTPSinglePhyInfo, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->phyFrequencyInfo, WTP_RADIO_MAX, PhyFrequencyInfoConfigureMessage, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	valuesPtr->numPhyFrequencyInfo=0;
 	
 	completeMsg.msg = msg;
 	completeMsg.offset = 0;
@@ -214,16 +226,50 @@ CWBool CWParseConfigureRequestMessage(char *msg,
 				break;
 			
 			case CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE:
-				if(!(CWParseWTPRadioInformation(&completeMsg, elemLen, tmp_RadioInformationABGN)))return CW_FALSE;
+				/*
+				 * Elena Agostini: I'm not going to save again those values
+				 * I've already saved in join state those values and in this momento there isn't an AC logic managment
+				*/
+				if(valuesPtr->tmpPhyInfo.numPhyActive < WTP_RADIO_MAX)
+					if(!(CWParseWTPRadioInformation(&completeMsg, 
+													elemLen, 
+													&(valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].radioID),
+													&(valuesPtr->tmpPhyInfo.singlePhyInfo[valuesPtr->tmpPhyInfo.numPhyActive].phyStandardValue)
+													)
+					))return CW_FALSE;
+					valuesPtr->tmpPhyInfo.numPhyActive++;
 				break;
 				
 			case CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE:
-				if(!(CWParseWTPMultiDomainCapability(&completeMsg, elemLen, tmp_MultiDomCapa)))return CW_FALSE;
-				break;
+				
+				if(valuesPtr->numPhyFrequencyInfo < WTP_RADIO_MAX)
+					if(!(CWParseWTPMultiDomainCapability(&completeMsg, 
+													elemLen, 
+													&(valuesPtr->phyFrequencyInfo[valuesPtr->numPhyFrequencyInfo])
+													)
+					))
+						return CW_FALSE;
 					
+					valuesPtr->numPhyFrequencyInfo++;
+				
+				break;
+			//Elena Agostini: TODO. Without AC logic, save these values is useless
+			case CW_MSG_ELEMENT_IEEE80211_MAC_OPERATION_CW_TYPE:
+				completeMsg.offset += elemLen;
+				break;
+			
 			case CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE:
-				if(!(CWParseWTPSupportedRates(&completeMsg, elemLen, tmp_SuppRates)))return CW_FALSE;
-				break;	
+				
+				CW_CREATE_ARRAY_CALLOC_ERR(tmpSuppRates, CW_80211_MAX_SUPP_RATES, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				if(!(CWParseWTPSupportedRates(&completeMsg, elemLen, &(radioID), &(tmpSuppRates), &(rateLen))))
+					break;	
+				
+				indexRadio = CWIEEEBindingGetIndexFromDevID(radioID);
+				valuesPtr->phyFrequencyInfo[indexRadio].lenSupportedRates = rateLen;
+				CW_CREATE_ARRAY_CALLOC_ERR(valuesPtr->phyFrequencyInfo[indexRadio].supportedRates, rateLen+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				CW_COPY_MEMORY(valuesPtr->phyFrequencyInfo[indexRadio].supportedRates, tmpSuppRates, rateLen);
+	
+				break;
 				
 			default:
 				return CWErrorRaise(CW_ERROR_INVALID_FORMAT, "Unrecognized Message Element");
@@ -364,6 +410,30 @@ CWBool CWSaveConfigureRequestMessage (CWProtocolConfigureRequestValues *configur
 
 	CW_FREE_OBJECT(WTPProtocolManager->WTPRebootStatistics);
 	WTPProtocolManager->WTPRebootStatistics = configureRequest->WTPRebootStatistics;
+	
+	/*
+	 * Elena Agostini-08/2014: WTP Multi Domain Capability save info for each radio saved in Join State
+	 */
+	int i, j;
+	for(i=0; i< configureRequest->numPhyFrequencyInfo; i++) {
+		for(j=0; j< WTPProtocolManager->radiosInfo.radioCount; j++) {
+			if(WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.radioID == configureRequest->phyFrequencyInfo[i].radioID)
+			{
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.totChannels = configureRequest->phyFrequencyInfo[i].totChannels;
+				CW_CREATE_ARRAY_CALLOC_ERR(WTPProtocolManager->radiosInfo.radiosInfo[i].gWTPPhyInfo.phyFrequencyInfo.frequencyList, 1, PhyFrequencyInfoList, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].frequency = configureRequest->phyFrequencyInfo[i].firstChannel;
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.phyFrequencyInfo.frequencyList[0].maxTxPower = configureRequest->phyFrequencyInfo[i].maxTxPower;
+				WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.lenSupportedRates = configureRequest->phyFrequencyInfo[i].lenSupportedRates;
+				
+				CW_CREATE_ARRAY_CALLOC_ERR(WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates, configureRequest->phyFrequencyInfo[i].lenSupportedRates+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+				CW_COPY_MEMORY(WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates, configureRequest->phyFrequencyInfo[i].supportedRates, configureRequest->phyFrequencyInfo[i].lenSupportedRates);
+				
+				CWLog("Dentro CWSaveConfigureRequestMessage: %d - %d", WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates[0], WTPProtocolManager->radiosInfo.radiosInfo[j].gWTPPhyInfo.supportedRates[7]);
+				
+				break;
+			}
+		}
+	}
 
 	CWDebugLog("Configure Request Saved");
 	return CW_TRUE;

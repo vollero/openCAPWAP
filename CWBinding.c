@@ -86,7 +86,12 @@ CWBool CWAssembleDataMessage(CWProtocolMessage **completeMsgPtr, int *fragmentsN
 	
 	transportVal.bindingValuesPtr = bindingValuesPtr;
 	
-	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: transportVal.type not initialized
+	 */
+	transportVal.type=0;
 	if( frame->data_msgType == CW_IEEE_802_11_FRAME_TYPE ) transportVal.type = 1;
 	
 	if(*fragmentsNumPtr == 1) {
@@ -110,9 +115,26 @@ CWBool CWAssembleDataMessage(CWProtocolMessage **completeMsgPtr, int *fragmentsN
 		}
 				
 		CW_CREATE_OBJECT_ERR(*completeMsgPtr, CWProtocolMessage, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-		CW_CREATE_PROTOCOL_MESSAGE(((*completeMsgPtr)[0]), transportHdr.offset + frame->offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 		
+		/*
+		 * Elena Agostini - 04/2014
+		 * 
+		 * KeepAlive Packet was malformed without message element length field
+		 */
+		if(keepAlive) {
+			CW_CREATE_PROTOCOL_MESSAGE(((*completeMsgPtr)[0]), transportHdr.offset + frame->offset + 2, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		}
+		else {
+			CW_CREATE_PROTOCOL_MESSAGE(((*completeMsgPtr)[0]), transportHdr.offset + frame->offset, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		}
+			
 		CWProtocolStoreMessage(&((*completeMsgPtr)[0]), &transportHdr);
+		
+		if(keepAlive){
+			unsigned short int messageElementLength = 22;
+			CWProtocolStore16(&((*completeMsgPtr)[0]), messageElementLength);
+		}
+	
 		CWProtocolStoreMessage(&((*completeMsgPtr)[0]), frame);
 		
 		CW_FREE_PROTOCOL_MESSAGE(transportHdr);
@@ -256,6 +278,8 @@ CWBool CWParseTransportHeaderMACAddress(CWProtocolMessage *msgPtr,  char *mac_pt
 
 CWBool CWParseTransportHeaderBinding(CWProtocolMessage *msgPtr, CWBindingTransportHeaderValues *valuesPtr){
 	unsigned int val = 0;
+	
+	CWLog("CWParseTransportHeaderBinding");
 	
 	if(msgPtr == NULL || valuesPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	

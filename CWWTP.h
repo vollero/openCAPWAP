@@ -43,11 +43,15 @@
 /*  *******************___INCLUDE___*******************  */
 
 #include "CWCommon.h"
-#include "WTPProtocol.h"
 #include "WTPBinding.h"
+//Elena Agostini - 07/2014
+//#include "NL80211.h"
+
 
 /*______________________________________________________*/
 /*  *******************___DEFINE___*******************  */
+//extern char * WTP_LOG_FILE_NAME;
+//Elena Agostini: now it is useless - TODO remove from WTP this const
 #define WTP_LOG_FILE_NAME	"/var/log/wtp.log.txt"
 
 /*_____________________________________________________*/
@@ -59,15 +63,47 @@ typedef struct {
 	int seqNum;
 } CWACDescriptor;
 
+
+#include "WTPProtocol.h"
+
 /*_____________________________________________________________*/
 /*  *******************___WTP VARIABLES___*******************  */
 extern char* gInterfaceName;
 extern char* gEthInterfaceName;
+extern char* gBridgeInterfaceName;
 extern char* gRadioInterfaceName_0;
 extern char* gBaseMACInterfaceName;
 extern char gBoardReversionNo;
 extern char **gCWACAddresses;
 extern int gCWACCount;
+
+//Elena Agostini - 07/2014: nl80211 support
+extern int gPhyInterfaceCount;
+extern char ** gPhyInterfaceName;
+extern int * gPhyInterfaceIndex;
+
+/*
+ * Elena Agostini - 02/2014
+ *
+ * QoS Static Values variables
+ */
+extern int qosStaticFreq;
+extern int qosStaticBitRate;
+extern int qosStaticFrag;
+extern int qosStaticTxPower;
+extern int qosStaticCwMin;
+extern int qosStaticCwMax;
+extern int qosStaticAifs;
+extern int qosStaticWmeCwMin;
+extern int qosStaticWmeCwMax;
+extern int qosStaticWmeAifsn;
+
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+extern int gWTPECNSupport;
 
 extern int gHostapd_port;
 extern char*  gHostapd_unix_path;
@@ -97,6 +133,13 @@ extern WTPRebootStatisticsInfo gWTPRebootStatistics;
 extern CWWTPRadiosInfo gRadiosInfo;
 extern CWSecurityContext gWTPSecurityContext;
 extern CWSecuritySession gWTPSession;
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DTLS Data Session WTP
+ */
+extern CWSecurityContext gWTPSecurityContextData;
+extern CWSecuritySession gWTPSessionData;
 
 extern CWPendingRequestMessage gPendingRequestMsgs[MAX_PENDING_REQUEST_MSGS];
 
@@ -104,6 +147,30 @@ extern CWSafeList gPacketReceiveList;
 extern CWSafeList gFrameList;
 extern CWThreadCondition gInterfaceWait;
 extern CWThreadMutex gInterfaceMutex;
+
+//Elena Agostini: Mutex and Cond dedicated to Data Packet List
+extern CWSafeList gPacketReceiveDataList;
+extern CWThreadCondition gInterfaceWaitData;
+extern CWThreadMutex gInterfaceMutexData;
+
+/*
+ * Elena Agostini - 02/2014: OpenSSL params variables
+ */
+extern char *gWTPCertificate;
+extern char *gWTPKeyfile;
+extern char *gWTPPassword;
+
+/*
+ * Elena Agostini - 02/2014
+ * Port number params config.wtp
+ */
+extern int WTP_PORT_CONTROL;
+extern int WTP_PORT_DATA;
+
+#define MAC_ADDR_LEN 6
+
+
+extern int wtpInRunState;
 
 /*__________________________________________________________*/
 /*  *******************___PROTOTYPES___*******************  */
@@ -113,6 +180,11 @@ CWBool CWWTPLoadConfiguration();
 CWBool CWWTPInitConfiguration();
 void CWWTPResetRadioStatistics(WTPRadioStatisticsInfo *radioStatistics);
 CWBool CWReceiveMessage(CWProtocolMessage *msgPtr);
+/*
+ * Elena Agostini - 03/2014
+ * DTLS Data Session WTP
+ */
+CWBool CWReceiveDataMessage(CWProtocolMessage *msgPtr);
 CWBool CWWTPSendAcknowledgedPacket(int seqNum,
 				   CWList msgElemlist, 
 				   CWBool (assembleFunc)(CWProtocolMessage **, int *, int, int, CWList),
@@ -132,7 +204,8 @@ CWBool CWAssembleWTPEventRequest(CWProtocolMessage **messagesPtr,
 				 int *fragmentsNumPtr,
 				 int PMTU,
 				 int seqNum,
-				 CWList msgElemList);
+				 CWList msgElemList,
+				 CWMsgElemDataDeleteStation * infoDeleteStation);
 
 CW_THREAD_RETURN_TYPE CWWTPReceiveDtlsPacket(void *arg);
 CW_THREAD_RETURN_TYPE CWWTPReceiveDataPacket(void *arg);
@@ -168,31 +241,27 @@ CWBool CWUpdatePendingMsgBox(CWPendingRequestMessage *pendingRequestMsgs,
 			     CWProtocolMessage *msgElems,
 			     int fragmentsNum);
 			     
+//in WTPDriverInteraction.c
 
-#ifdef SOFTMAC
-//in WTPmacDriverInteraction.c
+/*
+ * Elena Agostini - 02/2014
+ * 
+ * No more ioctl() on wireless drivers.
+ * API coming soon..
+ */
+
+//#ifdef SOFTMAC
 int set_wme_cwmin(int acclass,int value);
 int set_wme_cwmax(int acclass,int value);
 int set_wme_aifsn(int acclass,int value);
-#else
-
-#ifndef BCM
-//in WTPDriverInteraction.c
+//#else
 int set_cwmin(int sock, struct iwreq wrq, int acclass, int sta, int value);
 int get_cwmin(int sock, struct iwreq* wrq, int acclass, int sta);
 int set_cwmax(int sock, struct iwreq wrq, int acclass, int sta, int value);
 int get_cwmax(int sock, struct iwreq* wrq, int acclass, int sta);
 int set_aifs(int sock, struct iwreq wrq, int acclass, int sta, int value);
 int get_aifs(int sock, struct iwreq* wrq, int acclass, int sta);
-
-#else
-
-//in WTPBcmDriverInteraction.c
-int set_wme_cwmin(int acclass,int value);
-int set_wme_cwmax(int acclass,int value);
-int set_wme_aifsn(int acclass,int value);
-#endif
-#endif
+//#endif
 
 /* in WTPDiscoveryState.c */
 CWStateTransition CWWTPEnterDiscovery();
@@ -206,13 +275,36 @@ CWStateTransition CWWTPEnterRun();
 
 CWBool CWStartHeartbeatTimer();
 CWBool CWStopHeartbeatTimer();
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * DataChannel Dead Timer
+ */
+CWBool CWStartDataChannelDeadTimer();
+CWBool CWStopDataChannelDeadTimer();
+CWBool CWResetDataChannelDeadTimer();
+CWBool CWStartKeepAliveTimer();
+CWBool CWStopKeepAliveTimer();
+
+/*
+ * Elena Agostini - 03/2014
+ * 
+ * Echo Request Timer
+ */
+CWBool CWStartEchoRequestTimer();
+CWBool CWStopEchoRequestsTimer();
+CWBool CWResetEchoRequestRetransmit();
+void CWWTPEchoRequestTimerExpiredHandler(void *arg);
+
 CWBool CWStartNeighborDeadTimer();
 CWBool CWStopNeighborDeadTimer();
-CWBool CWResetTimers();
+void CWWTPNeighborDeadTimerExpired();
 
 void CWWTPHeartBeatTimerExpiredHandler(void *arg); 
 void CWWTPRetransmitTimerExpiredHandler(CWTimerArg arg);
 
+				   
 extern CWBool WTPExitOnUpdateCommit;
 
 #endif

@@ -63,6 +63,33 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include "wireless_copy.h"
+       #include <netpacket/packet.h>
+      #include <net/ethernet.h> 
+       
+/* *********** NL80211 support ************** */
+#include <stdio.h>
+#include <string.h>
+#include <net/if.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <endian.h>
+
+#include <netlink/genl/genl.h>
+#include <netlink/genl/family.h>
+#include <netlink/genl/ctrl.h>
+#include <netlink/msg.h>
+#include <netlink/attr.h>
+
+#include "nl80211.h"
+#include "ieee80211.h"
+//From hostapd
+#include "HostapdHeaders/utils/common.h"
+#include "HostapdHeaders/common/ieee802_11_defs.h"
+#include "HostapdHeaders/common/ieee802_11_common.h"
+/* ******************************************* */
 
 // make sure the types really have the right sizes
 #define CW_COMPILE_TIME_ASSERT(name, x)               typedef int CWDummy_ ## name[(x) * 2 - 1]
@@ -91,16 +118,38 @@ typedef enum {
 	CW_ENTER_DATA_CHECK,
 	CW_ENTER_RUN,
 	CW_ENTER_RESET,
-	CW_QUIT
+	CW_QUIT,
 } CWStateTransition;
 
 extern const char *CW_CONFIG_FILE;
 extern int gCWForceMTU;
 extern int gCWRetransmitTimer;
 extern int gCWNeighborDeadInterval;
+/*
+ * Elena Agostini - 03/2014
+ *
+ * Data Channel Dead Interval
+ */
+extern int gDataChannelDeadInterval;
 extern int gCWMaxRetransmit; 
+extern int gWTPMaxRetransmitEcho;
+extern CWBool gWTPDataChannelDeadFlag;
+extern CWBool gWTPExitRunEcho;
+extern int gWTPThreadDataPacketState;
+
+/*
+ * Elena Agostini - 03/2014
+ * Size SessionID
+ */
+ 
+#define WTP_SESSIONID_LENGTH 16
+
 extern int gMaxLogFileSize;
 extern int gEnabledLog;
+
+//Elena Agostini - 05/2014: single log_file foreach WTP
+extern char * wtpLogFile;
+
 
 #define	CW_FREE_OBJECT(obj_name)		{if(obj_name){free((obj_name)); (obj_name) = NULL;}}
 #define	CW_FREE_OBJECTS_ARRAY(ar_name, ar_size)	{int _i = 0; for(_i = ((ar_size)-1); _i >= 0; _i--) {if(((ar_name)[_i]) != NULL){ free((ar_name)[_i]);}} free(ar_name); (ar_name) = NULL; }
@@ -112,6 +161,13 @@ extern int gEnabledLog;
 #define	CW_CREATE_ARRAY_ERR(ar_name, ar_size, ar_type, on_err)	{ar_name = (ar_type*) (malloc(sizeof(ar_type) * (ar_size))); if(!(ar_name)) {on_err}}
 #define	CW_CREATE_STRING_ERR(str_name, str_length, on_err)	{str_name = (char*) (malloc(sizeof(char) * ((str_length)+1) ) ); if(!(str_name)) {on_err}}
 #define	CW_CREATE_STRING_FROM_STRING_ERR(str_name, str, on_err)	{CW_CREATE_STRING_ERR(str_name, strlen(str), on_err); strcpy((str_name), str);}
+/*
+ * Elena Agostini - 02/2014
+ */
+#define	CW_STRING_GET_START_WHITE_SPACES(str, blank)	{ int i = 0; blank=0; for(i = 0; i < strlen(str); i++) if(str[i] == ' ' || str[i] == '\t') blank++; else break; }
+#define	CW_CREATE_ARRAY_CALLOC_ERR(ar_name, ar_size, ar_type, on_err)	{ar_name = (ar_type*) (calloc((ar_size), sizeof(ar_type))); if(!(ar_name)) {on_err}}
+
+
 
 #ifdef CW_DEBUGGING
 
@@ -136,12 +192,28 @@ extern int gEnabledLog;
 #include "CWList.h"
 #include "CWSafeList.h"
 
+#include "IEEEBinding.h"
+
 #include "CWProtocol.h"
 #include "CWSecurity.h"
 #include "CWConfigFile.h"
 
+//ElenaAgostini
+#include "CWTunnel.h"
+#include "CWAVL.h"
+
+
 int CWTimevalSubtract(struct timeval *res, const struct timeval *x, const struct timeval *y);
 CWBool CWParseSettingsFile();
 void CWErrorHandlingInitLib();
+
+/*
+ * Elena Agostini - 09/2014: IEEE Binding utils: radioID and wlanID cannot be <= 0
+ */
+int CWIEEEBindingGetIndexFromDevID(int devID);
+int CWIEEEBindingGetDevFromIndexID(int indexID);
+/* Elena Agostini: print ethernet address + description */
+void CWPrintEthernetAddress(unsigned char * address, char * string);
+int CWCompareEthernetAddress(unsigned char * address1, unsigned char * address2);
 
 #endif

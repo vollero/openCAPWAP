@@ -46,7 +46,7 @@ const char *CW_CONFIG_FILE = "config.wtp";
 
 CWBool CWConfigFileInitLib() {
 	
-	gConfigValuesCount = 9;
+	gConfigValuesCount = 14;
 
 	CW_CREATE_ARRAY_ERR(gConfigValues, gConfigValuesCount, CWConfigValue, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
@@ -81,25 +81,53 @@ CWBool CWConfigFileInitLib() {
 	gConfigValues[6].value.str_value = NULL;
 
 	gConfigValues[7].type = CW_INTEGER;
-	gConfigValues[7].code = "</AC_LOG_FILE_ENABLE>";
+	gConfigValues[7].code = "</WTP_LOG_FILE_ENABLE>";
 	gConfigValues[7].value.int_value = 0;
 
 	gConfigValues[8].type = CW_INTEGER;
-	gConfigValues[8].code = "</AC_LOG_FILE_SIZE>";
+	gConfigValues[8].code = "</WTP_LOG_FILE_SIZE>";
 	gConfigValues[8].value.int_value = DEFAULT_LOG_SIZE;
 	
+	/* Elena Agostini - 02/2014: OpenSSL params config.wtp */
+	gConfigValues[9].type = CW_STRING;
+	gConfigValues[9].code = "</WTP_SECURITY_CERTIFICATE>";
+	gConfigValues[9].value.str_value = NULL;
+
+	gConfigValues[10].type = CW_STRING;
+	gConfigValues[10].code = "</WTP_SECURITY_KEYFILE>";
+	gConfigValues[10].value.str_value = NULL;
+
+	gConfigValues[11].type = CW_STRING;
+	gConfigValues[11].code = "</WTP_SECURITY_PASSWORD>";
+	gConfigValues[11].value.str_value = NULL;
+
+
+	/* Elena Agostini - 02/2014: Port number params config.wtp */
+	gConfigValues[12].type = CW_INTEGER;
+	gConfigValues[12].code = "</WTP_PORT_CONTROL>";
+	gConfigValues[12].value.int_value = -1;
+
+	gConfigValues[13].type = CW_INTEGER;
+	gConfigValues[13].code = "</WTP_PORT_DATA>";
+	gConfigValues[13].value.int_value = -1;
+
+/*
+	gConfigValues[14].type = CW_STRING;
+	gConfigValues[14].code = "</WTP_LOG_FILE>";
+	gConfigValues[14].value.str_value = NULL;
+*/
 	return CW_TRUE;
 }
 
 CWBool CWConfigFileDestroyLib() {
 	int  i;
-	
-	// save the preferences we read
-	
+	int indexBlank=0;
+
+	// save the preferences we read	
 	CW_CREATE_ARRAY_ERR(gCWACAddresses, gConfigValues[0].count, char*, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	for(i = 0; i < gConfigValues[0].count; i++) {
-		CW_CREATE_STRING_FROM_STRING_ERR(gCWACAddresses[i], (gConfigValues[0].value.str_array_value)[i], return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		CW_CREATE_STRING_FROM_STRING_ERR(gCWACAddresses[i], ((gConfigValues[0].value.str_array_value)[i])+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	
 	gCWACCount = gConfigValues[0].count;
@@ -117,22 +145,87 @@ CWBool CWConfigFileDestroyLib() {
 	}
 	
 	if(gConfigValues[3].value.str_value != NULL) {
-		CW_CREATE_STRING_FROM_STRING_ERR(gWTPName, (gConfigValues[3].value.str_value), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * Ignore spaces in configuration values
+		 */
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[3].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPName, (gConfigValues[3].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	if(gConfigValues[4].value.str_value != NULL) {
-		CW_CREATE_STRING_FROM_STRING_ERR(gWTPLocation, (gConfigValues[4].value.str_value), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * Ignore spaces in configuration values
+		 */
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[4].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPLocation, (gConfigValues[4].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	if(gConfigValues[5].value.str_value != NULL) {
-		CW_CREATE_STRING_FROM_STRING_ERR(gWTPForceACAddress, (gConfigValues[5].value.str_value), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * Ignore spaces in configuration values
+		 */
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[5].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPForceACAddress, (gConfigValues[5].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	}
 	
-	if(gConfigValues[6].value.str_value != NULL && !strcmp(gConfigValues[6].value.str_value, "PRESHARED")) {
-		gWTPForceSecurity = CW_PRESHARED;
-	} else { // default
-		gWTPForceSecurity = CW_X509_CERTIFICATE;
+	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Ignore spaces in configuration values
+	 */
+	if(gConfigValues[6].value.str_value != NULL)
+	{
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[6].value.str_value), indexBlank);
+		if(!strcmp((gConfigValues[6].value.str_value)+indexBlank, "PRESHARED")) {	
+			gWTPForceSecurity = CW_PRESHARED;
+		} else { 
+			/* default */
+			gWTPForceSecurity = CW_X509_CERTIFICATE;
+		}
 	}
+
 	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Ignore spaces in configuration values
+	 * Get OpenSSL params values
+	 */
+	gEnabledLog=gConfigValues[7].value.int_value;
+	gMaxLogFileSize=gConfigValues[8].value.int_value;
+
+	if(gConfigValues[9].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[9].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPCertificate, (gConfigValues[9].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+
+	}
+	if(gConfigValues[10].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[10].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPKeyfile, (gConfigValues[10].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+	}
+	if(gConfigValues[11].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[11].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(gWTPPassword, (gConfigValues[11].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	}
+
+	/* Elena Agostini - 02/2014: Port number params config.wtp */
+	WTP_PORT_CONTROL=gConfigValues[12].value.int_value;
+	WTP_PORT_DATA=gConfigValues[13].value.int_value;
 	
+	/* Elena Agostini - 04/2014: custom WTP log file name */
+	/*
+	if(gConfigValues[14].value.str_value != NULL) {
+		CW_STRING_GET_START_WHITE_SPACES((gConfigValues[14].value.str_value), indexBlank);
+		CW_CREATE_STRING_FROM_STRING_ERR(WTP_LOG_FILE_NAME, (gConfigValues[14].value.str_value)+indexBlank, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	}
+	*/
 	for(i = 0; i < gConfigValuesCount; i++) {
 		if(gConfigValues[i].type == CW_STRING) {
 			CW_FREE_OBJECT(gConfigValues[i].value.str_value);
@@ -140,9 +233,6 @@ CWBool CWConfigFileDestroyLib() {
 			CW_FREE_OBJECTS_ARRAY((gConfigValues[i].value.str_array_value), gConfigValues[i].count);
 		}
 	}
-	
-	gEnabledLog=gConfigValues[7].value.int_value;
-	gMaxLogFileSize=gConfigValues[8].value.int_value;
 
 	CW_FREE_OBJECT(gConfigValues);
 	

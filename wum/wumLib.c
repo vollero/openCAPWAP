@@ -178,7 +178,7 @@ int WUMGetWTPVersion(int acserver, int wtpId, struct version_info *v_info)
 	msg.msg_elem = MSG_ELEMENT_TYPE_VENDOR_WUM;
 	msg.wtpId = wtpId;
 	msg.wum_type = WTP_VERSION_REQUEST; 
-
+	
 	if (WUMSendMessage(acserver, msg) != 0) {
 		fprintf(stderr, "Error while sending WUM message");
 		return ERROR;
@@ -201,6 +201,120 @@ int WUMGetWTPVersion(int acserver, int wtpId, struct version_info *v_info)
 	
 	return SUCCESS;
 }
+/*
+ * Elena Agostini - 09/2014: WLAN add interface
+ */
+int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * wlanID, char * tunnel, struct version_info *v_info)
+{
+	wum_req_t msg;
+	wum_resp_t resp;
+	
+	if(ssid == NULL || radioID == NULL || wlanID == NULL)
+		return ERROR;
+	
+	if(atoi(radioID) <= 0 || atoi(wlanID))
+	{
+		fprintf(stderr, "Error ADD WLAN cmd: radioID or wlanID are <= 0.");
+		return ERROR;
+	}
+	
+	WUM_INIT_REQ_MSG(msg, strlen(ssid)+strlen(radioID)+strlen(wlanID)+3);
+	msg.cmd_msg = CONF_UPDATE_MSG;
+	msg.msg_elem = MSG_ELEMENT_TYPE_ADD_WLAN;
+	msg.wtpId = wtpId;
+	msg.wum_type = WTP_WLAN_ADD_REQUEST;
+	msg.payload_len = strlen(ssid)+strlen(radioID)+strlen(wlanID)+strlen(tunnel)+4;
+	msg.payload = (char *) calloc(msg.payload_len, sizeof(char));
+	if(msg.payload == NULL)
+	{
+		perror("calloc");
+		return ERROR;
+	}
+	
+	//Tunnel non dovrebbe mai essere NULL. Attualmente 0 non e' stato previsto
+	if(tunnel == NULL)
+		snprintf(msg.payload, msg.payload_len, "%s:%s:%s:1", radioID, wlanID, ssid);
+	else
+		snprintf(msg.payload, msg.payload_len, "%s:%s:%s:%s", radioID, wlanID, ssid, tunnel);
+		
+	if (WUMSendMessage(acserver, msg) != 0) {
+		fprintf(stderr, "Error while sending WUM message");
+		return ERROR;
+	}
+/*
+	if (WUMReceiveMessage(acserver, &resp) != 0) {
+		fprintf(stderr, "Error while reading response message");
+		return ERROR;
+	}
+
+	resp.wum_type = WUMPayloadRetrieve8(&resp);
+	if (resp.wum_type != WTP_WLAN_ADD_RESPONSE) {
+		fprintf(stderr, "Received wrong response message!");
+		return ERROR;
+	}
+
+	v_info->major = WUMPayloadRetrieve8(&resp);
+	v_info->minor = WUMPayloadRetrieve8(&resp);
+	v_info->revision = WUMPayloadRetrieve8(&resp); 
+	*/
+	return SUCCESS;
+}
+
+/*
+ * Elena Agostini - 09/2014: WLAN add interface
+ */
+int WUMWTPwlanDel(int acserver, int wtpId, char * radioID, char * wlanID, struct version_info *v_info)
+{
+	wum_req_t msg;
+	wum_resp_t resp;
+	
+	if(radioID == NULL || wlanID == NULL)
+		return ERROR;
+	
+	if(atoi(radioID) <= 0 || atoi(wlanID))
+	{
+		fprintf(stderr, "Error ADD WLAN cmd: radioID or wlanID are <= 0.");
+		return ERROR;
+	}
+	
+	WUM_INIT_REQ_MSG(msg, strlen(radioID)+strlen(wlanID)+2);
+	msg.cmd_msg = CONF_UPDATE_MSG;
+	msg.msg_elem = MSG_ELEMENT_TYPE_DEL_WLAN;
+	msg.wtpId = wtpId;
+	msg.wum_type = WTP_WLAN_DEL_REQUEST;
+	msg.payload_len = strlen(radioID)+strlen(wlanID)+2;
+	
+	msg.payload = (char *) calloc(msg.payload_len+1, sizeof(char));
+	if(msg.payload == NULL)
+	{
+		perror("calloc");
+		return ERROR;
+	}
+	snprintf(msg.payload, msg.payload_len, "%s:%s", radioID, wlanID);
+		
+	if (WUMSendMessage(acserver, msg) != 0) {
+		fprintf(stderr, "Error while sending WUM message");
+		return ERROR;
+	}
+/*
+	if (WUMReceiveMessage(acserver, &resp) != 0) {
+		fprintf(stderr, "Error while reading response message");
+		return ERROR;
+	}
+
+	resp.wum_type = WUMPayloadRetrieve8(&resp);
+	if (resp.wum_type != WTP_WLAN_ADD_RESPONSE) {
+		fprintf(stderr, "Received wrong response message!");
+		return ERROR;
+	}
+
+	v_info->major = WUMPayloadRetrieve8(&resp);
+	v_info->minor = WUMPayloadRetrieve8(&resp);
+	v_info->revision = WUMPayloadRetrieve8(&resp); 
+	*/
+	return SUCCESS;
+}
+
 
 void StringToLower(char *str)
 {
@@ -429,6 +543,15 @@ int WUMSendMessage(int acserver, wum_req_t msg)
 	}
 	
 	if (msg.payload_len > 0) {
+		//Elena Agostini - 09/2014: ssid parameter has variable length
+		if(msg.msg_elem == MSG_ELEMENT_TYPE_ADD_WLAN || msg.msg_elem == MSG_ELEMENT_TYPE_DEL_WLAN)
+		{
+			if (Writen(acserver, &(msg.payload_len), sizeof(int)) != sizeof(int)) {
+				fprintf(stderr, "Error while sending CONF_UPDATE_MSG message.\n");
+				return ERROR;
+			}
+		}
+		
 		if (Writen(acserver, msg.payload, msg.payload_len) != msg.payload_len) {
 			fprintf(stderr, "Error while sending CONF_UPDATE_MSG message.\n");
 			return ERROR;

@@ -48,8 +48,9 @@ __inline__ int CWWTPGetDiscoveryType() {
 	return CW_MSG_ELEMENT_DISCOVERY_TYPE_CONFIGURED;
 }
 
+//Elena Agostini
 __inline__ int CWWTPGetMaxRadios() {
-	return 1;
+	return gRadiosInfo.radioCount;
 }
 
 __inline__ int CWWTPGetRadiosInUse() 
@@ -117,7 +118,7 @@ CWBool CWWTPGetVendorInfos(CWWTPVendorInfos *valPtr) {
 	(valPtr->vendorInfos)[2].type = CW_BOOT_VERSION;
 	(valPtr->vendorInfos)[2].length = sizeof(long int); // just one int
 	CW_CREATE_OBJECT_SIZE_ERR(( ( (valPtr->vendorInfos)[2] ).valuePtr), (valPtr->vendorInfos)[2].length, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	*(int *)(((valPtr->vendorInfos)[2]).valuePtr) = 1234568; // Boot version
+	*(int *)(((valPtr->vendorInfos)[2]).valuePtr) = 1234568; //1234568; // Boot version
 	
 	return CW_TRUE;
 }
@@ -137,7 +138,7 @@ __inline__ void CWWTPDestroyVendorInfos(CWWTPVendorInfos *valPtr) {
 __inline__ int CWWTPGetFrameTunnelMode() {
 	//it may be also 802.3_FrameTunnelMode - NativeFrameTunnelMode - All
 	
-#ifdef SOFTMAC
+#ifdef SPLIT_MAC
 	return CW_NATIVE_BRIDGING;
 #else
 	return CW_LOCAL_BRIDGING;
@@ -147,8 +148,7 @@ __inline__ int CWWTPGetFrameTunnelMode() {
 
 __inline__ int CWWTPGetMACType() {
 	
-
-#ifdef SOFTMAC
+#ifdef SPLIT_MAC
 	return CW_SPLIT_MAC;
 #else
 	return CW_LOCAL_MAC;
@@ -358,6 +358,16 @@ int CWWTPGetStatisticsTimer ()
 	return gWTPStatisticsTimer;
 }
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+int CWWTPGetECNSupport ()
+{
+	return gWTPECNSupport;
+}
+
 CWBool CWWTPGetACNameWithIndex (CWACNamesWithIndex *ACsInfo)
 {
 	if(ACsInfo == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
@@ -386,9 +396,15 @@ int getInterfaceMacAddr(char* interface, unsigned char* macAddr)
 		CWLog("Error Creating Socket for ioctl"); 
 		return -1;
 	}
-	
+
 	memset(&ethreq, 0, sizeof(ethreq));
 	strncpy(ethreq.ifr_name, interface, IFNAMSIZ);
+	
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * Eliminare interrogazione diretta del mac address?
+	 */
 	if (ioctl(sock, SIOCGIFHWADDR, &ethreq)==-1) {
 		return -1;
 	}
@@ -400,12 +416,30 @@ int getInterfaceMacAddr(char* interface, unsigned char* macAddr)
 	return 0;
 }
 
+/*
+ * Elena Agostini - 04/2014: Easier SessionID random value
+ */
 int initWTPSessionID(char * sessionID)
 {
+	int i;
+	for(i=0; i< WTP_SESSIONID_LENGTH; i++)
+	{
+		sessionID[i] = (unsigned char)rand()%256;
+	}
+	return 0;
+	
+	/*
 	unsigned char macAddr0[MAC_ADDR_LEN];
 	unsigned char macAddr1[MAC_ADDR_LEN];
 	int i,randomInteger;
 	char *buffer=sessionID;
+	
+	// Elena Agostini - 02/2014
+	// BUG Valgrind: if getInterfaceMacAddr fail, macAddr0 and macAddr1
+	// aren't initialized
+	 
+	memset(macAddr0, 0, MAC_ADDR_LEN);
+	memset(macAddr1, 0, MAC_ADDR_LEN);
 
 	getInterfaceMacAddr(gEthInterfaceName,macAddr0);
 	getInterfaceMacAddr(gRadioInterfaceName_0,macAddr1);
@@ -416,13 +450,14 @@ int initWTPSessionID(char * sessionID)
 	CW_COPY_MEMORY(&(sessionID[MAC_ADDR_LEN]), macAddr1, MAC_ADDR_LEN);
 	CW_COPY_MEMORY(&(sessionID[MAC_ADDR_LEN+MAC_ADDR_LEN]),&(randomInteger), 4);
 
+	CWLog("################################ SESSION ID: ");
 	for (i=0;i<16;i++)
 	{
-		if (i%16==0) printf("\n%04x:   ", i);
-		printf("%02x:", buffer[i]);
+		if (i%16==0) CWLog("\n%04x:   ", i);
+		CWLog("%02x:", sessionID[i]);
 	}
-	printf("\n");	
+	CWLog("\n");
 
-	return 0;
+	return 0;*/
 }
 

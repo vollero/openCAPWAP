@@ -41,15 +41,6 @@
 #include "common.h"
 #include "ieee802_11_defs.h"
 
-
-#define SETBIT(ADDRESS,BIT) (ADDRESS |= (1<<BIT))
-#define CLEARBIT(ADDRESS,BIT) (ADDRESS &= ~(1<<BIT))
-#define CHECKBIT(ADDRESS,BIT) (ADDRESS & (1<<BIT))
-
-#define TYPE_LEN 2
-#define ETH_ALEN 6
-#define ETH_HLEN 14
-
 #ifdef DMALLOC
 #include "../dmalloc-5.5.0/dmalloc.h"
 #endif
@@ -82,6 +73,8 @@ int from_8023_to_80211( unsigned char *inbuffer,int inlen, unsigned char *outbuf
 	
 	return indx;
 }
+
+
 
 
 
@@ -143,7 +136,7 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 
 	struct ifi_info	*ifi, *ifihead;
 	CWNetworkLev4Address wildaddr;
-    	int yes = 1;
+    int yes = 1;
 	CWSocket sock;
 	CWMultiHomedInterface *p;
 	CWList interfaceList = CW_LIST_INIT;
@@ -179,6 +172,9 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 		
 		/* bind address */
 		sock_set_port_cw(ifi->ifi_addr, htons(port));
+		
+		struct sockaddr_in * tmpAddr =  (struct sockaddr_in *) ifi->ifi_addr;
+		CWLog("ip: %s port: %d", inet_ntoa(tmpAddr->sin_addr), htons(tmpAddr->sin_port));
 		
 		if(bind(sock, (struct sockaddr*) ifi->ifi_addr, CWNetworkGetAddressSize((CWNetworkLev4Address*)ifi->ifi_addr)) < 0) {
 
@@ -247,6 +243,7 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 			      CWLog("Data channel bound %s (%d, %s)", str, ifi->ifi_index, ifi->ifi_name););
 			      
 		CW_COPY_NET_ADDR_PTR(&(p->dataAddr), ifi->ifi_addr);
+		
 		p->dataSock = sock;
 
 		if(!CWAddElementToList(&interfaceList, p)) {
@@ -299,6 +296,12 @@ CWBool CWNetworkInitSocketServerMultiHomed(CWMultiHomedSocket *sockPtr,
 			
 			CW_CREATE_OBJECT_ERR(p, CWMultiHomedInterface, 
 					     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+			/*
+			 * Elena Agostini - 02/2014
+			 *
+			 * BUG Valgrind: Missing inizialization dataSock
+			 */
+			p->dataSock=0;
 			p->sock = sock;
 			p->kind = CW_BROADCAST_OR_ALIAS;
 			p->systemIndex = ifi->ifi_index;
@@ -419,6 +422,12 @@ success:
 	);
 	
 	CW_CREATE_OBJECT_ERR(p, CWMultiHomedInterface, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: Missing inizialization dataSock
+	 */
+	p->dataSock=0;
 	p->sock = sock;
 	p->kind = CW_BROADCAST_OR_ALIAS;
 	p->systemIndex = -1; /* make sure this can't be 
@@ -483,6 +492,13 @@ success:
 		
 		CW_CREATE_OBJECT_ERR(p, CWMultiHomedInterface, 
 				     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+		
+		/*
+		 * Elena Agostini - 02/2014
+		 *
+		 * BUG Valgrind: Missing inizialization dataSock
+		 */		
+		p->dataSock=0;
 		p->sock = sock;
 		p->kind = CW_BROADCAST_OR_ALIAS;
 		p->systemIndex = -1;
@@ -509,10 +525,12 @@ success:
 	CW_CREATE_ARRAY_ERR((sockPtr->interfaces), sockPtr->count, CWMultiHomedInterface,
 					return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
+	
 	/* create array from list */
 	for(el = interfaceList, i = 0; el != NULL; el = el->next, i++) {
 		CW_COPY_MH_INTERFACE_PTR(&((sockPtr->interfaces)[i]), ((CWMultiHomedInterface*)(el->data)));
 	}
+
 	
 	/* delete the list */
 	CWDeleteList(&interfaceList, CWNetworkDeleteMHInterface);
@@ -594,14 +612,12 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 	}
 
-	for(i = 0; i < gMaxWTPs; i++) {
-		if (gWTPs[i].tap_fd!= 0){
-		      FD_SET(gWTPs[i].tap_fd, &fset);
-
-		      if (gWTPs[i].tap_fd > max)
-			      max = gWTPs[i].tap_fd;
-		}
- 	}
+//Elena Agostini: unique AC Tap Interface
+	if(ACTap_FD)
+	{
+		FD_SET(ACTap_FD, &fset);
+		max = ACTap_FD;
+	}
 
 	while(select(max+1, &fset, NULL, NULL, NULL) < 0) {
 		
@@ -610,100 +626,191 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		}
 	}
 	
-	/* calls CWManageIncomingPacket() for each interface 
-	 * that has an incoming packet 
-	 */
 	
-	for(i = 0; i < gMaxWTPs; i++) {
-  
-		if (FD_ISSET(gWTPs[i].tap_fd, &fset)) {
+	if (FD_ISSET(ACTap_FD, &fset)) {
+		readBytes = read(ACTap_FD,buf,CW_BUFFER_SIZE); //Todd: read from TAP then forward to WTP through data channel
+	//	CWLog("ACTap_FD:%d is set,data(%d bytes)", i, ACTap_FD, readBytes);
 			
-			readBytes = read(gWTPs[i].tap_fd,buf,CW_BUFFER_SIZE);							//Todd: read from TAP then forward to WTP through data channel
-			CWDebugLog("gWTPs[%d].tap_fd:%d is set,data(%d bytes)",i,gWTPs[i].tap_fd, readBytes);
-			
-			if(readBytes < 0) {
-				CWDebugLog("Reading from tap interface");
-				perror("Reading from interface");
-				close(gWTPs[i].tap_fd);
-				gWTPs[i].tap_fd=0;
-			}
-			
-			if (gWTPs[i].currentState != CW_ENTER_RUN){
-			      CWDebugLog("WTP %d is not in RUN State. The packet was dropped.",i);
-			      continue;
-			}else{
-				
-				unsigned char macAddrTap[6];
-				get_mac_addr(macAddrTap, gWTPs[i].tap_name);
-				unsigned char buf80211[CW_BUFFER_SIZE + 24];
-				int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
-				CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
-				CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
-				memcpy(frame->msg, buf80211, readByest80211);
-				frame->offset = readByest80211;
-				frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+		if(readBytes < 0) {
+			CWLog("Reading from tap interface");
+			perror("Reading from interface");
+//Elena: Chiudere l'interfaccia per un errore?
+//				close(gWTPs[i].tap_fd);
+//				gWTPs[i].tap_fd=0;
+		}
 
-				if (!CWAssembleDataMessage(&completeMsgPtr, 
-							  &fragmentsNum, 
-							  gWTPs[i].pathMTU, 
-							  frame, 
-							  NULL,
-							  CW_PACKET_PLAIN
-							  ,0))
+		unsigned char macAddrTap[6];
+		get_mac_addr(macAddrTap, gWTPs[i].tap_name);
+		unsigned char buf80211[CW_BUFFER_SIZE + 24];
+		int WTPIndexFromSta = -1;
+		int indexWTP, indexRadio, indexWlan;
+//Elena Agostini - 11/2014: Decode Ethernet to 802.11 with AVL
+		int readByest80211 = CWConvertDataFrame_8023_to_80211(buf, readBytes, buf80211, &(WTPIndexFromSta));
+/*
+ * OLD VERSION
+ * int readByest80211 = from_8023_to_80211(buf, readBytes, buf80211, macAddrTap);
+ */
+		if(readByest80211 == -1)
+			goto after_tap;
+
+		if(WTPIndexFromSta == -1)
+		{
+//			CWLog("BROADCAST");
+			for(indexWTP=0; indexWTP<gMaxWTPs; indexWTP++)
+			{
+				for(indexRadio=0; indexRadio<gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radioCount; indexRadio++)
 				{
-					
-					
-					for(k = 0; k < fragmentsNum; k++)
+					for(indexWlan=0; indexWlan<WTP_MAX_INTERFACES; indexWlan++)
 					{
-						CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-					}
-					CW_FREE_OBJECT(completeMsgPtr);
-					CW_FREE_PROTOCOL_MESSAGE(*frame);
-					CW_FREE_OBJECT(frame);
-					continue;
-				}
-				
-				for(k = 0; k < sockPtr->count; k++) {
-				      if (sockPtr->interfaces[k].sock == gWTPs[i].socket){
-					  dataSocket = sockPtr->interfaces[k].dataSock;
-					  CW_COPY_NET_ADDR_PTR(&address,&(gWTPs[i].dataaddress));
-					  break;
-				      }
-				}
-		
-				
-				if (dataSocket == 0){
-				      CWDebugLog("data socket of WTP %d isn't ready.");
-				      continue;
-				}
+						if(
+							gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].typeInterface == CW_AP_MODE &&
+							gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID!=NULL
+						)
+						{
+							
+			//				CWLog("Invio a WTP %d radio %d wlan %d bssid: %02x", indexWTP, indexRadio, indexWlan, (int)gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID[0]);
 
+							CW_COPY_MEMORY(
+										(buf80211+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), 
+										gWTPs[indexWTP].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.interfaces[indexWlan].BSSID, 
+										ETH_ALEN);
+							
+										CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
+							CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
+							memcpy(frame->msg, buf80211, readByest80211);
+							frame->offset = readByest80211;
+							frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
 
-				for (k = 0; k < fragmentsNum; k++) 
-				{
-					if(!CWNetworkSendUnsafeUnconnected(	dataSocket, 
-										&(address), 
-										completeMsgPtr[k].msg, 
-										completeMsgPtr[k].offset)	) {
-						CWDebugLog("Failure sending Request");
-						break;
+							if(!CWAssembleDataMessage(&completeMsgPtr, 
+												  &fragmentsNum, 
+												  gWTPs[indexWTP].pathMTU, 
+												  frame, 
+												  NULL,
+												  CW_PACKET_PLAIN
+												  ,0))
+							{
+//								for(k = 0; k < fragmentsNum; k++)
+//									CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+									
+								CW_FREE_OBJECT(completeMsgPtr);
+								CW_FREE_PROTOCOL_MESSAGE(*frame);
+								CW_FREE_OBJECT(frame);
+								goto after_tap;
+							}
+
+							for(k = 0; k < sockPtr->count; k++) {
+								if(sockPtr->interfaces[k].sock == gWTPs[indexWTP].socket){
+									dataSocket = sockPtr->interfaces[k].dataSock;
+									//Elena
+									CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[indexWTP].dataaddress));
+									break;
+								}
+							}
+							
+							if (dataSocket == 0){
+								CWLog("data socket of WTP isn't ready.");
+								goto after_tap;
+							}
+							
+							for (k = 0; k < fragmentsNum; k++) 
+							{
+#ifdef CW_DTLS_DATA_CHANNEL
+								if(!(CWSecuritySend(gWTPs[indexWTP].sessionData, completeMsgPtr[k].msg, completeMsgPtr[k].offset)))
+#else
+								if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[k].msg, completeMsgPtr[k].offset))
+#endif
+										/*
+								if(!CWNetworkSendUnsafeUnconnected(dataSocket, 
+															&(address), 
+															completeMsgPtr[k].msg, 
+															completeMsgPtr[k].offset)	) 
+									*/
+								{
+									CWLog("Failure sending Request");
+									break;
+								}
+							}
+							
+//							for (k = 0; k < fragmentsNum; k++)
+//								CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+						
+							CW_FREE_OBJECT(completeMsgPtr);				
+							CW_FREE_PROTOCOL_MESSAGE(*(frame));
+							CW_FREE_OBJECT(frame);
+							
+						}
 					}
 				}
-				for (k = 0; k < fragmentsNum; k++)
-				{
-					CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
-				}
-				
-				CW_FREE_OBJECT(completeMsgPtr);				
-				CW_FREE_PROTOCOL_MESSAGE(*(frame));
-				CW_FREE_OBJECT(frame);
-				
 			}
+		}
+		else
+		{
+//			CWLog("NON BROADCAST. Invio a WTP %d", WTPIndexFromSta);
+			CW_CREATE_OBJECT_ERR(frame, CWProtocolMessage, return 0;);
+			CW_CREATE_PROTOCOL_MESSAGE(*frame, readByest80211, return 0;);
+			memcpy(frame->msg, buf80211, readByest80211);
+			frame->offset = readByest80211;
+			frame->data_msgType = CW_IEEE_802_11_FRAME_TYPE;
+
+			if(!CWAssembleDataMessage(&completeMsgPtr, 
+								  &fragmentsNum, 
+								  gWTPs[WTPIndexFromSta].pathMTU, 
+								  frame, 
+								  NULL,
+								  CW_PACKET_PLAIN
+								  ,0))
+			{
+				for(k = 0; k < fragmentsNum; k++)
+					CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+					
+				CW_FREE_OBJECT(completeMsgPtr);
+				CW_FREE_PROTOCOL_MESSAGE(*frame);
+				CW_FREE_OBJECT(frame);
+				goto after_tap;
+			}
+					
+			for(k = 0; k < sockPtr->count; k++) {
+				if(sockPtr->interfaces[k].sock == gWTPs[WTPIndexFromSta].socket){
+					dataSocket = sockPtr->interfaces[k].dataSock;
+					//Elena
+					CW_COPY_NET_ADDR_PTR(&address, &(gWTPs[WTPIndexFromSta].dataaddress));
+					break;
+				}
+			}
+			
+			if (dataSocket == 0){
+				CWLog("data socket of WTP isn't ready.");
+				goto after_tap;
+			}
+			
+			for (k = 0; k < fragmentsNum; k++) 
+			{
+#ifdef CW_DTLS_DATA_CHANNEL
+				if(!(CWSecuritySend(gWTPs[WTPIndexFromSta].sessionData, completeMsgPtr[k].msg, completeMsgPtr[k].offset)))
+#else
+				if(!CWNetworkSendUnsafeUnconnected(dataSocket, &(address), completeMsgPtr[k].msg, completeMsgPtr[k].offset))
+#endif
+				{
+					CWLog("Failure sending Request");
+					break;
+				}
+			}
+			
+		//	for (k = 0; k < fragmentsNum; k++)
+		//		CW_FREE_PROTOCOL_MESSAGE(completeMsgPtr[k]);
+		
+			CW_FREE_OBJECT(completeMsgPtr);				
+			CW_FREE_PROTOCOL_MESSAGE(*(frame));
+			CW_FREE_OBJECT(frame);
 		}
 	}
 
+after_tap:
 	for(i = 0; i < sockPtr->count; i++) {
-
 		if(FD_ISSET(sockPtr->interfaces[i].sock, &fset)) {
+			
+			//CWLog("## Pacchetto CONTROLLO interfaccia %d sock %d*********", i, sockPtr->interfaces[i].sock);
+
 			int readBytes;
 
 			/*	
@@ -720,7 +827,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				sleep(1);
 				continue;
 			}
-			
+		
 			CWManageIncomingPacket(sockPtr->interfaces[i].sock, 
 					       buf, 
 					       readBytes,
@@ -732,7 +839,8 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 		if(FD_ISSET(sockPtr->interfaces[i].dataSock, &fset)) {						//Todd: Bridge 802.3 packets of WTPs into AC
 			int readBytes;
 
-	
+
+			//CWLog("## Pacchetto DATI interfaccia %d sock %d*********", i, sockPtr->interfaces[i].dataSock);
 			CW_ZERO_MEMORY(buf, CW_BUFFER_SIZE);
 			
 			/* message */
@@ -741,7 +849,7 @@ CWBool CWNetworkUnsafeMultiHomed(CWMultiHomedSocket *sockPtr,
 				sleep(1);
 				continue;
 			}
-
+			
 			CWManageIncomingPacket(sockPtr->interfaces[i].dataSock, 
 					       buf, 
 					       readBytes,
@@ -763,7 +871,7 @@ int CWNetworkCountInterfaceAddresses(CWMultiHomedSocket *sockPtr) {
 	if(sockPtr == NULL) return 0;
 	
 	for(i = 0; i < sockPtr->count; i++) {
-	
+		
 		if(sockPtr->interfaces[i].kind == CW_PRIMARY) count++;
 	}
 

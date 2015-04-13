@@ -64,7 +64,8 @@ CWThreadMutex gActiveWTPsMutex;
 /* max WTPs */
 int gMaxWTPs;
 /* The Radio MAC Field of the discovery response */
-int gRMACField = 0;
+/* Elena Agostini - 02/2014: Radio MAC Field is not reserved */
+int gRMACField = 2;
 /* The Wireless Field of the discovery response */
 int gWirelessField = 0;
 /* DTLS Policy for data channel */
@@ -77,6 +78,26 @@ int gInterfacesCount = 0;
 /* DTLS Context */
 CWSecurityContext gACSecurityContext;
 int gActiveStations = 0;
+/*
+ * Elena Agostini - 02/2014
+ * OpenSSL params variables
+ */
+char *gACCertificate=NULL;
+char *gACKeyfile=NULL;
+char *gACPassword=NULL;
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+int gACECNSupport=0;
+
+/*
+ * Elena Agostini - 03/2014: DTLS Data Channel
+ */
+CWBool ACSessionDataActive;
+genericHandshakeThreadPtr listGenericThreadDTLSData[WTP_MAX_TMP_THREAD_DTLS_DATA];
+
 /* max stations */
 int gLimit;
 char **gMulticastGroups;
@@ -90,6 +111,14 @@ int gDiscoveryTimer=20;
 int gEchoRequestTimer=CW_ECHO_INTERVAL_DEFAULT;
 /* PROVVISORIO: Il valore e' scelto a caso */
 int gIdleTimeout=10;
+
+//Elena Agostini - 11/2014: avlTree for WTP - STA associated
+nodeAVL * avlTree = NULL;
+CWThreadMutex mutexAvlTree;
+
+int ACTap_FD;
+char * ACTap_name;
+
 
 /*_________________________________________________________*/
 /*  *******************___FUNCTIONS___*******************  */
@@ -107,7 +136,6 @@ int main (int argc, const char * argv[]) {
 		exit(1);
 	
 	CWACInit();
-	CWCreateConnectionWithHostapdAC();
 	CWACEnterMainLoop();
 	CWACDestroy();  
 	 
@@ -134,7 +162,7 @@ int CWACSemPostForOpenSSLHack(void *s) {
 }
 
 void CWACInit() {
-	int i;
+	int i, index=0;
 	CWNetworkLev4Address *addresses = NULL;
 	struct sockaddr_in *IPv4Addresses = NULL;
 	
@@ -153,7 +181,11 @@ void CWACInit() {
 		CWLog("Can't start AC");
 		exit(1);
 	}
-
+	
+	//Elena Agostini - 07/2014: initialize listGenericThreadDTLSData
+	for(index=0; index < WTP_MAX_TMP_THREAD_DTLS_DATA; index++)
+		listGenericThreadDTLSData[index] = NULL;
+	
 	CWLog("Starting AC");
 
 	CWThreadSetSignals(SIG_BLOCK, 1, SIGALRM);
@@ -162,8 +194,9 @@ void CWACInit() {
 		exit(1);
 	}
 
+/* Elena Agostini - 04/2014 */
 	if(!CWErr(CWParseConfigFile()) ||
-#ifndef CW_NO_DTLS
+#if !defined(CW_NO_DTLS) || defined(CW_DTLS_DATA_CHANNEL)
 	   !CWErr(CWSecurityInitLib()) ||
 #endif
 	   !CWErr(CWNetworkInitSocketServerMultiHomed(&gACSocket, CW_CONTROL_PORT, gMulticastGroups, gMulticastGroupsCount)) ||
@@ -176,16 +209,20 @@ void CWACInit() {
 		exit(1);
 	}
 
-#ifndef CW_NO_DTLS
+/* Elena Agostini - 04/2014 */
+#if !defined(CW_NO_DTLS) || defined(CW_DTLS_DATA_CHANNEL)
 	if(gACDescriptorSecurity == CW_X509_CERTIFICATE) {
 
+		/*
+		 * Elena Agostini - 02/2014
+		 * Dynamic OpenSSL params
+		 */
 		if(!CWErr(CWSecurityInitContext(&gACSecurityContext,
-						"root.pem",
-						"server.pem",
-						"prova",
+						gACCertificate,
+						gACKeyfile,
+						gACPassword,
 						CW_FALSE,
 						CWACSemPostForOpenSSLHack))) {
-
 			CWLog("Can't start AC");
 			exit(1);
 		}
@@ -206,12 +243,18 @@ void CWACInit() {
 	for(i = 0; i < gMaxWTPs; i++) {
 		gWTPs[i].isNotFree = CW_FALSE;
 		
+		/*
 		if (!gWTPs[i].tap_fd){
 		    init_AC_tap_interface(i);
 		}
-
+		*/
 	}
-
+//Elena Agostini: Unique AC Tap Interface
+	if(!CWACTapInterfaceInit())
+	{
+		CWLog("Error in AC Tap Interface creation");
+		exit(-1);
+	}
 	/* store network interface's addresses */
 	gInterfacesCount = CWNetworkCountInterfaceAddresses(&gACSocket);
 	CWLog("Found %d Network Interface(s)", gInterfacesCount);
@@ -239,18 +282,11 @@ void CWACInit() {
 	if(!CWErr(CWCreateThreadMutex(&gCreateIDMutex))) {
 		exit(1);
 	}
+
+	//Elena Agostini - 11/2014: AVL WTP - STA mutex
+	CWCreateThreadMutex(&(mutexAvlTree));
 	
 	CWLog("AC Started");
-}
-
-void CWCreateConnectionWithHostapdAC(){
-	
-	CWThread thread_ipc_with_ac_hostapd;
-	if(!CWErr(CWCreateThread(&thread_ipc_with_ac_hostapd, CWACipc_with_ac_hostapd, NULL))) {
-		CWLog("Error starting Thread that receive command and 802.11 frame from hostapd (WTP side)");
-		exit(1);
-	}
-	
 }
 
 void CWACDestroy() {

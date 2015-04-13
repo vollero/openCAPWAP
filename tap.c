@@ -77,6 +77,16 @@ int init_AC_tap_interface(int WTPIndex)
       return 0;
 }
 
+//Elena Agostini: unique AC Tap Interface
+CWBool CWACTapInterfaceInit()
+{
+	CW_CREATE_ARRAY_CALLOC_ERR(ACTap_name, 7, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	sprintf(ACTap_name,"AC_tap", 6);
+    ACTap_FD = tun_alloc(ACTap_name, IFF_TAP | IFF_NO_PI);
+	CWLog("ACTap_name:%s, ACTap_FD:%d", ACTap_name, ACTap_FD);
+    
+    return CW_TRUE;
+}
 
 
 

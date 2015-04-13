@@ -14,8 +14,8 @@
 
 # Authentication mode for AC. Can be X509_CERTIFICATE or PRESHARED (for
 # preshared keys)
-#</AC_SECURITY> X509_CERTIFICATE
-</AC_SECURITY> PRESHARED
+</AC_SECURITY> X509_CERTIFICATE
+#</AC_SECURITY> PRESHARED
 
 # Can be IPv4 or IPv6. Of course the host must have IPv6 enabled to work with the
 # setting IPv6
@@ -36,3 +36,9 @@
 </AC_LOG_FILE_ENABLE> 1
 
 </AC_LOG_FILE_SIZE> 30000000
+
+# Elena Agostini - 02/2014
+# OpenSSL params
+</AC_SECURITY_CERTIFICATE>      root.pem
+</AC_SECURITY_KEYFILE>      server.pem
+</AC_SECURITY_PASSWORD>         prova

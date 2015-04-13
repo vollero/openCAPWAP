@@ -81,15 +81,22 @@ CWBool CWParseDiscoveryResponseMessage(char *msg,
  */
 CWStateTransition CWWTPEnterDiscovery() {
 	int i;
-	CWBool j;	
-
+	CWBool j;
+	int ret= -10;
+	
 	CWLog("\n");	
 	CWLog("######### Discovery State #########");
 	
 	/* reset Discovery state */
 	gCWDiscoveryCount = 0;
 	CWNetworkCloseSocket(gWTPSocket);
-	if(!CWErr(CWNetworkInitSocketClient(&gWTPSocket, NULL))) {
+	
+	/* Elena Agostini - 06/2014: close WTP Data Socket before binding in Join state */
+	 if(gWTPDataSocket)
+		CWNetworkCloseSocket(gWTPDataSocket);
+
+	/* Elena Agostini - 04/2014: make control port always the same inside each WTP */
+	if(!CWErr(CWNetworkInitSocketClientWithPort(&gWTPSocket, NULL, WTP_PORT_CONTROL))) {
 		return CW_QUIT;
 	}
 
@@ -127,16 +134,10 @@ CWStateTransition CWWTPEnterDiscovery() {
 					exit(1);
 				}
 				
-                                CW_CREATE_OBJECT_ERR(gACInfoPtr, 
-						     CWACInfoValues,
-						     return CW_QUIT;);
+                CW_CREATE_OBJECT_ERR(gACInfoPtr, CWACInfoValues, return CW_QUIT;);
 				
-				CWNetworkGetAddressForHost(gCWACList[i].address, 
-							   &(gACInfoPtr->preferredAddress));
-				
-				CWUseSockNtop(&(gACInfoPtr->preferredAddress),
-						CWDebugLog(str););
-				
+				CWNetworkGetAddressForHost(gCWACList[i].address, &(gACInfoPtr->preferredAddress));
+				CWUseSockNtop(&(gACInfoPtr->preferredAddress), CWDebugLog(str););
 				j = CWErr(CWNetworkSendUnsafeUnconnected(gWTPSocket,
 									 &(gACInfoPtr->preferredAddress),
 									 (*msgPtr).msg,
@@ -437,14 +438,28 @@ CWBool CWAssembleDiscoveryRequest(CWProtocolMessage **messagesPtr, int seqNum) {
 	   (!(CWAssembleMsgElemWTPBoardData(&(msgElems[++k]))))	 ||
 	   (!(CWAssembleMsgElemWTPDescriptor(&(msgElems[++k])))) ||
 	   (!(CWAssembleMsgElemWTPFrameTunnelMode(&(msgElems[++k])))) ||
-	   (!(CWAssembleMsgElemWTPMACType(&(msgElems[++k]))))  ||
-	   (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k]))))
-	){
+	   (!(CWAssembleMsgElemWTPMACType(&(msgElems[++k]))))
+	   )
+	{
 		int i;
 		for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
 		CW_FREE_OBJECT(msgElems);
 		/* error will be handled by the caller */
 		return CW_FALSE;
+	}
+	
+	//Elena Agostini - 07/2014: nl80211 support. 
+	int indexWTPRadioInfo=0;
+	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
+	{
+		if(!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyStandardValue)))
+		{
+			int i;
+			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
+			CW_FREE_OBJECT(msgElems);
+			/* error will be handled by the caller */
+			return CW_FALSE;	
+		}
 	}
 	
 	return CWAssembleMessage(messagesPtr, 
@@ -508,7 +523,7 @@ CWBool CWParseDiscoveryResponseMessage(char *msg,
 		unsigned short int len=0;	/* = CWProtocolRetrieve16(&completeMsg); */
 		
 		CWParseFormatMsgElem(&completeMsg,&type,&len);
-		CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
+	//	CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
 		
 		switch(type) {
 			case CW_MSG_ELEMENT_AC_DESCRIPTOR_CW_TYPE:

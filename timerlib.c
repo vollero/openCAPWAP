@@ -431,7 +431,7 @@ int timer_add(long sec, long usec, void(*hndlr)(void *), void *hndlr_arg) {
 void timer_rem(int id, void(* free_arg)(void *)) {
 
 	tl_timer_t	*t;
-
+	
 	pthread_mutex_lock(&timerq.mutex);
 	t = timerq.first;
 

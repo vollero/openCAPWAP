@@ -94,8 +94,12 @@
 #define 	CW_CONTROL_HEADER_OFFSET_FOR_MSG_ELEMS			3		//Offset "Seq Num" - "Message Elements"
 #define		CW_MAX_SEQ_NUM						255
 #define 	CW_MAX_FRAGMENT_ID					65535
-#define 	CLEAR_DATA						1
-#define		DTLS_ENABLED_DATA					2
+/*
+ * Elena Agostini - 02/2014
+ * DTLS_ENABLED DATA hasn't right value
+ */
+#define 	CLEAR_DATA						2
+#define		DTLS_ENABLED_DATA					4
 #define		CW_PACKET_PLAIN						0
 #define		CW_PACKET_CRYPT						1
 #define 	CW_DATA_MSG_FRAME_TYPE					1
@@ -231,7 +235,10 @@
 #define 	CW_MSG_ELEMENT_INITIATED_DOWNLOAD_CW_TYPE		27
 #define 	CW_MSG_ELEMENT_LOCATION_DATA_CW_TYPE			28
 #define 	CW_MSG_ELEMENT_MAX_MSG_LEN_CW_TYPE			29
-#define 	CW_MSG_ELEMENT_WTP_IPV4_ADDRESS_CW_TYPE			30
+/*
+ * Elena Agostini - 03/2014: Add AC local IPv4 Address Msg. Elem.
+ */
+#define 	CW_MSG_ELEMENT_LOCAL_IPV4_ADDRESS_CW_TYPE			30
 #define 	CW_MSG_ELEMENT_RADIO_ADMIN_STATE_CW_TYPE		31
 #define 	CW_MSG_ELEMENT_RADIO_OPERAT_STATE_CW_TYPE		32
 #define 	CW_MSG_ELEMENT_RESULT_CODE_CW_TYPE			33
@@ -249,6 +256,13 @@
 #define 	CW_MSG_ELEMENT_WTP_RADIO_STATISTICS_CW_TYPE		47
 #define 	CW_MSG_ELEMENT_WTP_REBOOT_STATISTICS_CW_TYPE		48
 #define 	CW_MSG_ELEMENT_WTP_STATIC_IP_CW_TYPE			49
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+#define 	CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE			53
+
 /*Update 2009:
 		Message type to return a payload together with the 
 		configuration update response*/
@@ -263,9 +277,13 @@
 
 // IEEE 802.11 Message Element
 #define 	CW_MSG_ELEMENT_IEEE80211_ADD_WLAN_CW_TYPE						1024
+#define 	CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE				1026
 #define 	CW_MSG_ELEMENT_IEEE80211_DELETE_WLAN_CW_TYPE					1027
+#define 	CW_MSG_ELEMENT_IEEE80211_MAC_OPERATION_CW_TYPE					1030
 #define 	CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE		1032
+#define 	CW_MSG_ELEMENT_IEEE80211_STATION								1036
 #define 	CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE				1040
+#define 	CW_MSG_ELEMENT_IEEE80211_UPDATE_WLAN_CW_TYPE					1044
 #define 	CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE			1048
 
 // CAPWAP Protocol Variables
@@ -280,10 +298,11 @@
 	#define		CW_JOIN_INTERVAL_DEFAULT 	60
 #endif
 
+//Elena TORESET
 #ifdef CW_DEBUGGING
-	#define		CW_CHANGE_STATE_INTERVAL_DEFAULT 10
+	#define		CW_CHANGE_STATE_INTERVAL_DEFAULT 50//10
 #else
-	#define		CW_CHANGE_STATE_INTERVAL_DEFAULT 25
+	#define		CW_CHANGE_STATE_INTERVAL_DEFAULT 50//25
 #endif
 
 #ifdef CW_DEBUGGING
@@ -295,9 +314,17 @@
 #ifdef CW_DEBUGGING
 	#define		CW_NEIGHBORDEAD_INTERVAL_DEFAULT	70
 	#define		CW_NEIGHBORDEAD_RESTART_DISCOVERY_DELTA_DEFAULT	((CW_NEIGHBORDEAD_INTERVAL_DEFAULT) + 40)
+/*
+ * Elena Agostini - 03/2014
+ * DataChannel Dead Timer && Echo retransmit
+ */
+	#define		CW_DATACHANNELDEAD_INTERVAL_DEFAULT 100
+	#define		CW_ECHO_MAX_RETRANSMIT_DEFAULT 10
 #else
 	#define		CW_NEIGHBORDEAD_INTERVAL_DEFAULT	70
 	#define		CW_NEIGHBORDEAD_RESTART_DISCOVERY_DELTA_DEFAULT	((CW_NEIGHBORDEAD_INTERVAL_DEFAULT) + 40)
+	#define		CW_DATACHANNELDEAD_INTERVAL_DEFAULT 100
+	#define		CW_ECHO_MAX_RETRANSMIT_DEFAULT 10
 #endif
 
 #ifdef CW_DEBUGGING
@@ -318,6 +345,12 @@ typedef struct {
 	int type;
 	int value;
 } CWMsgElemData;
+
+//Elena Agostini - 11/2014: Delete Station
+typedef struct {
+	int radioID;
+	unsigned char staAddr[ETH_ALEN];
+} CWMsgElemDataDeleteStation;
 
 typedef unsigned char CWMACAddress[6];
 
@@ -447,13 +480,21 @@ typedef struct {
 	CWWTPDescriptor WTPDescriptor;
 	CWframeTunnelMode frameTunnelMode;
 	CWMACType MACType;
-
+	WTPglobalPhyInfo tmpPhyInfo;
+	
 } CWDiscoveryRequestValues;
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * Correct values to save in Discovery Response and Join Response
+ * flag Security as described in RFC 5415
+ */
 typedef enum {
-	CW_X509_CERTIFICATE = 1,
-	CW_PRESHARED = 0
+	CW_PRESHARED = 4,
+	CW_X509_CERTIFICATE = 2
 } CWAuthSecurity;
+
 
 typedef struct {
 	CWNetworkLev4Address addr;
@@ -618,6 +659,8 @@ typedef struct {
 
 typedef struct {
 	unsigned int radioID;
+	//Elena Agostini - 07/2014
+	unsigned int radioType;
 	//Station Mac Address List
 
 	CWList decryptErrorMACAddressList;
@@ -636,6 +679,9 @@ typedef struct {
 	WTPRadioStatisticsInfo statistics;	
 	
 	void* bindingValuesPtr;
+	
+	WTPSinglePhyInfo gWTPPhyInfo;
+	
 } CWWTPRadioInfoValues;
 
 typedef struct {

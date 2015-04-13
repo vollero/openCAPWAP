@@ -170,7 +170,7 @@ void CWDeleteList(CWList *list , void (*deleteFunc) (void *)) {
 	CWListElement *el = NULL;
 	
 	if (list == NULL || (*list) == NULL || deleteFunc == NULL) return;
-
+	
 	do {
 		el = (*list);
 		(*list) = (*list)->next;

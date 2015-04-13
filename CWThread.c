@@ -733,7 +733,7 @@ CWBool CWTimerRequest(int sec, CWThread *threadPtr, CWTimerID *idPtr, int signal
 
 	CWThreadTimerArg *arg;
 
-	CWDebugLog("Timer Request");
+//	CWDebugLog("Timer Request");
 	if(sec < 0 || threadPtr == NULL || idPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 	
 	CW_CREATE_OBJECT_ERR(arg, CWThreadTimerArg, return CW_FALSE;);
@@ -741,7 +741,7 @@ CWBool CWTimerRequest(int sec, CWThread *threadPtr, CWTimerID *idPtr, int signal
  	CW_COPY_MEMORY(arg->requestedThreadPtr, threadPtr, sizeof(CWThread));
  	arg->signalToRaise = signalToRaise;
  			
-	CWDebugLog("Timer Request: thread(%d), signal(%d)", *(arg->requestedThreadPtr), arg->signalToRaise);
+//	CWDebugLog("Timer Request: thread(%d), signal(%d)", *(arg->requestedThreadPtr), arg->signalToRaise);
 	
 	if ((*idPtr = timer_add(sec, 0, &CWHandleTimer, arg)) == -1) {
 

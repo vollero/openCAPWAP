@@ -83,6 +83,19 @@ CWStateTransition CWWTPEnterJoin() {
 	gWTPSecurityContext = NULL;
 	gWTPSession = NULL;
 
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * If gWTPForceACAddress is NOT NULL and WTP jump Discovery state, 
+	 * object gACInfoPtr is not allocated. Set ACIPv4ListInfo without create object
+	 * generate Segmentation Fault.
+	 */
+	if(gWTPForceACAddress != NULL) {
+		CW_CREATE_OBJECT_ERR(gACInfoPtr, 
+				     CWACInfoValues,
+				     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
+	}
+
 	/* Initialize gACInfoPtr */
 	gACInfoPtr->ACIPv4ListInfo.ACIPv4ListCount=0;
 	gACInfoPtr->ACIPv4ListInfo.ACIPv4List=NULL;	
@@ -94,33 +107,52 @@ CWStateTransition CWWTPEnterJoin() {
 	}
 
 	if(gWTPForceACAddress != NULL) {
-		CW_CREATE_OBJECT_ERR(gACInfoPtr, 
-				     CWACInfoValues,
-				     return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
 		CWNetworkGetAddressForHost(gWTPForceACAddress, 
 					   &(gACInfoPtr->preferredAddress));
+/*
+		struct sockaddr_in *sin = (struct sockaddr_in *)&(gACInfoPtr->preferredAddress);
+		unsigned char *ip = (unsigned char *)&sin->sin_addr.s_addr;
+		CWLog("Preferred: %d %d %d %d\n", ip[0], ip[1], ip[2], ip[3]);
+*/	
 		gACInfoPtr->security = gWTPForceSecurity;
 	}
 	
-	/* Init DTLS session */
-	if(!CWErr(CWNetworkInitSocketClient(&gWTPSocket,
-					    &(gACInfoPtr->preferredAddress))) ) {
-		
+	/*
+	 * Open control channel
+	 */
+	if(gWTPSocket)
+		CWNetworkCloseSocket(gWTPSocket);
+	/* Elena Agostini - 04/2014: make control port always the same inside each WTP */
+	if(!CWErr(CWNetworkInitSocketClientWithPort(&gWTPSocket, &(gACInfoPtr->preferredAddress), WTP_PORT_CONTROL))) {
 		timer_rem(waitJoinTimer, NULL);
 		return CW_ENTER_DISCOVERY;
 	}
-	if(!CWErr(CWNetworkInitSocketClientDataChannel(&gWTPDataSocket, &(gACInfoPtr->preferredAddress))) ) {
+
+	/*
+	 * Open data channel
+	 */	
+	if(gWTPDataSocket)
+		CWNetworkCloseSocket(gWTPDataSocket);
+	/* Elena Agostini - 04/2014: make data port always the same inside each WTP */
+	if(!CWErr(CWNetworkInitSocketClientDataChannelWithPort(&gWTPDataSocket, &(gACInfoPtr->preferredAddress), WTP_PORT_DATA)) ) {
 		return CW_ENTER_DISCOVERY;
 	}
+	
 	CWLog("Initiate Data Channel");
-	CWDebugLog("gWTPSocket:%d, gWTPDataSocket:%d", gWTPSocket,gWTPDataSocket);
 
-#ifndef CW_NO_DTLS
+	/* Init DTLS session */
+
+/* Elena Agostini - 04/2014 */	
+#if !defined(CW_NO_DTLS) || defined(CW_DTLS_DATA_CHANNEL)
 	if(gACInfoPtr->security == CW_X509_CERTIFICATE) {
+		/*
+		 * Elena Agostini - 02/2014
+		 * Dynamic OpenSSL params
+		 */
 		if(!CWErr(CWSecurityInitContext(&gWTPSecurityContext,
-						"root.pem",
-						"client.pem",
-						"prova",
+						gWTPCertificate,
+						gWTPKeyfile,
+						gWTPPassword,
 						CW_TRUE,
 						NULL))) {
 			
@@ -145,6 +177,7 @@ CWStateTransition CWWTPEnterJoin() {
 		}
 	}
 #endif
+
 	CWThread thread_receiveFrame;
 	if(!CWErr(CWCreateThread(&thread_receiveFrame, 
 				 CWWTPReceiveDtlsPacket,
@@ -241,7 +274,7 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 			     CWList msgElemList) {
 
 	CWProtocolMessage	*msgElems= NULL;
-	const int 		msgElemCount = 9;
+	const int 		msgElemCount = 10;
 	CWProtocolMessage 	*msgElemsBinding= NULL;
 	const int 		msgElemBindingCount=0;
 	int 			k = -1;
@@ -253,11 +286,9 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 					 msgElemCount,
 					 return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););	
 		
-	CWLog("Sending Join Request...");
-	
-	/* Assemble Message Elements */
+		/* Assemble Message Elements */
 	if ( 
-		 (!(CWAssembleMsgElemLocationData(&(msgElems[++k])))) ||
+	     (!(CWAssembleMsgElemLocationData(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPBoardData(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPDescriptor(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPIPv4Address(&(msgElems[++k])))) ||
@@ -265,7 +296,10 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 	     (!(CWAssembleMsgElemSessionID(&(msgElems[++k]), &gWTPSessionID[0]))) ||
 	     (!(CWAssembleMsgElemWTPFrameTunnelMode(&(msgElems[++k])))) ||
 	     (!(CWAssembleMsgElemWTPMACType(&(msgElems[++k])))) ||
-	     (!(CWAssembleMsgElemWTPRadioInformation(&(msgElems[++k]))))
+		/*
+		 * Elena Agostini - 02/2014: ECN Support Msg Elem MUST be included in Join Request/Response Messages
+	 	 */
+	     (!(CWAssembleMsgElemECNSupport(&(msgElems[++k]))))
 	) {
 		int i;
 		for(i = 0; i <= k; i++) { 
@@ -274,6 +308,20 @@ CWBool CWAssembleJoinRequest(CWProtocolMessage **messagesPtr,
 		CW_FREE_OBJECT(msgElems);
 		/* error will be handled by the caller */
 		return CW_FALSE;
+	}
+	
+	//Elena Agostini - 07/2014: nl80211 support. 
+	int indexWTPRadioInfo=0;
+	for(indexWTPRadioInfo=0; indexWTPRadioInfo<gRadiosInfo.radioCount; indexWTPRadioInfo++)
+	{
+		if(!(CWAssembleMsgElemWTPRadioInformation( &(msgElems[++k]), gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.radioID, gRadiosInfo.radiosInfo[indexWTPRadioInfo].gWTPPhyInfo.phyStandardValue)))
+		{
+			int i;
+			for(i = 0; i <= k; i++) { CW_FREE_PROTOCOL_MESSAGE(msgElems[i]);}
+			CW_FREE_OBJECT(msgElems);
+			/* error will be handled by the caller */
+			return CW_FALSE;	
+		}
 	}
 	
 	return CWAssembleMessage(messagesPtr,
@@ -341,7 +389,7 @@ CWBool CWParseJoinResponseMessage(char *msg,
 		
 		CWParseFormatMsgElem(&completeMsg,&type,&len);		
 
-		CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
+	//	CWDebugLog("Parsing Message Element: %u, len: %u", type, len);
 		/*
 		valuesPtr->ACInfoPtr.IPv4AddressesCount = 0;
 		valuesPtr->ACInfoPtr.IPv6AddressesCount = 0;
@@ -373,6 +421,13 @@ CWBool CWParseJoinResponseMessage(char *msg,
 				/* will be handled by the caller */
 				if(!(CWParseACName(&completeMsg, len, &(valuesPtr->ACInfoPtr.name)))) return CW_FALSE;
 				break;
+			case CW_MSG_ELEMENT_LOCAL_IPV4_ADDRESS_CW_TYPE:
+				/*
+				 * Elena Agostini - 03/2014: Add AC local IPv4 Address Msg. Elem.
+				 */
+				//valuesPtr->ACInfoPtr.IPv4AddressesCount++;
+				completeMsg.offset += len;
+				break;
 			case CW_MSG_ELEMENT_CW_CONTROL_IPV4_ADDRESS_CW_TYPE:
 				/* 
 				 * just count how many interfacess we
@@ -388,6 +443,16 @@ CWBool CWParseJoinResponseMessage(char *msg,
 				 */
 				valuesPtr->ACInfoPtr.IPv6AddressesCount++;
 				completeMsg.offset += len;
+				break;
+			/*
+			 * Elena Agostini - 02/2014
+		 	 *
+		 	 * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+		 	 */
+			case CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE:
+				if(!(CWParseACECNSupport(&completeMsg, len, &(valuesPtr->ECNSupport))))
+					/* will be handled by the caller */
+					return CW_FALSE;
 				break;
  			/*
  			case CW_MSG_ELEMENT_SESSION_ID_CW_TYPE:
@@ -472,19 +537,36 @@ CWBool CWSaveJoinResponseMessage(CWProtocolJoinResponseValues *joinResponse) {
 	gACInfoPtr->security = (joinResponse->ACInfoPtr).security;
 	gACInfoPtr->RMACField = (joinResponse->ACInfoPtr).RMACField;
 
-	/* BUG-ML07
-         * Before overwriting the field vendorInfos we'd better
-         * free it (it was allocated during the Discovery State by
-         * the function CWParseACDescriptor()).
-         *
-         * 19/10/2009 - Donato Capitella
-         */
-        int i;
-        for(i = 0; i < gACInfoPtr->vendorInfos.vendorInfosCount; i++) {
-                CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos[i].valuePtr);
-        }
-        CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos);
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * If gWTPForceACAddress is NOT NULL and WTP jump Discovery state, 
+	 * object gACInfoPtr hasn't all the information. If gACInfoPtr->name is NULL,
+	 * Configure State will get a Segmentation Fault.
+	 */
+	CW_CREATE_STRING_FROM_STRING_ERR((gACInfoPtr->name), ((joinResponse->ACInfoPtr).name), return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * If gWTPForceACAddress is NOT NULL and WTP jump Discovery state, 
+	 * object gACInfoPtr hasn't all the information. gACInfoPtr->vendorInfos
+	 * wasn't initialized.
+	 */
+	if(gWTPForceACAddress == NULL) {
+		/* BUG-ML07
+		 * Before overwriting the field vendorInfos we'd better
+		 * free it (it was allocated during the Discovery State by
+		 * the function CWParseACDescriptor()).
+		 *
+		 * 19/10/2009 - Donato Capitella
+		 */
+		int i;
+		for(i = 0; i < gACInfoPtr->vendorInfos.vendorInfosCount; i++) {
+		        CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos[i].valuePtr);
+		}
+		CW_FREE_OBJECT(gACInfoPtr->vendorInfos.vendorInfos);
+	}
 
 	gACInfoPtr->vendorInfos = (joinResponse->ACInfoPtr).vendorInfos;
 	

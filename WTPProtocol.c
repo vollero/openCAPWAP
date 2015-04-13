@@ -147,6 +147,21 @@ CWBool CWAssembleMsgElemDiscoveryType(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_DISCOVERY_TYPE_CW_TYPE);
 }
 
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWAssembleMsgElemECNSupport(CWProtocolMessage *msgPtr) {
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 1, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+	CWProtocolStore8(msgPtr, CWWTPGetECNSupport());
+
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_ECN_SUPPORT_CW_TYPE);
+}
+
 CWBool CWAssembleMsgElemLocationData(CWProtocolMessage *msgPtr) {
 	char *location;
 	
@@ -268,7 +283,14 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr) {
 	size = GENERIC_RADIO_INFO_LENGTH;
 	for(i = 0; i < infos.vendorInfosCount; i++) 
 		{size += (VENDOR_ID_LENGTH + TLV_HEADER_LENGTH + ((infos.vendorInfos)[i]).length);}
-		
+	/*
+	 * Elena Agostini - 02/2014
+	 *
+	 * BUG Valgrind: Real size of msgPrt is 42, not 40. With 40 bytes there's
+	 * an heap overrun.
+	 */
+	size += 2;
+
 	// create message
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, size, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
@@ -290,12 +312,12 @@ CWBool CWAssembleMsgElemWTPDescriptor(CWProtocolMessage *msgPtr) {
 		}
 	
 		CWProtocolStoreRawBytes(msgPtr, (char*) ((infos.vendorInfos)[i].valuePtr), (infos.vendorInfos)[i].length);
-
-//		CWDebugLog("WTP Descriptor Vendor ID: %d", (infos.vendorInfos)[i].vendorIdentifier);
-//		CWDebugLog("WTP Descriptor Type: %d", (infos.vendorInfos)[i].type);
-//		CWDebugLog("WTP Descriptor Length: %d", (infos.vendorInfos)[i].length);
-//		CWDebugLog("WTP Descriptor Value: %d", *((infos.vendorInfos)[i].valuePtr));
-
+/*
+		CWDebugLog("WTP Descriptor Vendor ID: %d", (infos.vendorInfos)[i].vendorIdentifier);
+		CWDebugLog("WTP Descriptor Type: %d", (infos.vendorInfos)[i].type);
+		CWDebugLog("WTP Descriptor Length: %d", (infos.vendorInfos)[i].length);
+		CWDebugLog("WTP Descriptor Value: %d", *((infos.vendorInfos)[i].valuePtr));
+*/
 		//CWDebugLog("Vendor Info \"%d\" = %d - %d - %d", i, (infos.vendorInfos)[i].vendorIdentifier, (infos.vendorInfos)[i].type, (infos.vendorInfos)[i].length);
 	}
 	
@@ -325,7 +347,7 @@ CWBool CWAssembleMsgElemWTPIPv4Address(CWProtocolMessage *msgPtr) {
 //	CWDebugLog("WTP IPv4 Address: %d", CWWTPGetIPv4Address());
 	CWProtocolStore32(msgPtr, CWWTPGetIPv4Address());
 
-	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_WTP_IPV4_ADDRESS_CW_TYPE);
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_LOCAL_IPV4_ADDRESS_CW_TYPE);
 }
 
 CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr) {
@@ -341,76 +363,94 @@ CWBool CWAssembleMsgElemWTPMACType(CWProtocolMessage *msgPtr) {
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_WTP_MAC_TYPE_CW_TYPE);
 }
 
-CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr) {
+/* Elena Agostini - 07/2014: WTP Radio Info: nl80211 support */
+CWBool CWAssembleMsgElemWTPRadioInformation(CWProtocolMessage *msgPtr, int radioID, char radioType) {
 
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
-
 	
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 5, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-	unsigned char wtp_r_info;
-	wtp_r_info = CWTP_get_WTP_Radio_Information();
-	int radioID = 0;
-	
-	
-	CWProtocolStore8(msgPtr, radioID); 
+	//RadioID - 1 byte
+	CWProtocolStore8(msgPtr, radioID);
+	//Reserved - 3 byte
 	CWProtocolStore8(msgPtr, 0); 
-	CWProtocolStore8(msgPtr, 0); 
-	CWProtocolStore8(msgPtr, 0); 
-	CWProtocolStore8(msgPtr, wtp_r_info); 
-
+	CWProtocolStore8(msgPtr, 0);
+	CWProtocolStore8(msgPtr, 0);
+	//Radio Type	 
+	CWProtocolStore8(msgPtr, radioType);
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_WTP_RADIO_INFORMATION_CW_TYPE);
 }
 
-CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr) {
+CWBool CWAssembleMsgElemSupportedRates(CWProtocolMessage *msgPtr, int radioID,char * suppRates, int lenSuppRates) {
 
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 9, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
-	
-	unsigned char tmp_sup_rate[8];
-	CWWTP_get_WTP_Rates(tmp_sup_rate);
-	
-	int radioID = 0;
-	
+		
 	CWProtocolStore8(msgPtr, radioID); 
+	int index;
+	for(index=0; index<lenSuppRates; index++)
+		CWProtocolStore8(msgPtr, suppRates[index]);
 	
-	CWProtocolStore8(msgPtr, tmp_sup_rate[0]);
-	CWProtocolStore8(msgPtr, tmp_sup_rate[1]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[2]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[3]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[4]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[5]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[6]); 
-	CWProtocolStore8(msgPtr, tmp_sup_rate[7]); 
-
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_SUPPORTED_RATES_CW_TYPE);
 }
 
-CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr) {
+//Elena Agostini - 08/2014: nl80211 support 
+CWBool CWAssembleMsgElemMultiDomainCapability(CWProtocolMessage *msgPtr, int radioID, int firstChannel, int numChannels, int maxTxPower) {
 
 	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
 
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 8, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
-	unsigned char tmp_mdc[6];
-	CWWTP_get_WTP_MDC(tmp_mdc);
+	CWProtocolStore8(msgPtr, radioID); 
+	CWProtocolStore8(msgPtr, 0); 
 	
-	int radioID = 0;
+	CWProtocolStore16(msgPtr, firstChannel);
+	CWProtocolStore16(msgPtr, numChannels); 
+	CWProtocolStore16(msgPtr, maxTxPower); 
+
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE);
+}
+
+//Elena Agostini - 08/2014: nl80211 support 
+CWBool CWAssembleMsgElemMACOperation(CWProtocolMessage *msgPtr, int radioID, int fragmentationTreshold, int rtsThreshold, char shortRetry, char longRetry, int txMSDU, int rxMSDU) {
+
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 16, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	
 	CWProtocolStore8(msgPtr, radioID); 
 	CWProtocolStore8(msgPtr, 0); 
 	
-	CWProtocolStore8(msgPtr, tmp_mdc[0]);
-	CWProtocolStore8(msgPtr, tmp_mdc[1]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[2]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[3]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[4]); 
-	CWProtocolStore8(msgPtr, tmp_mdc[5]); 
-
-	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_MULTI_DOMAIN_CAPABILITY_CW_TYPE);
+	CWProtocolStore16(msgPtr, rtsThreshold);
+	CWProtocolStore8(msgPtr, shortRetry);
+	CWProtocolStore8(msgPtr, longRetry);
+	CWProtocolStore16(msgPtr, fragmentationTreshold);
+	
+	CWProtocolStore32(msgPtr, txMSDU);
+	CWProtocolStore32(msgPtr, rxMSDU);
+	
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_MAC_OPERATION_CW_TYPE);
 }
+
+//Elena Agostini - 09/2014: IEEE Binding
+CWBool CWAssembleMsgElemAssignedWTPSSID(CWProtocolMessage *msgPtr, int radioID, int wlanID, char * bssid) {
+
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 8, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
+	//1
+	CWProtocolStore8(msgPtr, radioID); 
+	//1
+	CWProtocolStore8(msgPtr, wlanID); 
+	//6
+	CWProtocolStoreRawBytes(msgPtr, bssid, ETH_ALEN);
+	
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_IEEE80211_ASSIGNED_WTP_BSSID_CW_TYPE);
+}
+
 
 CWBool CWAssembleMsgElemWTPName(CWProtocolMessage *msgPtr) {
 	char *name;
@@ -508,6 +548,20 @@ CWBool CWAssembleMsgElemWTPRebootStatistics(CWProtocolMessage *msgPtr)
 //	CWDebugLog("WTPRebootStat(3): %d - %d", gWTPRebootStatistics.unknownFailureCount, gWTPRebootStatistics.lastFailureType);
 
 	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_WTP_REBOOT_STATISTICS_CW_TYPE);
+}
+
+//Elena Agostini - 11/2014: Delete Station Msg Elem
+CWBool CWAssembleMsgElemWTPDeleteStation(CWProtocolMessage *msgPtr, CWMsgElemDataDeleteStation * infoDeleteStation)
+{	
+	if(msgPtr == NULL || infoDeleteStation == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);
+	
+	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, 2+ETH_ALEN, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	
+	CWProtocolStore8(msgPtr, infoDeleteStation->radioID);
+	CWProtocolStore8(msgPtr, ETH_ALEN);
+	CWProtocolStoreRawBytes(msgPtr, infoDeleteStation->staAddr, ETH_ALEN);
+	
+	return CWAssembleMsgElem(msgPtr, CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE);
 }
 
 //test version
@@ -665,7 +719,7 @@ CWBool CWAssembleMsgElemRadioOperationalState(int radioID, CWProtocolMessage *ms
 		}
 		
 		len += msgs[i].offset;
-//		CWDebugLog("Radio Operational State: %d - %d - %d", infos.radios[i].ID, infos.radios[i].state, infos.radios[i].cause);
+		CWLog("Radio Operational State: %d - %d - %d", infos.radios[i].ID, infos.radios[i].state, infos.radios[i].cause);
 	}
 	
 	CW_CREATE_PROTOCOL_MESSAGE(*msgPtr, len, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
@@ -956,173 +1010,164 @@ CWBool CWParseACIPv6List(CWProtocolMessage *msgPtr, int len, ACIPv6ListValues *v
 	CWParseMessageElementEnd();
 }
 
-
-CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len) 
+/* ------------------------------------ Elena Agostini: OLD HOSTAPD IEEE BINDING ------------------------------------ */
+CWBool CWParseDeleteStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address) 
 {
-	int radioID=0,Length=0;
-	unsigned char* StationMacAddress;
+	int Length=0;
 	
 	//CWParseMessageElementStart();	 sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
 	/*--------------------------------------------------------------------------------------*/
 	int oldOffset;												
-			if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
-						oldOffset = msgPtr->offset;
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
+	oldOffset = msgPtr->offset;
 	/*----------------------------------------------------------------------------------*/
 	
-	
-	radioID = CWProtocolRetrieve8(msgPtr);
-	//CWDebugLog("radio ID %d",radioID);
+	(*radioID) = CWProtocolRetrieve8(msgPtr);
 	Length = CWProtocolRetrieve8(msgPtr);
-	//CWDebugLog("Length of mac address field %d",Length);
-	StationMacAddress = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
-	
+	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
 	    
-    CWDebugLog("DEL MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)StationMacAddress[0],
-														 (unsigned char)StationMacAddress[1],
-														  (unsigned char)StationMacAddress[2],
-														   (unsigned char)StationMacAddress[3],
-														    (unsigned char)StationMacAddress[4],
-														     (unsigned char)StationMacAddress[5]);
-	
-	unsigned char tmp_mac[7];
-	memcpy(tmp_mac+1, StationMacAddress, 6);
-	
-	CWWTPsend_command_to_hostapd_DEL_ADDR( tmp_mac,7);
-												     
-	CWDebugLog("STATION'S MAC ADDRESS TO FORWARD TRAFFIC: %02X:%02X:%02X:%02X:%02X:%02X",  
-								StationMacAddress[0] & 0xFF,
-      								StationMacAddress[1] & 0xFF,
-      								StationMacAddress[2] & 0xFF,
-      								StationMacAddress[3] & 0xFF,
-      								StationMacAddress[4] & 0xFF,
-      								StationMacAddress[5] & 0xFF);
-	
-
+ /*   CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)(*address)[0],
+														 (unsigned char)(*address)[1],
+														 (unsigned char)(*address)[2],
+														 (unsigned char)(*address)[3],
+														 (unsigned char)(*address)[4],
+														 (unsigned char)(*address)[5]);
+*/
 	CWParseMessageElementEnd();  
 }
 
-CWBool CWParseDeleteWLAN(CWProtocolMessage *msgPtr, int len) {
-	int Length=0;
-	unsigned char* ssid;
-	
-	
-	//CWParseMessageElementStart();	 sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
-	/*--------------------------------------------------------------------------------------*/
-	int oldOffset;												
-			if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
-						oldOffset = msgPtr->offset;
-	/*----------------------------------------------------------------------------------*/
-	
-	int radioID = CWProtocolRetrieve8(msgPtr);
-	int wlanID = CWProtocolRetrieve8(msgPtr);
-
-	unsigned char tmp_ssid[3];
-	
-	
-	CWWTPsend_command_to_hostapd_DEL_WLAN( tmp_ssid,3 );
-
-	CWParseMessageElementEnd();  
-}
-
-CWBool CWParseAddWLAN(CWProtocolMessage *msgPtr, int len) {
-	int Length=0;
-	unsigned char* ssid;
-	unsigned char tmp_buf[len+1];
-	
-	
-	//CWParseMessageElementStart();	 sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
-	/*--------------------------------------------------------------------------------------*/
-	int oldOffset;												
-			if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
-						oldOffset = msgPtr->offset;
-	/*----------------------------------------------------------------------------------*/
-	
-	tmp_buf[1] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[2] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[3] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[4] = CWProtocolRetrieve8(msgPtr);
-	
-	tmp_buf[5] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[6] = CWProtocolRetrieve8(msgPtr);
-	short keyLength = CWProtocolRetrieve16(msgPtr);
-	
-	tmp_buf[7] = *(&keyLength + 1);
-	tmp_buf[8] = *(&keyLength + 0);
-	
-	if(keyLength){
-		unsigned char *key;
-		key = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, keyLength);
-		memcpy( tmp_buf+9, key, keyLength);
-	}
-	
-	tmp_buf[9+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[10+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[11+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[12+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[13+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[14+keyLength] = CWProtocolRetrieve8(msgPtr);
-	
-	tmp_buf[15+keyLength] = CWProtocolRetrieve8(msgPtr);
-	
-	tmp_buf[16+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[17+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[18+keyLength] = CWProtocolRetrieve8(msgPtr);
-	tmp_buf[19+keyLength] = CWProtocolRetrieve8(msgPtr);
-	
-
-	ssid = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, len-(19+keyLength));
-	 
-	memcpy( tmp_buf+20+keyLength, ssid, len-19-keyLength);
-	
-	
-	
-	CWWTPsend_command_to_hostapd_ADD_WLAN( tmp_buf, len+1 );
-
-	CWParseMessageElementEnd();  
-}
-
-CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len) 
+CWBool CWParseAddStation(CWProtocolMessage *msgPtr, int len, int * radioID, char ** address) 
 {
-	int radioID=0,Length=0;
-	unsigned char* StationMacAddress;
+	int Length=0;
 	
 	//CWParseMessageElementStart();	 sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
 	/*--------------------------------------------------------------------------------------*/
 	int oldOffset;												
-			if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
-						oldOffset = msgPtr->offset;
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
+	oldOffset = msgPtr->offset;
 	/*----------------------------------------------------------------------------------*/
 	
-	
-	radioID = CWProtocolRetrieve8(msgPtr);
-	//CWDebugLog("radio ID %d",radioID);
+	(*radioID) = CWProtocolRetrieve8(msgPtr);
 	Length = CWProtocolRetrieve8(msgPtr);
-	//CWDebugLog("Length of mac address field %d",Length);
-	StationMacAddress = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
+	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, Length);
 	
-	    
-    CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)StationMacAddress[0],
-														 (unsigned char)StationMacAddress[1],
-														  (unsigned char)StationMacAddress[2],
-														   (unsigned char)StationMacAddress[3],
-														    (unsigned char)StationMacAddress[4],
-														     (unsigned char)StationMacAddress[5]);
-	
-	unsigned char tmp_mac[7];
-	memcpy(tmp_mac+1, StationMacAddress, 6);
-	
-	CWWTPsend_command_to_hostapd_SET_ADDR( tmp_mac,7);
-												     
-	CWDebugLog("STATION'S MAC ADDRESS TO FORWARD TRAFFIC: %02X:%02X:%02X:%02X:%02X:%02X",  
-								StationMacAddress[0] & 0xFF,
-      								StationMacAddress[1] & 0xFF,
-      								StationMacAddress[2] & 0xFF,
-      								StationMacAddress[3] & 0xFF,
-      								StationMacAddress[4] & 0xFF,
-      								StationMacAddress[5] & 0xFF);
-	
+	/*    
+    CWDebugLog("ADD MAC: %02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)(*address)[0],
+														 (unsigned char)(*address)[1],
+														  (unsigned char)(*address)[2],
+														   (unsigned char)(*address)[3],
+														    (unsigned char)(*address)[4],
+														     (unsigned char)(*address)[5]);
+	*/
+	//CWWTPsend_command_to_hostapd_SET_ADDR( tmp_mac,7);												     
 
 	CWParseMessageElementEnd();  
+}
+/* ------------------------------------------------------------------------------------------ */
+
+/* +++++++++++++++++++++++++ Elena Agostini - 10/2014 IEEE BINDING +++++++++++++++++++++++++ */
+CWBool CWParse80211Station(CWProtocolMessage *msgPtr, int len, int * radioID, short int * assID, char * flags, char ** address, short int * capability, int * wlanID, int * supportedRatesLen, char ** supportedRates) 
+{
+	//CWParseMessageElementStart();	sostituire al posto delle righe successive quando passerò valPtr alla funzione CWarseAddStation
+	/*--------------------------------------------------------------------------------------*/
+	int oldOffset;												
+	if(msgPtr == NULL) return CWErrorRaise(CW_ERROR_WRONG_ARG, NULL);	
+	oldOffset = msgPtr->offset;
+	/*----------------------------------------------------------------------------------*/
+	
+	(*radioID) = CWProtocolRetrieve8(msgPtr);
+	(*assID) = CWProtocolRetrieve16(msgPtr);
+	(*flags) = CWProtocolRetrieve8(msgPtr);
+	(*address) = (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, ETH_ALEN);
+	(*capability) = CWProtocolRetrieve16(msgPtr);
+	(*wlanID) = CWProtocolRetrieve8(msgPtr);
+	
+	(*supportedRatesLen) = len-(1+2+1+ETH_ALEN+2+1);
+
+	CW_CREATE_ARRAY_CALLOC_ERR((*supportedRates), (*supportedRatesLen)+1, char,  return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_COPY_MEMORY((*supportedRates), (unsigned char*)CWProtocolRetrieveRawBytes(msgPtr, (*supportedRatesLen)), (*supportedRatesLen));
+	
+	CWParseMessageElementEnd();
+}
+
+/* +++++++++++++++++++++++++ Elena Agostini - 09/2014: NEW IEEE BINDING +++++++++++++++++++++++++ */
+CWBool CWParseACAddWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr) {
+	unsigned short int capabilityInfo=0;
+	int index=0;
+	
+	CWParseMessageElementStart();
+	
+	valPtr->operation=CW_OP_ADD_WLAN;
+	//Radio ID
+	valPtr->radioID = CWProtocolRetrieve8(msgPtr);
+	//Wlan ID
+	valPtr->wlanID = CWProtocolRetrieve8(msgPtr);
+	//Capability
+	valPtr->capabilityBit = CWProtocolRetrieve16(msgPtr);
+	//key Index
+	valPtr->keyIndex = CWProtocolRetrieve8(msgPtr);
+	//Key Status
+	valPtr->keyStatus = CWProtocolRetrieve8(msgPtr);
+	//key Length
+	valPtr->keyLength = CWProtocolRetrieve16(msgPtr);
+	//Key
+	CW_COPY_MEMORY(valPtr->key, CWProtocolRetrieveRawBytes(msgPtr, WLAN_KEY_LEN), WLAN_KEY_LEN);
+	//Group TSC
+	CW_COPY_MEMORY(valPtr->groupTSC, CWProtocolRetrieveRawBytes(msgPtr, WLAN_GROUP_TSC_LEN), WLAN_GROUP_TSC_LEN);
+	//qos
+	valPtr->qos = CWProtocolRetrieve8(msgPtr);
+	//Auth TYpe
+	valPtr->authType = CWProtocolRetrieve8(msgPtr);
+	//MAC Mode
+	valPtr->MACmode = CWProtocolRetrieve8(msgPtr);
+	//Tunnel Mode
+	valPtr->tunnelMode = CWProtocolRetrieve8(msgPtr);
+	//Suppress SSID
+	valPtr->suppressSSID = CWProtocolRetrieve8(msgPtr);
+	//SSID
+	CW_CREATE_ARRAY_CALLOC_ERR(valPtr->SSID, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN+1, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_COPY_MEMORY(valPtr->SSID, CWProtocolRetrieveRawBytes(msgPtr, len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN), len-CW_MSG_IEEE_ADD_WLAN_MIN_LEN);	
+		
+	CWParseMessageElementEnd();
+}
+
+CWBool CWParseACDelWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr) {
+	int index=0;
+	
+	CWParseMessageElementStart();
+	
+	valPtr->operation=CW_OP_DEL_WLAN;
+	//Radio ID
+	valPtr->radioID = CWProtocolRetrieve8(msgPtr);
+	//Wlan ID
+	valPtr->wlanID = CWProtocolRetrieve8(msgPtr);
+	
+	CWParseMessageElementEnd();
+}
+
+CWBool CWParseACUpdateWlan(CWProtocolMessage *msgPtr, int len, ACInterfaceRequestInfo * valPtr) {
+	unsigned short int capabilityInfo=0;
+	int index=0;
+	
+	CWParseMessageElementStart();
+	
+	valPtr->operation=CW_OP_UPDATE_WLAN;
+	//Radio ID
+	valPtr->radioID = CWProtocolRetrieve8(msgPtr);
+	//Wlan ID
+	valPtr->wlanID = CWProtocolRetrieve8(msgPtr);
+	//Capability
+	valPtr->capabilityBit = CWProtocolRetrieve16(msgPtr);
+	//key Index
+	valPtr->keyIndex = CWProtocolRetrieve8(msgPtr);
+	//Key Status
+	valPtr->keyStatus = CWProtocolRetrieve8(msgPtr);
+	//key Length
+	valPtr->keyLength = CWProtocolRetrieve8(msgPtr);
+	//Key
+	CW_COPY_MEMORY(valPtr->key, CWProtocolRetrieveRawBytes(msgPtr, WLAN_KEY_LEN), WLAN_KEY_LEN);
+	
+	CWParseMessageElementEnd();
 }
 
 CWBool CWParseCWControlIPv4Addresses(CWProtocolMessage *msgPtr, int len, CWProtocolIPv4NetworkInterface *valPtr) {
@@ -1163,6 +1208,19 @@ CWBool CWParseCWTimers (CWProtocolMessage *msgPtr, int len, CWProtocolConfigureR
 //	CWDebugLog("Discovery Timer: %d", valPtr->discoveryTimer);
 	valPtr->echoRequestTimer = CWProtocolRetrieve8(msgPtr);
 //	CWDebugLog("Echo Timer: %d", valPtr->echoRequestTimer);
+	
+	CWParseMessageElementEnd();
+}
+
+/*
+ * Elena Agostini - 02/2014
+ *
+ * ECN Support Msg Elem MUST be included in Join Request/Response Messages
+ */
+CWBool CWParseACECNSupport(CWProtocolMessage *msgPtr, int len, int *valPtr) {
+	CWParseMessageElementStart();
+	
+	*valPtr = CWProtocolRetrieve8(msgPtr);
 	
 	CWParseMessageElementEnd();
 }

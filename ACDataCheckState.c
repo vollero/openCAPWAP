@@ -73,29 +73,32 @@ CWBool ACEnterDataCheck(int WTPIndex, CWProtocolMessage *msgPtr) {
 	
 	if(!(CWSaveChangeStateEventRequestMessage(changeStateEvent, &(gWTPs[WTPIndex].WTPProtocolManager))))
 		return CW_FALSE;
-	
+		
 	if(!(CWAssembleChangeStateEventResponse(&(gWTPs[WTPIndex].messages), 
 						&(gWTPs[WTPIndex].messagesCount),
 						gWTPs[WTPIndex].pathMTU,
 						seqNum))) { 
 		return CW_FALSE;
 	}
-	
+		
 	if(!CWACSendFragments(WTPIndex)) {
 
 		return CW_FALSE;
 	}
 	
 	/* Start NeighbourDeadInterval timer */
-	if(!CWErr(CWTimerRequest(gCWNeighborDeadInterval, 
+	/*if(!CWErr(CWTimerRequest(gCWNeighborDeadInterval, 
 				 &(gWTPs[WTPIndex].thread),
 				 &(gWTPs[WTPIndex].currentTimer),
 				 CW_CRITICAL_TIMER_EXPIRED_SIGNAL))) {
 
 		CWCloseThread();
-	}
+	}*/
 
 	CWLog("Change State Event Response Sent");
+	
+	
+	
 	
 	gWTPs[WTPIndex].currentState = CW_ENTER_RUN;
 	gWTPs[WTPIndex].subState = CW_WAITING_REQUEST;

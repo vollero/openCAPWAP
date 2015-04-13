@@ -67,24 +67,115 @@ CWStateTransition CWWTPEnterDataCheck() {
 	/* Send Change State Event Request */
 	seqNum = CWGetSeqNum();
 	
-	if(!CWErr(CWStartHeartbeatTimer())) {
-		return CW_ENTER_RESET;
-	}
-	
 	if(!CWErr(CWWTPSendAcknowledgedPacket(seqNum, 
 					      NULL,
 					      CWAssembleChangeStateEventRequest,
 					      CWParseChangeStateEventResponseMessage,
 					      CWSaveChangeStateEventResponseMessage,
-					      NULL))) {
+					      NULL)))
 		return CW_ENTER_RESET;
+	
+/*
+ * Elena Agostini - 03/2014
+ * Initilize DTLS Data Session WTP + first KeepAlive
+ */
+
+#ifdef CW_DTLS_DATA_CHANNEL
+
+	int 			n,readBytes;
+	char 			buf[CW_BUFFER_SIZE];
+	CWNetworkLev4Address	addr;
+	CWList 			fragments = NULL;
+	CWProtocolMessage 	msgPtr;
+	CWBool 			dataFlag = CW_TRUE;
+	int msg_len;
+	
+	struct sockaddr_in *tmpAdd = (struct sockaddr_in *) &(gACInfoPtr->preferredAddress);
+	tmpAdd->sin_port = htons(5247);
+	CWLog("[DTLS] WTP Run Handshake with %s:%d", inet_ntoa(tmpAdd->sin_addr), ntohs(tmpAdd->sin_port));
+
+	CWNetworkLev4Address * gACAddressDataChannel = (CWNetworkLev4Address *)tmpAdd;
+	
+	if(!CWErr(CWSecurityInitSessionClient(gWTPDataSocket,
+					      gACAddressDataChannel,
+					      gPacketReceiveDataList,
+					      gWTPSecurityContext,
+					      &gWTPSessionData,
+					      &gWTPPathMTU))) {
+		
+		/* error setting up DTLS session */
+		CWSecurityDestroyContext(gWTPSecurityContext);
+		gWTPSecurityContext = NULL;
+		return CW_FALSE;
+	}
+	
+	CWLog("[DTLS] OK now assemble first KeepAlive");
+	
+	/*
+	 * If handshake ok, first KeepAlive DTLS to AC 
+	 */
+	CWProtocolMessage *messages = NULL;
+	CWProtocolMessage sessionIDmsgElem;
+	int fragmentsNum = 1;
+
+	CWAssembleMsgElemSessionID(&sessionIDmsgElem, &gWTPSessionID[0]);
+	sessionIDmsgElem.data_msgType = CW_DATA_MSG_KEEP_ALIVE_TYPE;
+	
+	//Send WTP Event Request
+	if (!CWAssembleDataMessage(&messages, 
+			    &fragmentsNum, 
+			    gWTPPathMTU, 
+			    &sessionIDmsgElem, 
+			    NULL,
+				CW_PACKET_CRYPT,
+			    1
+			    ))
+	{
+		int i;
+
+		CWDebugLog("Failure Assembling KeepAlive Request");
+		if(messages)
+			for(i = 0; i < fragmentsNum; i++) {
+				CW_FREE_PROTOCOL_MESSAGE(messages[i]);
+			}	
+		CW_FREE_OBJECT(messages);
+		return;
+	}
+	
+	int i;
+	for(i = 0; i < fragmentsNum; i++) {
+		if(!(CWSecuritySend(gWTPSessionData, messages[i].msg, messages[i].offset))) {
+			CWLog("Failure sending  KeepAlive Request");
+			int k;
+			for(k = 0; k < fragmentsNum; k++) {
+				CW_FREE_PROTOCOL_MESSAGE(messages[k]);
+			}	
+			CW_FREE_OBJECT(messages);
+			break;
+		}
 	}
 
-	if(!CWErr(CWStopHeartbeatTimer())) {
-
-		return CW_ENTER_RESET;
+	int k;
+	for(k = 0; messages && k < fragmentsNum; k++) {
+		CW_FREE_PROTOCOL_MESSAGE(messages[k]);
+	}	
+	CW_FREE_OBJECT(messages);
+	
+	CWLog("Send KeepAlive");
+	
+	if(!CWReceiveDataMessage(&msgPtr))
+		{
+			CW_FREE_PROTOCOL_MESSAGE(msgPtr);
+			CWDebugLog("Failure Receiving DTLS Data Channel");
+			return CW_ENTER_RESET;		
+		}
+				
+	if (msgPtr.data_msgType == CW_DATA_MSG_KEEP_ALIVE_TYPE) {
+		return CW_ENTER_RUN;
 	}
-
+			
+#endif
+	
 	return CW_ENTER_RUN;
 }
 

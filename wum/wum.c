@@ -23,16 +23,18 @@ void usage(char *name);
 #define ACSERVER_PORT	1235
 
 /* Commands */
-#define CMD_NUM 4
+#define CMD_NUM 6
 typedef struct { char id; const char *name; } cmd_t;
 
-enum {NO_CMD, WTPS_CMD, VERSION_CMD, UPDATE_CMD, CANCEL_CMD};
+enum {NO_CMD, WTPS_CMD, VERSION_CMD, UPDATE_CMD, CANCEL_CMD, WLAN_ADD_CMD, WLAN_DEL_CMD};
 
 cmd_t CMDs[] = {
 	{WTPS_CMD, "wtps"},
 	{VERSION_CMD, "version"},
 	{UPDATE_CMD, "update"},
 	{CANCEL_CMD, "cancel"},
+	{WLAN_ADD_CMD, "addwlan"},
+	{WLAN_DEL_CMD, "delwlan"},
 	{NO_CMD, ""}
 };
 
@@ -47,6 +49,7 @@ int main(int argc, char *argv[])
 	struct version_info update_v; 
     char *command = NULL, *cup_path = NULL;
     char *wtpIds = NULL, *wtpNames = NULL;
+    char * ssid = NULL, * radioID = NULL, * wlanID = NULL, * tunnel = NULL;
     char *acserver_address = ACSERVER_ADDRESS;
 	int acserver_port = ACSERVER_PORT;;
 	int index;
@@ -55,7 +58,7 @@ int main(int argc, char *argv[])
     opterr = 0;
     
 	/* Parse options */
-    while ((c = getopt (argc, argv, "ha:p:w:c:f:n:")) != -1)
+    while ((c = getopt (argc, argv, "ha:p:w:c:f:n:s:r:l:t:")) != -1)
         switch (c)
         {
 		case 'a':
@@ -76,11 +79,25 @@ int main(int argc, char *argv[])
         case 'f':
         	cup_path = optarg;
         	break;
+/* +++ Elena Agostini - 09/2014: IEEE 802.11 Binding. WLAN Commands +++ */
+        case 's':
+        	ssid = optarg;
+        	break;
+        case 'r':
+        	radioID = optarg;
+        	break;
+        case 'l':
+        	wlanID = optarg;			
+        	break;
+		case 't':
+        	tunnel = optarg;
+        	break;
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
         case 'h':
         	usage(argv[0]);
         	break;	
         case '?':
-            if (optopt == 'w' || optopt == 'c' || optopt == 'f' || optopt == 'n')
+            if (optopt == 'w' || optopt == 'c' || optopt == 'f' || optopt == 'n' || optopt == 's' || optopt == 'r' || optopt == 'l')
            		fprintf (stderr, "Option -%c requires an argument.\n", optopt);
             else if (isprint (optopt))
             	fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -105,6 +122,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Wrong command specified!");
 	}
 
+
 	/* Connect to server and get WTPs list */
 	acserver = ACServerConnect(acserver_address, acserver_port);
 	wtpList = ACServerWTPList(acserver, &nWTPs);
@@ -122,6 +140,12 @@ int main(int argc, char *argv[])
 			break;
 		case CANCEL_CMD:
 			do_cancel_cmd(acserver, wtpIds, wtpNames);
+			break;
+		case WLAN_ADD_CMD:
+			do_wlan_add_cmd(acserver, wtpIds, wtpNames, ssid, radioID, wlanID, tunnel);
+			break;
+		case WLAN_DEL_CMD:
+			do_wlan_del_cmd(acserver, wtpIds, wtpNames, radioID, wlanID);
 			break;
 	}
 	
@@ -338,6 +362,58 @@ void do_cancel_cmd(int acserver, char *wtpIds, char *wtpNames)
 		} else {
 			printf("Cancel request sent for WTP %d\n", wtps[i]);
 		}
+	}
+}
+
+/*
+ * Elena Agostini - 09/2014: WLAN add interface
+ */
+void do_wlan_add_cmd(int acserver, char *wtpIds, char *wtpNames, char * ssid, char * radioID, char * wlanID, char * tunnel)
+{
+	int *wtps, n, i;
+	struct version_info v_info;
+
+	/* WTP work list */
+	wtps = get_id_list(wtpIds, wtpNames, &n);
+	
+	if (wtps == NULL) {
+		fprintf(stderr, "Either a list of wtp ids or wtp names must be specified!\n");
+		return;
+	}
+	
+	if(n == 0)
+	{
+		fprintf(stderr, "Currently, there aren't associated wtps with AC\n");
+		return;
+	}
+	
+	for (i = 0; i < n; i++) {
+		printf("invio a wtp %d\n", i);
+		WUMWTPwlanAdd(acserver, wtps[i], ssid, radioID, wlanID, tunnel, &v_info);
+	}	
+}
+
+/*
+ * Elena Agostini - 09/2014: WLAN add interface
+ */
+void do_wlan_del_cmd(int acserver, char *wtpIds, char *wtpNames, char * radioID, char * wlanID)
+{	
+	int *wtps, n, i;
+	struct version_info v_info;
+
+	printf("DEL cmd radioID: %s, wlanID: %s\n", radioID, wlanID);
+	
+	/* WTP work list */
+	wtps = get_id_list(wtpIds, wtpNames, &n);
+	
+	if (wtps == NULL) {
+		fprintf(stderr, "Either a list of wtp ids or wtp names must be specified!\n");
+		return;
+	}
+
+	for (i = 0; i < n; i++) {
+		printf("invio a wtp %d\n", i);
+		WUMWTPwlanDel(acserver, wtps[i], radioID, wlanID, &v_info);
 	}
 }
 
