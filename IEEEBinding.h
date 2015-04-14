@@ -554,7 +554,6 @@ int nl80211_register_frame(WTPInterfaceInfo * interfaceInfo,
 				  struct nl_handle *nl_handle,
 				  u16 type, const u8 *match, size_t match_len);
 int nl80211_register_spurious_class3(WTPInterfaceInfo * interfaceInfo);
-void nl80211_mgmt_handle_register_eloop(WTPInterfaceInfo * interfaceInfo);
 void CW80211EventReceive(void *eloop_ctx, void *handle);
 void CW80211EventDataReceive(int dataRawSock, struct WTPBSSInfo * BSSInfo);
 void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb, unsigned char * frameBuffer);
