@@ -114,6 +114,7 @@ int main(int argc, char *argv[])
      
     /* Check arguments */ 
 	if (command == NULL) {
+		usage(argv[0]);
 		fprintf(stderr, "No command specified!\n");
 		exit(EXIT_FAILURE);
 	}
@@ -492,10 +493,12 @@ void printVersionFooter()
 
 void usage(char *name)
 {
-	printf("%s -c command [-w id1,...] [-n name1,...] [-f cup_file] [-a address] [-p port]\n", name);
+	printf("%s -c command [-w id1,...] [-n name1,...] [-f cup_file] [-a address] [-p port] [-s SSID] [-r radioID] [-l wlanID]\n", name);
 	printf("\nAvailable commands:\n");
 	printf("   wtps: list of active wtps.\n");	
 	printf("version: version of the specified list of wtps (use -w or -n).\n");	
 	printf(" update: sends a cup (specified with -f) to the specified list of wtps (use -w or -n).\n");		
-	printf(" cancel: cancel a pending update on the desired wtps (use -w or -n).\n");			
+	printf(" cancel: cancel a pending update on the desired wtps (use -w or -n).\n");
+	printf(" addwlan: add new wlan in Master mode on the desiderd wtp (use -w, -s, -r, -l).\n");		
+	printf(" delwlan: set the Master mode wlan in Managed mode on the desiderd wtp (use -w, -r, -l).\n");			
 }
