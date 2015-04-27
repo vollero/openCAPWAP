@@ -23,7 +23,17 @@ HOW TO RUN AC:
 	
 	- Open a shell in superuser mode
 	- Run "./AC" in superuser mode
-	- Create a bridge between AC_tap interface and eth0
+	- Create a bridge between AC_tap interface and eth0. This is an example scrypt:
+		dhclient -r bridgeAC
+		brctl addbr bridgeAC
+		brctl addif bridgeAC AC_tap
+		brctl addif bridgeAC eth0
+		ifconfig bridgeAC up
+		ifconfig AC_tap up
+		ifconfig eth0 0
+		ifconfig AC_tap 0
+		dhclient bridgeAC
+
 
 HOW TO CREATE AN AP ON WTP SIDE:
 	- Enter into "capwap/wum" and run "make"
