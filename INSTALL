@@ -28,7 +28,7 @@ HOW TO RUN AC:
 HOW TO CREATE AN AP ON WTP SIDE:
 	- Enter into "capwap/wum" and run "make"
 	- Run: ./wum -c wtps if you want to know all WTPs associated with your AC
-	- Run: ./wum -c addwlan -w <WTP_ID> -l 0 -r 0 -s <SSID> -t 1
+	- Run: ./wum -c addwlan -w <WTP_ID> -r 1 -l 1 -s <SSID> -t 1
 
 N.B. OpenCAPWAP doesn't provide an IP address to associated Stations. You have to set a dhcp server on AC side 
 	 or give a static IP to your station.
