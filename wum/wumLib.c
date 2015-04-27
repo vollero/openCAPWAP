@@ -212,7 +212,7 @@ int WUMWTPwlanAdd(int acserver, int wtpId, char * ssid, char * radioID, char * w
 	if(ssid == NULL || radioID == NULL || wlanID == NULL)
 		return ERROR;
 	
-	if(atoi(radioID) <= 0 || atoi(wlanID))
+	if(atoi(radioID) <= 0 || atoi(wlanID) <= 0)
 	{
 		fprintf(stderr, "Error ADD WLAN cmd: radioID or wlanID are <= 0.");
 		return ERROR;
