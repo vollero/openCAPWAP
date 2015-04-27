@@ -508,12 +508,19 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
 	unsigned char * rateChar;
 	int indexRates=0;		
+
+	CWLog("SET/UPDATE STATION request");
+	return CW_TRUE;
 	
+	/*
+	 * TODO: This command give always an error if station is
+	 * already associated. 
+	 */	
 	msg = nlmsg_alloc();
 	if (!msg)
 		return CW_FALSE;
 	
-	CWLog("SET/UPDATE STATION request");
+
 	genlmsg_put(msg, 0, 0, infoBSS->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_STATION, 0);
 	/* WLAN ID */
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
