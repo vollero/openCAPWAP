@@ -19,11 +19,11 @@ HOW TO RUN WTP:
     - Open the file "config.wtp" and write the AC IP-address between <AC_ADDRESSES> and </AC_ADDRESSES> tags
 	- Run "./WTP" in superuser mode
 
-HOW TO RUN AC:
+HOW TO RUN AC (32-bit OS recommended):
 	
 	- Open a shell in superuser mode
 	- Run "./AC" in superuser mode
-	- Create a bridge between AC_tap interface and eth0. This is an example scrypt:
+	- Create a bridge between AC_tap interface and eth0 using a script like this:
 		dhclient -r bridgeAC
 		brctl addbr bridgeAC
 		brctl addif bridgeAC AC_tap
@@ -33,7 +33,6 @@ HOW TO RUN AC:
 		ifconfig eth0 0
 		ifconfig AC_tap 0
 		dhclient bridgeAC
-
 
 HOW TO CREATE AN AP ON WTP SIDE:
 	- Enter into "capwap/wum" and run "make"
