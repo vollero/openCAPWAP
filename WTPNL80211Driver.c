@@ -520,28 +520,28 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
 	/* SUPPORTED RATES */
-	int lenRates = infoBSS->phyInfo->lenSupportedRates;
+/*	int lenRates = infoBSS->phyInfo->lenSupportedRates;
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 	
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10);
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
-	
+*/	
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
 	
-	struct nl80211_sta_flag_update flags;
+	/*struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
 	
 	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
 	flags.set = flags.mask;
 //	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
-	
+*/
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	if( ret != 0)
 	{
-		CWLog("[NL80211 ERROR] Set new STA error: %d, %s", ret, strerror(-ret));
+		CWLog("[NL80211 ERROR] Set update STA error: %d, %s", ret, strerror(-ret));
 		return CW_FALSE;
 	}
 	
