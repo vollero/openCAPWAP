@@ -1,4 +1,16 @@
 OpenCAPWAP v1.0
 
-Refer to "The new version of OpenCAPWAP", E. Agostini, M. Bernaschi, M. Vellucci, L. Vollero
+DTLS:
+	AC and WTP can connect using OpenSSL on Control Channel, Data Channel or both
+
+MORE WTP, ONE IP:
+	AC accepts connections from multiple WTPs with same IP and different ports
+
+SPLIT MAC:
+	OpenCAPWAP v1.0 works in SPLIT MAC mode too
+
+ACCESS POINT:
+	AC can handle one or more Access Point on its associated WTPs. Client stations can connect to WTP's Master mode interfaces.
+
+For more info, please refer to "The new version of OpenCAPWAP", E. Agostini, M. Bernaschi, M. Vellucci, L. Vollero
 Submitted to "International Journal of Network Management"

@@ -11,7 +11,7 @@ HOW TO BUILD AC AND WTP:
 HOW TO RUN WTP:
 
 	- Open a shell in superuser mode
-	- Be sure that your PCMCIA wireless card is working
+	- Be sure that your wireless card is working
 	- Be sure that the wireless card you want to use as Access Point hasn't any active wireless interface (delete all wlanX)
 	- In file settings.wtp.txt you have to put the phy name of your wireless card (use iw):
 		<RADIO_PHY_TOT>1
