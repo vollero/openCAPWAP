@@ -51,7 +51,7 @@ int CWConvertDataFrame_8023_to_80211(unsigned char *frameReceived, int frameLen,
 	CWLog("DA[%02x:%02x:%02x:%02x:%02x:%02x]", (int) DA[0], (int) DA[1], (int) DA[2], (int) DA[3], (int) DA[4], (int) DA[5]);
 	CWLog("SA[%02x:%02x:%02x:%02x:%02x:%02x]", (int) SA[0], (int) SA[1], (int) SA[2], (int) SA[3], (int) SA[4], (int) SA[5]);
 */
-	hdr80211 = CW80211AssembleDataFrameHdr(SA, DA, BSSID, &(offset), 0, 1);
+	hdr80211 = CW80211AssembleDataFrameHdr(SA, DA, BSSID, 0, &(offset), 0, 1);
 	
 //	CWLog("Byte dopo eth addr: %02x %02x", (int)(frameReceived+ETH_ALEN+ETH_ALEN)[0], (int)(frameReceived+ETH_ALEN+ETH_ALEN)[1]);
 

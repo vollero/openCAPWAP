@@ -586,7 +586,7 @@ char * CW80211AssembleAssociationResponseAC(unsigned char * MACAddr, unsigned ch
 char * CW80211AssembleReassociationResponseAC(unsigned char * MACAddr, unsigned char * BSSID,  short int capabilityBit, short int staAID, unsigned char * suppRate, int suppRatesLen, struct CWFrameAssociationRequest *request, int *offset);
 char * CW80211AssembleBeacon(WTPBSSInfo * WTPBSSInfoPtr, int *offset);
 char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset);
-unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, int *offset, int toDS, int fromDS);
+unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, short int seqctl, int *offset, int toDS, int fromDS);
 
 CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probeRequest);
 CWBool CW80211ParseAuthRequest(char * frame, struct CWFrameAuthRequest * authRequest);
