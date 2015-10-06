@@ -572,7 +572,7 @@ manager_data_failure:
        
                    if( WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ){
 						CWLog("Got 802.11 Data Packet (stype=%d) from AC(hostapd) len:%d",WLAN_FC_GET_STYPE(fc),msgPtr.offset);
-						CWWTPSendFrame(msgPtr.msg, msgPtr.offset);
+						//CWWTPSendFrame(msgPtr.msg, msgPtr.offset);
                          
                    }
                    else{
@@ -2207,6 +2207,7 @@ CWBool CWParseStationConfigurationRequest(char *msg, int len, int * BSSIndex, in
 			break;
 		}
 	}
+	
 	if(trovato == 0)
 		return CW_FALSE;
 

@@ -230,7 +230,13 @@ CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value,
 		
 	CW_COPY_MEMORY((frame+IE_TYPE_LEN), &(numRates), IE_SIZE_LEN);
 	(*offset) += IE_SIZE_LEN;
-	
+	int i=0;
+	for(i=0; i<numRates; i++)
+	{
+		//CWLog("value prima: %u %x", value[i],value[i]);
+		value[i] = (char)(((int)value[i])+128);
+		//CWLog("value dopo: %u %x", value[i], value[i]);		
+	}
 	CW_COPY_MEMORY((frame+IE_TYPE_LEN+IE_SIZE_LEN), value, numRates);
 	(*offset) += numRates;
 	
@@ -820,7 +826,7 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 	(*offset) += LEN_IE_SEQ_CTRL;
 	
 	//capability: 2 byte
-	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
+	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, thisSTA->/*WTPBSSInfoPtr->interfaceInfo->*/capabilityBit))
 			return NULL;
 	/* ************************************************* */
 
@@ -835,10 +841,18 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 	//Supported Rates
 	//TODO: Capability Re-set? Use STA capability value?
 	int indexRates=0;
-	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
+	unsigned char suppRate[thisSTA->lenSupportedRates];
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->lenSupportedRates; indexRates++)
+	{
+		suppRate[indexRates] =  (char) thisSTA->supportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+		CWLog("rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
+	}
+		//(char) thisSTA->supportedRates[indexRates];//(char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+	
+/*	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
 	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
 		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
-		
+*/	
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
 	
@@ -897,7 +911,7 @@ char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAIn
 	(*offset) += LEN_IE_SEQ_CTRL;
 	
 	//capability: 2 byte
-	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->capabilityBit))
+	if(!CW80211AssembleIECapability(&(frameAssociationResponse[(*offset)]), offset, thisSTA->/*WTPBSSInfoPtr->interfaceInfo->*/capabilityBit))
 			return NULL;
 	/* ************************************************* */
 
@@ -911,11 +925,22 @@ char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAIn
 	
 	//Supported Rates
 	//TODO: Capability Re-set? Use STA capability value?
+	
+	int indexRates=0;
+	unsigned char suppRate[thisSTA->lenSupportedRates];
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->lenSupportedRates; indexRates++)
+	{
+		suppRate[indexRates] =  (char) thisSTA->supportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+		CWLog("reassoc: rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
+	}
+		//(char) thisSTA->supportedRates[indexRates];//(char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+	
+	/*
 	int indexRates=0;
 	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
 	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
 		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
-		
+		*/
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
 	

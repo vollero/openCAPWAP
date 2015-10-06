@@ -175,6 +175,7 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			return;
 		}
 		
+		CWLog("ASSOCIATION RESPONSE: searching STA");
 		thisSTA = findSTABySA(WTPBSSInfoPtr, assocRequest.SA);
 		if(thisSTA)
 		{
@@ -191,12 +192,25 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 			CWPrintEthernetAddress(assocRequest.SA, "[CW80211] Problem adding STA");
 			return CW_FALSE;
 		}
+		
+		CWLog("ASSOCIATION RESPONSE: READ VALUES");
+
+
 		thisSTA->capabilityBit = assocRequest.capabilityBit;
 		thisSTA->listenInterval = assocRequest.listenInterval;
 		thisSTA->lenSupportedRates = assocRequest.supportedRatesLen;
 		
+		CWLog("assocRequest.capabilityBit: %x", assocRequest.capabilityBit);
+		CWLog("assocRequest.listenInterval: %x", assocRequest.listenInterval);		
+		CWLog("thisSTA->lenSupportedRates: %d", thisSTA->lenSupportedRates);
+		
+		int test=0;
+		for(test=0; test < thisSTA->lenSupportedRates; test++)
+			CWLog("AssocRequest.supportedRates[%d]: %d", test, assocRequest.supportedRates[test]);
+		
 		CW_CREATE_ARRAY_CALLOC_ERR(thisSTA->supportedRates, thisSTA->lenSupportedRates+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 		CW_COPY_MEMORY(thisSTA->supportedRates, assocRequest.supportedRates, thisSTA->lenSupportedRates);
+		CWLog("thisSTA->supportedRates[0]: %d\n thisSTA->supportedRates[1]: %d", thisSTA->supportedRates[0], thisSTA->supportedRates[1]);
 
 		//Send Association Frame
 		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
@@ -204,19 +218,32 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		
 		//Local MAC
 #ifndef SPLIT_MAC
+		CWLog("Local MAC... prepare association response");
 		//Ass ID is a random number
 		CW80211SetAssociationID(&(thisSTA->staAID));
+		CWLog("Calling CW80211AssembleAssociationResponse AID %d", thisSTA->staAID);
 		frameResponse = CW80211AssembleAssociationResponse(WTPBSSInfoPtr, thisSTA, &assocRequest, &frameRespLen);
+		
+		if(frameResponse)
+		{
+			CWLog("ASSOCIATION RESPONSE: sending....");
+			if(!CW80211SendFrame(WTPBSSInfoPtr, 0, CW_FALSE, frameResponse, frameRespLen, &(cookie_out), 1,1))
+				CWLog("NL80211: Errore CW80211SendFrame");
+		}
+		
+		CWLog("Sending response to AC");
 		//Send Association Frame Response
 		if(!CWSendFrameMgmtFromWTPtoAC(frameResponse, frameRespLen))
 			return;
+		
+		frameResponse=NULL;
 #else
 		frameResponse = NULL;
 #endif
 	}
 	
 	/* +++ Reassociation Response +++ */
-	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_ASSOC_REQ)
+	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT && WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_REASSOC_REQ)
 	{
 		CWLog("[80211] ______ Reassociation Request Received");
 		struct CWFrameAssociationRequest assocRequest;
@@ -255,9 +282,15 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		
 		//Local MAC
 #ifndef SPLIT_MAC
+CWLog("Local MAC... prepare reassociation response");
 		//Ass ID is a random number
-		CW80211SetAssociationID(&(thisSTA->staAID));
+		if(thisSTA->staAID == 0)
+			CW80211SetAssociationID(&(thisSTA->staAID));
+		CWLog("Calling CW80211AssembleReassociationResponse AID %d", thisSTA->staAID);
 		frameResponse = CW80211AssembleReassociationResponse(WTPBSSInfoPtr, thisSTA, &assocRequest, &frameRespLen);
+		CWLog("Sending response to AC");
+		
+		//Ass ID is a random number
 		//Send Ressociation Frame Response
 		if(!CWSendFrameMgmtFromWTPtoAC(frameResponse, frameRespLen))
 			return;
@@ -353,6 +386,7 @@ WTPSTAInfo * addSTABySA(WTPBSSInfo * WTPBSSInfoPtr, unsigned char * sa) {
 			CW_CREATE_ARRAY_CALLOC_ERR(WTPBSSInfoPtr->staList[indexSTA].address, ETH_ALEN+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 			CW_COPY_MEMORY(WTPBSSInfoPtr->staList[indexSTA].address, sa, ETH_ALEN);
 			CWPrintEthernetAddress(sa, "[CW80211] Added STA to memory struct");
+			CWLog("Index STA: %d", indexSTA);
 						
 			return &(WTPBSSInfoPtr->staList[indexSTA]);
 		}

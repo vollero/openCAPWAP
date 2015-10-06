@@ -450,37 +450,49 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	genlmsg_put(msg, 0, 0, infoBSS->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_NEW_STATION, 0);
 	/* WLAN ID */
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
-//	CWLog("wlanid: %d", infoBSS->interfaceInfo->realWlanID);
+	CWLog("wlanid: %d", infoBSS->interfaceInfo->realWlanID);
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
-//	CWPrintEthernetAddress(staInfo.address, "STA address:");
+	CWPrintEthernetAddress(staInfo.address, "STA address:");
 	/* SUPPORTED RATES */
-	int lenRates = infoBSS->phyInfo->lenSupportedRates;
+	int lenRates = staInfo.lenSupportedRates; //infoBSS->phyInfo->lenSupportedRates;
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 	
+	/*
 	for(indexRates=0; indexRates < lenRates; indexRates++)
 	{	
-		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
-//		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
-	}
-//	CWLog("len rates: %d", lenRates);
+		rateChar[indexRates] = (int) (((int)staInfo.supportedRates) / 0.5); // 0.1); // diviso 5? //infoBSS->phyInfo->phyMbpsSet[indexRates]
+		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
+	}*/
+	
+	rateChar[0] = 2;
+	rateChar[1] = 4;
+	rateChar[2] = 11;
+	rateChar[3] = 22;
+	rateChar[4] = 12;
+	rateChar[5] = 18;
+	rateChar[6] = 24;
+	rateChar[7] = 36;
+	
+	CWLog("len rates: %d", lenRates);
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
 		
 	/* Association ID */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
-	//CWLog("staAID: %x", staInfo.staAID);
+	CWLog("staAID: %x", staInfo.staAID);
 
 	/* Listen Interval */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
-	//CWLog("listenIntervaL: %x", staInfo.listenInterval);
+	CWLog("listenIntervaL: %x", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
 	
-	//CWLog("capabilityBit: %x", staInfo.capabilityBit);
+	CWLog("capabilityBit: %x", staInfo.capabilityBit);
 	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
 	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+	flags.mask |= BIT(NL80211_STA_FLAG_AUTHORIZED);
 	flags.set = flags.mask;
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
 	
@@ -537,14 +549,14 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
 	
-	/*struct nl80211_sta_flag_update flags;
+	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
 	
 	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
 	flags.set = flags.mask;
 //	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
-*/
+
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	if( ret != 0)
 	{
@@ -1132,7 +1144,7 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 		0x00, 0x00, // <-- radiotap version
 		0x0b, 0x00, // <- radiotap header length
 		0x04, 0x0c, 0x00, 0x00, // <-- bitmap
-		0x02, // <-- rate
+		0x24, // <-- rate
 		0x1b,//0x0c, //<-- tx power
 		0x03 //<-- antenna
 	};
@@ -1152,10 +1164,10 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 			.iov_len = (sizeof(rtap_hdr)+len), 
 		}
 	};
-	
-//	CWLog("Frame data size: %d", sizeof(rtap_hdr)+len);
-	
-/*	struct iovec iov[2] = {
+	/*
+	CWLog("Packet data size: %d", sizeof(rtap_hdr)+len);
+	CWLog("Packet rtap_hdr: %d, len: %d\n", sizeof(rtap_hdr), len);
+*//*	struct iovec iov[2] = {
 		{
 			.iov_base = &rtap_hdr,
 			.iov_len = sizeof(rtap_hdr),
@@ -1187,9 +1199,19 @@ int CWInjectFrameMonitor(int rawSocket, void *data, size_t len, int encrypt, int
 	//	txflags |= IEEE80211_RADIOTAP_F_TX_NOACK;
 	//WPA_PUT_LE16(&rtap_hdr[12], txflags);
 
+	/*
+	int optval2;
+ 	int optlen2;
+ 	
+	if (getsockopt(rawInjectSocket, SOL_SOCKET, IP_MTU, &optval2, &optlen2))
+	{
+		CWLog("nl80211: Failed to get socket MTU: %s", strerror(errno));
+	}
+	CWLog("****SOCKET MTU: %d", optval2);
+	*/
 	res = sendmsg(rawSocket, &msg, 0);
 	if (res < 0) {
-		CWLog("nl80211: sendmsg: %s", strerror(errno));
+		CWLog("nl80211: sendmsg: %s (errno %d)", strerror(errno), errno);
 		return -1;
 	}
 	//CWLog("Injection result code: %d", res);

@@ -129,7 +129,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 	if(frameTunnelWTP == CW_LOCAL_BRIDGING)
 	{
 		CWDelBridge(globalNLSock.ioctl_sock, gBridgeInterfaceName);
-		
+	/*	
 		if(!CWSetNewBridge(globalNLSock.ioctl_sock, gBridgeInterfaceName))
 		{
 			CWLog("[80211 ERROR] Cannot create bridge interface %s", gBridgeInterfaceName);
@@ -141,6 +141,7 @@ CWBool CWWTPGetRadioGlobalInfo(void) {
 			return CW_FALSE;
 		
 		ioctlActivateInterface(gBridgeInterfaceName);
+	*/
 	}
 	//elena test now
 	else if(frameTunnelWTP == CW_NATIVE_BRIDGING) {

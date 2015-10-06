@@ -450,12 +450,13 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 
 						CW_COPY_MEMORY((dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), tmpNode->BSSID, ETH_ALEN);
 						struct CWFrameDataHdr dataFrameFromDS;
+/*
 						if(!CW80211ParseDataFrameFromDS(dataFrameBuffer, &(dataFrameFromDS)))
 						{
 							CWLog("CW80211: Error parsing data frame");
 							return CW_FALSE;
 						}
-/*
+
 						CWLog("**Invio a WTP %d frame interno 802.11**", tmpNode->index);
 						CWLog("FrameControl: %02x", dataFrameFromDS.frameControl);
 						CWLog("DA: %02x: --- :%02x: --", (int) dataFrameFromDS.DA[0], (int) dataFrameFromDS.DA[4]);
