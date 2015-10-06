@@ -311,7 +311,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				CWLog("dataFrame.SA: %02x: --- :%02x: --", (int) dataFrame.SA[0], (int) dataFrame.SA[4]);
 				CWLog("dataFrame.BSSID: %02x: --- :%02x: --", (int) dataFrame.BSSID[0], (int) dataFrame.BSSID[4]);
 */
-				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, &(offsetDataFrame), 0, 1);
+				unsigned char * dataHdr = CW80211AssembleDataFrameHdr(dataFrame.SA, dataFrame.DA, dataFrame.BSSID, dataFrame.seqCtrl, &(offsetDataFrame), 0, 1);
 				if(dataHdr == NULL)
 					return CW_FALSE;
 				CW_CREATE_ARRAY_CALLOC_ERR(dataFrameBuffer, msglen, char, { return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); });
@@ -449,6 +449,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 						CW_CREATE_PROTOCOL_MESSAGE(*msgFrame, msglen, { return CW_FALSE;} );
 
 						CW_COPY_MEMORY((dataFrameBuffer+LEN_IE_FRAME_CONTROL+LEN_IE_DURATION+ETH_ALEN), tmpNode->BSSID, ETH_ALEN);
+/*
 						struct CWFrameDataHdr dataFrameFromDS;
 /*
 						if(!CW80211ParseDataFrameFromDS(dataFrameBuffer, &(dataFrameFromDS)))
@@ -517,7 +518,7 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 								}
 							}
 
-							CWLog("Inviato Frame 80211 a WTP %d su socket dati: %d", tmpNode->index, dataSocket);
+						//	CWLog("Inviato Frame 80211 a WTP %d su socket dati: %d", tmpNode->index, dataSocket);
 
 							int k;
 							for(k = 0; messages && k < fragmentsNum; k++) {
@@ -900,15 +901,22 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							//Se la STA era gia registrata ma con un altro radioID o WTPIndex, AC elimina dal suo AVL
 							// e manda subito un event request
 							tmpNodeSta = AVLfind(assocResponse.DA, avlTree);
-							if(
-								tmpNodeSta->radioID != gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID ||
-								tmpNodeSta->index != WTPIndex
-							)
+							if(tmpNodeSta != NULL)
 							{
-								toSendEventRequestDelete=CW_TRUE;
-								avlTree = AVLdeleteNode(avlTree, assocResponse.DA, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+								if(
+									tmpNodeSta->radioID != gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID ||
+									tmpNodeSta->index != WTPIndex
+								)
+								{
+									toSendEventRequestDelete=CW_TRUE;
+									avlTree = AVLdeleteNode(avlTree, assocResponse.DA, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID);
+									avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
+								}
+								//Qui non faccio insert se la STA era gia presente in AVl e
+								//WTPIndex e radioID coincidono
 							}
-							avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
+							else
+								avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
 							CWThreadMutexUnlock(&mutexAvlTree);
 							//----
 							

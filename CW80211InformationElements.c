@@ -1090,7 +1090,7 @@ char *  CW80211AssembleACK(WTPBSSInfo * WTPBSSInfoPtr, char * DA, int *offset) {
 	return frameACK;
 }
 
-unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, int *offset, int toDS, int fromDS) {
+unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char * DA, unsigned char * BSSID, short int seqctl, int *offset, int toDS, int fromDS) {
 	if(DA == NULL || SA == NULL)
 		return NULL;
 	
@@ -1145,10 +1145,12 @@ unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char *
 			return NULL;
 //		CWLog("** SA: %02x:%02x:%02x:%02x:%02x", (int)SA[0], (int)SA[1], (int)SA[2], (int)SA[3], (int)SA[4], (int)SA[5]);
 	}
-	else return NULL;
+	else 
+		return NULL;
 	
+	CWLog("SeqCtl: %d nhtons: %d", seqctl, ntohs(seqctl));
 	//2 (sequence ctl)
-	if(!CW80211AssembleIESequenceNumber(&(frameACK[(*offset)]), offset, 0))
+	if(!CW80211AssembleIESequenceNumber(&(frameACK[(*offset)]), offset, seqctl))
 		return NULL;
 		
 	return frameACK;
@@ -1448,6 +1450,8 @@ CWBool CW80211ParseDataFrameToDS(char * frame, struct CWFrameDataHdr * dataFrame
 	//Seq Ctrl
 	if(!CW80211ParseFrameIESeqCtrl((frame+offset), &(offset), &(dataFrame->seqCtrl)))
 		return CW_FALSE;
+		
+	CWLog("Parse seqctl: %d, ntohs: %d", dataFrame->seqCtrl, ntohs(dataFrame->seqCtrl));
 
 	return CW_TRUE;
 }
