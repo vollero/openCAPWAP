@@ -230,13 +230,31 @@ CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value,
 		
 	CW_COPY_MEMORY((frame+IE_TYPE_LEN), &(numRates), IE_SIZE_LEN);
 	(*offset) += IE_SIZE_LEN;
-	int i=0;
+	/*int i=0;
 	for(i=0; i<numRates; i++)
 	{
 		//CWLog("value prima: %u %x", value[i],value[i]);
 		value[i] = (char)(((int)value[i])+128);
 		//CWLog("value dopo: %u %x", value[i], value[i]);		
-	}
+	}*/
+	CW_COPY_MEMORY((frame+IE_TYPE_LEN+IE_SIZE_LEN), value, numRates);
+	(*offset) += numRates;
+	
+	return CW_TRUE;
+}
+
+CWBool CW80211AssembleIEExtendedSupportedRates(char * frame, int * offset, char * value, int numRates) {
+	
+	char val=IE_TYPE_EXT_SUPP_RATES;	
+	CW_COPY_MEMORY(frame, &(val), IE_TYPE_LEN);
+	(*offset) += IE_TYPE_LEN;
+	
+	if(numRates <= 0)
+		return CW_FALSE;
+		
+	CW_COPY_MEMORY((frame+IE_TYPE_LEN), &(numRates), IE_SIZE_LEN);
+	(*offset) += IE_SIZE_LEN;
+	
 	CW_COPY_MEMORY((frame+IE_TYPE_LEN+IE_SIZE_LEN), value, numRates);
 	(*offset) += numRates;
 	
@@ -432,6 +450,29 @@ CWBool CW80211ParseFrameIESupportedRates(char * frameReceived, int * offsetFrame
 	
 	return CW_TRUE;
 }
+
+CWBool CW80211ParseFrameIEExtendedSupportedRates(char * frameReceived, int * offsetFrameReceived, char ** value, int * lenIE) {
+	
+	if(frameReceived[0] != IE_TYPE_EXT_SUPP_RATES)
+		return CW_FALSE;
+	
+	(*offsetFrameReceived)++;
+	
+	short int len = frameReceived[1];
+	if(len == 0)
+		return CW_FALSE;
+	
+	(*offsetFrameReceived)++;	
+
+	(*lenIE) = len;
+	
+	CW_CREATE_ARRAY_CALLOC_ERR((*value), len+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+	CW_COPY_MEMORY((*value),&(frameReceived[2]), len);
+	(*offsetFrameReceived) += len;
+	
+	return CW_TRUE;
+}
+
 
 /*
  * Scan ieee80211 frame body arguments
@@ -653,7 +694,7 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	(*offset)=0;
 	/* ***************** PROBE RESPONSE FRAME FIXED ******************** */
 	char * frameProbeResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, MGMT_FRAME_FIXED_LEN_PROBE_RESP+MGMT_FRAME_IE_FIXED_LEN*3+strlen(WTPBSSInfoPtr->interfaceInfo->SSID)+CW_80211_MAX_SUPP_RATES+1+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, MGMT_FRAME_FIXED_LEN_PROBE_RESP+MGMT_FRAME_IE_FIXED_LEN*3+strlen(WTPBSSInfoPtr->interfaceInfo->SSID)+(CW_80211_MAX_SUPP_RATES*2)+1+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 	
 	//frame control: 2 byte
 	if(!CW80211AssembleIEFrameControl(&(frameProbeResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_PROBE_RESP))
@@ -700,7 +741,34 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	//SSID
 	if(!CW80211AssembleIESSID(&(frameProbeResponse[(*offset)]), offset, WTPBSSInfoPtr->interfaceInfo->SSID))
 		return NULL;
+	
+	//Supported Rates
+	int indexRates=0;
+	unsigned char suppRate[request->supportedRatesLen];
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < request->supportedRatesLen; indexRates++)
+	{
+		suppRate[indexRates] =  (char) request->supportedRates[indexRates];
+		CWLog("supp rate1: %d - rate2: %d", request->supportedRates[indexRates], suppRate[indexRates]);
+	}
 
+	if(!CW80211AssembleIESupportedRates(&(frameProbeResponse[(*offset)]), offset, suppRate, indexRates))
+		return NULL;
+		
+	CWLog("Ext Rate Len: %d", request->extSupportedRatesLen);
+	if(request->extSupportedRatesLen > 0)
+	{
+		indexRates=0;
+		unsigned char extSuppRate[request->extSupportedRatesLen];
+		for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < request->extSupportedRatesLen; indexRates++)
+		{
+			extSuppRate[indexRates] =  (char) request->extSupportedRates[indexRates];
+			CWLog("ext rate1: %d - rate2: %d", request->extSupportedRates[indexRates], extSuppRate[indexRates]);
+		}
+		
+		if(!CW80211AssembleIEExtendedSupportedRates(&(frameProbeResponse[(*offset)]), offset, extSuppRate, indexRates))
+		return NULL;
+	}
+	/*
 	//Supported Rates
 	int indexRates=0;
 	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
@@ -709,7 +777,7 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	
 	if(!CW80211AssembleIESupportedRates(&(frameProbeResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
-
+*/
 	//DSSS
 	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
 	if(!CW80211AssembleIEDSSS(&(frameProbeResponse[(*offset)]), offset, channel))
@@ -792,7 +860,7 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 	
 	/* ***************** FRAME FIXED ******************** */
 	char * frameAssociationResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN*3+CW_80211_MAX_SUPP_RATES+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	CW_CREATE_ARRAY_CALLOC_ERR(frameAssociationResponse, MGMT_FRAME_FIXED_LEN_ASSOCIATION+MGMT_FRAME_IE_FIXED_LEN*3+(2*CW_80211_MAX_SUPP_RATES)+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 	
 	//frame control: 2 byte
 	if(!CW80211AssembleIEFrameControl(&(frameAssociationResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_ASSOC_RESP))
@@ -845,7 +913,7 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->lenSupportedRates; indexRates++)
 	{
 		suppRate[indexRates] =  (char) thisSTA->supportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
-		CWLog("rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
+		CWLog("sup rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
 	}
 		//(char) thisSTA->supportedRates[indexRates];//(char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
 	
@@ -855,6 +923,21 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 */	
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
+		
+	
+	if(thisSTA->extSupportedRatesLen > 0)
+	{
+		indexRates=0;
+		unsigned char extSuppRate[thisSTA->extSupportedRatesLen];
+		for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->extSupportedRatesLen; indexRates++)
+		{
+			extSuppRate[indexRates] =  (char) thisSTA->extSupportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+			CWLog("ext rate1: %d - rate2: %d", thisSTA->extSupportedRates[indexRates], extSuppRate[indexRates]);
+		}
+		
+		if(!CW80211AssembleIEExtendedSupportedRates(&(frameAssociationResponse[(*offset)]), offset, extSuppRate, indexRates))
+		return NULL;
+	}
 	
 	/*
 	 * idle timeout
@@ -924,27 +1007,31 @@ char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAIn
 		return NULL;
 	
 	//Supported Rates
-	//TODO: Capability Re-set? Use STA capability value?
-	
 	int indexRates=0;
 	unsigned char suppRate[thisSTA->lenSupportedRates];
 	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->lenSupportedRates; indexRates++)
 	{
 		suppRate[indexRates] =  (char) thisSTA->supportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
-		CWLog("reassoc: rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
+		CWLog("rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
 	}
-		//(char) thisSTA->supportedRates[indexRates];//(char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
 	
-	/*
-	int indexRates=0;
-	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
-	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < WTPBSSInfoPtr->phyInfo->lenSupportedRates; indexRates++)
-		suppRate[indexRates] = (char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
-		*/
 	if(!CW80211AssembleIESupportedRates(&(frameAssociationResponse[(*offset)]), offset, suppRate, indexRates))
 		return NULL;
-	
-	//idle timeout
+		
+		
+	if(thisSTA->extSupportedRatesLen > 0)
+	{
+		indexRates=0;
+		unsigned char extSuppRate[thisSTA->extSupportedRatesLen];
+		for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->extSupportedRatesLen; indexRates++)
+		{
+			extSuppRate[indexRates] =  (char) thisSTA->extSupportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+			CWLog("rate1: %d - rate2: %d", thisSTA->extSupportedRates[indexRates], extSuppRate[indexRates]);
+		}
+		
+		if(!CW80211AssembleIEExtendedSupportedRates(&(frameAssociationResponse[(*offset)]), offset, extSuppRate, indexRates))
+		return NULL;
+	}
 	
 	return frameAssociationResponse;
 }
@@ -1191,7 +1278,15 @@ CWBool CW80211ParseProbeRequest(char * frame, struct CWFrameProbeRequest * probe
 	//Add parsing variable elements
 	if(!CW80211ParseFrameIESSID((frame+offset), &(offset), &(probeRequest->SSID)))
 		return CW_FALSE;
-
+		
+	//Supported Rates
+	if(!CW80211ParseFrameIESupportedRates((frame+offset), &(offset), &(probeRequest->supportedRates),  &(probeRequest->supportedRatesLen)))
+		return CW_FALSE;
+		
+	//Extended Supported Rates
+	if(!CW80211ParseFrameIEExtendedSupportedRates((frame+offset), &(offset), &(probeRequest->extSupportedRates),  &(probeRequest->extSupportedRatesLen)))
+		probeRequest->extSupportedRatesLen=0;
+		
 	return CW_TRUE;
 }
 
@@ -1330,6 +1425,10 @@ CWBool CW80211ParseAssociationRequest(char * frame, struct CWFrameAssociationReq
 	//Supported Rates
 	if(!CW80211ParseFrameIESupportedRates((frame+offset), &(offset), &(assocRequest->supportedRates),  &(assocRequest->supportedRatesLen)))
 		return CW_FALSE;
+
+	//Extended Supported Rates
+	if(!CW80211ParseFrameIEExtendedSupportedRates((frame+offset), &(offset), &(assocRequest->extSupportedRates),  &(assocRequest->extSupportedRatesLen)))
+		assocRequest->extSupportedRatesLen=0;
 
 	return CW_TRUE;
 }

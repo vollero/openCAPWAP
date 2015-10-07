@@ -123,9 +123,9 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
 			return;
 #endif
-
 		//In ogni caso, risponde il WTP direttamente senza attendere AC
 		frameResponse = CW80211AssembleProbeResponse(WTPBSSInfoPtr, &(probeRequest), &frameRespLen);
+		CWLog("Dopo assemble");
 	}
 	
 	/* +++ AUTH +++ */
@@ -199,19 +199,28 @@ void CW80211EventProcess(WTPBSSInfo * WTPBSSInfoPtr, int cmd, struct nlattr **tb
 		thisSTA->capabilityBit = assocRequest.capabilityBit;
 		thisSTA->listenInterval = assocRequest.listenInterval;
 		thisSTA->lenSupportedRates = assocRequest.supportedRatesLen;
-		
+		thisSTA->extSupportedRatesLen = assocRequest.extSupportedRatesLen;
+			
 		CWLog("assocRequest.capabilityBit: %x", assocRequest.capabilityBit);
 		CWLog("assocRequest.listenInterval: %x", assocRequest.listenInterval);		
 		CWLog("thisSTA->lenSupportedRates: %d", thisSTA->lenSupportedRates);
+		CWLog("thisSTA->extSupportedRatesLen: %d", thisSTA->extSupportedRatesLen);
 		
 		int test=0;
 		for(test=0; test < thisSTA->lenSupportedRates; test++)
 			CWLog("AssocRequest.supportedRates[%d]: %d", test, assocRequest.supportedRates[test]);
 		
-		CW_CREATE_ARRAY_CALLOC_ERR(thisSTA->supportedRates, thisSTA->lenSupportedRates+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
-		CW_COPY_MEMORY(thisSTA->supportedRates, assocRequest.supportedRates, thisSTA->lenSupportedRates);
+		CW_CREATE_ARRAY_CALLOC_ERR( thisSTA->supportedRates, (thisSTA->lenSupportedRates)+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+		CW_COPY_MEMORY( thisSTA->supportedRates, assocRequest.supportedRates, thisSTA->lenSupportedRates);
 		CWLog("thisSTA->supportedRates[0]: %d\n thisSTA->supportedRates[1]: %d", thisSTA->supportedRates[0], thisSTA->supportedRates[1]);
-
+		
+		if(thisSTA->extSupportedRatesLen > 0)
+		{
+			CW_CREATE_ARRAY_CALLOC_ERR(thisSTA->extSupportedRates, thisSTA->extSupportedRatesLen+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+			CW_COPY_MEMORY( thisSTA->extSupportedRates, assocRequest.extSupportedRates, thisSTA->extSupportedRatesLen);
+			CWLog("thisSTA->extSupportedRates[0]: %d\n thisSTA->extSupportedRates[1]: %d", thisSTA->extSupportedRates[0], thisSTA->extSupportedRates[1]);
+		}
+		
 		//Send Association Frame
 		if(!CWSendFrameMgmtFromWTPtoAC(frameReceived, frameLen))
 			return;

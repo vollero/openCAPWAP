@@ -118,6 +118,7 @@ extern struct nl80211SocketUnit globalNLSock;
 #define IE_TYPE_SSID 0
 #define IE_TYPE_SUPP_RATES 1
 #define IE_TYPE_DSSS 3
+#define IE_TYPE_EXT_SUPP_RATES 50
 #define IE_TYPE_BSS_MAX_IDLE_PERIOD 90
 
 #define IE_AUTH_OPEN_SYSTEM 0
@@ -334,6 +335,8 @@ typedef struct WTPSTAInfo {
 	float * phyMbpsSet;
 	char * supportedRates;
 	int lenSupportedRates;
+	char * extSupportedRates;
+	int extSupportedRatesLen;
 	
 	CWBool phyHT20;
 	CWBool phyHT40;
@@ -387,6 +390,11 @@ typedef struct CWFrameProbeRequest {
 	
 	char * SSID;
 	
+	short int supportedRatesLen;
+	char * supportedRates;
+	short int extSupportedRatesLen;
+	char * extSupportedRates;
+	
 } CWFrameProbeRequest;
 
 typedef struct CWFrameAuthRequest {
@@ -430,6 +438,8 @@ typedef struct CWFrameAssociationRequest {
 	char * SSID;
 	short int supportedRatesLen;
 	char * supportedRates;
+	short int extSupportedRatesLen;
+	char * extSupportedRates;
 
 } CWFrameAssociationRequest;
 
@@ -606,6 +616,7 @@ CWBool CW80211AssembleIEAssID(char * frame, int * offset, short int value);
 CWBool CW80211AssembleIESSID(char * frame, int * offset, char * value);
 float mapSupportedRatesValues(float rate, short int mode);
 CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value, int numRates);
+CWBool CW80211AssembleIEExtendedSupportedRates(char * frame, int * offset, char * value, int numRates);
 CWBool CW80211AssembleIEDSSS(char * frame, int * offset, char value);
 CWBool CW8023AssembleHdrLength(char * frame, int * offset, short int value);
 
@@ -620,6 +631,7 @@ CWBool CW80211ParseFrameIEAuthTransaction(char * frameReceived, int * offsetFram
 CWBool CW80211ParseFrameIESSID(char * frameReceived, int * offsetFrameReceived, char ** value);
 CWBool CW80211ParseFrameIEListenInterval(char * frameReceived, int * offsetFrameReceived, short int * value);
 CWBool CW80211ParseFrameIESupportedRates(char * frameReceived, int * offsetFrameReceived, char ** value, int * lenIE);
+CWBool CW80211ParseFrameIEExtendedSupportedRates(char * frameReceived, int * offsetFrameReceived, char ** value, int * lenIE);
 CWBool CW80211SetAssociationID(short int * assID);
 CWBool CW80211ParseAssociationResponse(char * frame, struct CWFrameAssociationResponse * assocResponse);
 CWBool CW80211ParseDataFrameToDS(char * frame, struct CWFrameDataHdr * dataFrame);

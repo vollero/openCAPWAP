@@ -110,3 +110,5 @@
 #define	RESERVED15_SUBTYPE		15
 
 #endif
+
+int extract802_11_Frame(CWProtocolMessage** frame, unsigned char* buffer, int len);

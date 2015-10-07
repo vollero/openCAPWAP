@@ -441,6 +441,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
 	unsigned char * rateChar;
 	int indexRates=0;
+	int indexRates2=0;
 		
 	msg = nlmsg_alloc();
 	if (!msg)
@@ -455,24 +456,23 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
 	CWPrintEthernetAddress(staInfo.address, "STA address:");
 	/* SUPPORTED RATES */
-	int lenRates = staInfo.lenSupportedRates; //infoBSS->phyInfo->lenSupportedRates;
+	int lenRates = staInfo.lenSupportedRates+staInfo.extSupportedRatesLen; //infoBSS->phyInfo->lenSupportedRates;
+	CWLog("Len RATES tot: %d", lenRates);
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
-	
-	/*
-	for(indexRates=0; indexRates < lenRates; indexRates++)
+	for(indexRates=0; indexRates < staInfo.lenSupportedRates; indexRates++)
 	{	
-		rateChar[indexRates] = (int) (((int)staInfo.supportedRates) / 0.5); // 0.1); // diviso 5? //infoBSS->phyInfo->phyMbpsSet[indexRates]
+		rateChar[indexRates] = (int) (((int)staInfo.supportedRates[indexRates]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
 		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
-	}*/
+	}
 	
-	rateChar[0] = 2;
-	rateChar[1] = 4;
-	rateChar[2] = 11;
-	rateChar[3] = 22;
-	rateChar[4] = 12;
-	rateChar[5] = 18;
-	rateChar[6] = 24;
-	rateChar[7] = 36;
+	if(staInfo.extSupportedRatesLen > 0)
+	{
+		for(indexRates2=0; indexRates < lenRates; indexRates2++, indexRates++)
+		{	
+			rateChar[indexRates] = (int) (((int)staInfo.extSupportedRates[indexRates2]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
+			CWLog("Ext supported rates %d: %d", indexRates, rateChar[indexRates]);
+		}
+	}
 	
 	CWLog("len rates: %d", lenRates);
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
