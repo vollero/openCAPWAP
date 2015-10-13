@@ -519,7 +519,8 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 
 	struct nl_msg *msg;
 	unsigned char * rateChar;
-	int indexRates=0;		
+	int indexRates=0;
+	int indexRates2=0;
 
 	CWLog("SET/UPDATE STATION request");
 	return CW_TRUE;
@@ -536,27 +537,50 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	genlmsg_put(msg, 0, 0, infoBSS->BSSNLSock.nl80211_id, 0, 0, NL80211_CMD_SET_STATION, 0);
 	/* WLAN ID */
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, infoBSS->interfaceInfo->realWlanID);
+	CWLog("wlanid: %d", infoBSS->interfaceInfo->realWlanID);
 	/* STA MAC Addr */
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, staInfo.address);
+	CWPrintEthernetAddress(staInfo.address, "STA address:");
 	/* SUPPORTED RATES */
-/*	int lenRates = infoBSS->phyInfo->lenSupportedRates;
+	int lenRates = staInfo.lenSupportedRates+staInfo.extSupportedRatesLen; //infoBSS->phyInfo->lenSupportedRates;
+	CWLog("Len RATES tot: %d", lenRates);
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
+	for(indexRates=0; indexRates < staInfo.lenSupportedRates; indexRates++)
+	{	
+		rateChar[indexRates] = (int) (((int)staInfo.supportedRates[indexRates]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
+		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
+	}
 	
-	for(indexRates=0; indexRates < lenRates; indexRates++)
-		rateChar[indexRates] = (int) (infoBSS->phyInfo->phyMbpsSet[indexRates] * 10);
+	if(staInfo.extSupportedRatesLen > 0)
+	{
+		for(indexRates2=0; indexRates < lenRates; indexRates2++, indexRates++)
+		{	
+			rateChar[indexRates] = (int) (((int)staInfo.extSupportedRates[indexRates2]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
+			CWLog("Ext supported rates %d: %d", indexRates, rateChar[indexRates]);
+		}
+	}
+	
+	CWLog("len rates: %d", lenRates);
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
-*/	
+		
+	/* Association ID */
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_AID, staInfo.staAID);
+	CWLog("staAID: %x", staInfo.staAID);
+
+	/* Listen Interval */
+	NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL, staInfo.listenInterval);
+	CWLog("listenIntervaL: %x", staInfo.listenInterval);
 	/* Capability */
 	NLA_PUT_U16(msg, NL80211_ATTR_STA_CAPABILITY, staInfo.capabilityBit);
 	
+	CWLog("capabilityBit: %x", staInfo.capabilityBit);
+	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
-	
 	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+	flags.mask |= BIT(NL80211_STA_FLAG_AUTHORIZED);
 	flags.set = flags.mask;
-//	CWLog("flags set=0x%x mask=0x%x", flags.set, flags.mask);
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
-
 	int ret = nl80211_send_recv_cb_input(&(infoBSS->BSSNLSock), msg, NULL, NULL);
 	if( ret != 0)
 	{
