@@ -129,6 +129,25 @@ CWBool CW80211AssembleIEAssID(char * frame, int * offset, short int value) {
 	return CW_TRUE;
 }
 
+CWBool CW80211AssembleIEERP(char * frame, int * offset, short int value) {
+	//Type
+	unsigned char val=IE_TYPE_ERP;	
+	CW_COPY_MEMORY(frame, &(val), IE_TYPE_LEN);
+	(*offset) += IE_TYPE_LEN;
+
+	//len
+	val=1;
+	CW_COPY_MEMORY((frame+IE_TYPE_LEN), &(val), IE_SIZE_LEN);
+	(*offset) += IE_SIZE_LEN;
+
+	//value
+	value=0x00;
+	CW_COPY_MEMORY((frame+IE_TYPE_LEN+IE_SIZE_LEN), &(value), IE_SIZE_LEN);
+	(*offset) += IE_SIZE_LEN;
+	
+	return CW_TRUE;
+}
+
 /* VARIABLE LEN IE */
 
 CWBool CW80211AssembleIESSID(char * frame, int * offset, char * value) {
@@ -694,7 +713,7 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	(*offset)=0;
 	/* ***************** PROBE RESPONSE FRAME FIXED ******************** */
 	char * frameProbeResponse;
-	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, MGMT_FRAME_FIXED_LEN_PROBE_RESP+MGMT_FRAME_IE_FIXED_LEN*3+strlen(WTPBSSInfoPtr->interfaceInfo->SSID)+(CW_80211_MAX_SUPP_RATES*2)+1+1, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
+	CW_CREATE_ARRAY_CALLOC_ERR(frameProbeResponse, MGMT_FRAME_FIXED_LEN_PROBE_RESP+MGMT_FRAME_IE_FIXED_LEN*3+strlen(WTPBSSInfoPtr->interfaceInfo->SSID)+(CW_80211_MAX_SUPP_RATES*2)+1+1+3, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return NULL;});
 	
 	//frame control: 2 byte
 	if(!CW80211AssembleIEFrameControl(&(frameProbeResponse[(*offset)]), offset, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_PROBE_RESP))
@@ -745,9 +764,16 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	//Supported Rates
 	int indexRates=0;
 	unsigned char suppRate[request->supportedRatesLen];
-	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < request->supportedRatesLen; indexRates++)
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < request->supportedRatesLen; indexRates++)
 	{
 		suppRate[indexRates] =  (char) request->supportedRates[indexRates];
+		if(
+			suppRate[indexRates] == 2 ||
+			suppRate[indexRates] == 4 ||
+			suppRate[indexRates] == 11 ||
+			suppRate[indexRates] == 22
+		)
+			suppRate[indexRates] += 128;
 		CWLog("supp rate1: %d - rate2: %d", request->supportedRates[indexRates], suppRate[indexRates]);
 	}
 
@@ -782,6 +808,11 @@ char * CW80211AssembleProbeResponse(WTPBSSInfo * WTPBSSInfoPtr, struct CWFramePr
 	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
 	if(!CW80211AssembleIEDSSS(&(frameProbeResponse[(*offset)]), offset, channel))
 		return NULL;
+	
+	//ERP7
+	//aggiungi+3
+	if(!CW80211AssembleIEERP(&(frameProbeResponse[(*offset)]), offset, 0x04))
+		return CW_FALSE;
 		
 	return frameProbeResponse;
 }
@@ -913,6 +944,14 @@ char * CW80211AssembleAssociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAInfo
 	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->lenSupportedRates; indexRates++)
 	{
 		suppRate[indexRates] =  (char) thisSTA->supportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+		if(
+			suppRate[indexRates] == 2 ||
+			suppRate[indexRates] == 4 ||
+			suppRate[indexRates] == 11 ||
+			suppRate[indexRates] == 22
+		)
+			suppRate[indexRates] += 128;
+			
 		CWLog("sup rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
 	}
 		//(char) thisSTA->supportedRates[indexRates];//(char) mapSupportedRatesValues(WTPBSSInfoPtr->phyInfo->phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
@@ -1012,6 +1051,14 @@ char * CW80211AssembleReassociationResponse(WTPBSSInfo * WTPBSSInfoPtr, WTPSTAIn
 	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < thisSTA->lenSupportedRates; indexRates++)
 	{
 		suppRate[indexRates] =  (char) thisSTA->supportedRates[indexRates]; //(char) mapSupportedRatesValues(thisSTA->supportedRates[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+		if(
+			suppRate[indexRates] == 2 ||
+			suppRate[indexRates] == 4 ||
+			suppRate[indexRates] == 11 ||
+			suppRate[indexRates] == 22
+		)
+			suppRate[indexRates] += 128;
+			
 		CWLog("rate1: %d - rate2: %d", thisSTA->supportedRates[indexRates], suppRate[indexRates]);
 	}
 	

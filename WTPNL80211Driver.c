@@ -332,8 +332,9 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	genlmsg_put(msg, 0, 0, globalNLSock.nl80211_id, 0, 0, NL80211_CMD_START_AP, 0);
 
 /* ***************** BEACON FRAME: DO IT BETTER ******************** */
+CWLog("Start Beacon Generation");
 	char * beaconFrame;
-	CW_CREATE_ARRAY_CALLOC_ERR(beaconFrame, (MGMT_FRAME_FIXED_LEN_BEACON+MGMT_FRAME_IE_FIXED_LEN+strlen(interfaceInfo->SSID)+IE_TYPE_DSSS+1+CW_80211_MAX_SUPP_RATES+2), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	CW_CREATE_ARRAY_CALLOC_ERR(beaconFrame, (MGMT_FRAME_FIXED_LEN_BEACON+MGMT_FRAME_IE_FIXED_LEN+strlen(interfaceInfo->SSID)+IE_TYPE_DSSS+1+(CW_80211_MAX_SUPP_RATES+gRadiosInfo.radiosInfo[0].gWTPPhyInfo.lenSupportedRates)+2+3), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL);); //MAC80211_HEADER_FIXED_LEN+MAC80211_BEACON_BODY_MANDATORY_MIN_LEN+2+strlen(interfaceInfo->SSID)+10+1), char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
 	offset=0;
 	
 	//frame control: 2 byte
@@ -374,16 +375,35 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 
 	//Supported Rates
 	int indexRates=0;
-	unsigned char suppRate[CW_80211_MAX_SUPP_RATES];
-	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < CW_80211_MAX_SUPP_RATES && indexRates < CW_80211_MAX_SUPP_RATES; indexRates++)
-		suppRate[indexRates] = (char) mapSupportedRatesValues(gRadiosInfo.radiosInfo[0].gWTPPhyInfo.phyMbpsSet[indexRates], CW_80211_SUPP_RATES_CONVERT_VALUE_TO_FRAME);
+	unsigned char * suppRate;
+	CW_CREATE_ARRAY_CALLOC_ERR(suppRate, gRadiosInfo.radiosInfo[0].gWTPPhyInfo.lenSupportedRates, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+
+	for(indexRates=0; indexRates < WTP_NL80211_BITRATE_NUM && indexRates < gRadiosInfo.radiosInfo[0].gWTPPhyInfo.lenSupportedRates; indexRates++)
+	{
+		suppRate[indexRates] = (char) gRadiosInfo.radiosInfo[0].gWTPPhyInfo.supportedRates[indexRates];
+		if(
+			suppRate[indexRates] == 2 ||
+			suppRate[indexRates] == 4 ||
+			suppRate[indexRates] == 11 ||
+			suppRate[indexRates] == 22
+		)
+			suppRate[indexRates] += 128;
+			
+			CWLog("Rate[%d]: %x", indexRates, suppRate[indexRates]);
+	}
 	
 	if(!CW80211AssembleIESupportedRates(&(beaconFrame[offset]), &(offset), suppRate, indexRates))
 		return CW_FALSE;
-
+	
 	//DSSS
 	unsigned char channel = CW_WTP_DEFAULT_RADIO_CHANNEL+1;
 	if(!CW80211AssembleIEDSSS(&(beaconFrame[offset]), &(offset), channel))
+		return CW_FALSE;
+	
+	CWLog("Sto per mettere ERP");
+	//ERP
+	//aggiungi +3
+	if(!CW80211AssembleIEERP(&(beaconFrame[offset]), &(offset), 0x04))
 		return CW_FALSE;
 /* *************************************************** */
 	
@@ -437,6 +457,7 @@ CWBool nl80211CmdStartAP(WTPInterfaceInfo * interfaceInfo){
 	return CW_FALSE;
 }
 
+
 CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	struct nl_msg *msg;
 	unsigned char * rateChar;
@@ -461,7 +482,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 	for(indexRates=0; indexRates < staInfo.lenSupportedRates; indexRates++)
 	{	
-		rateChar[indexRates] = (int) (((int)staInfo.supportedRates[indexRates]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
+		rateChar[indexRates] = ((int)staInfo.supportedRates[indexRates]); /* / 0.5 */
 		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
 	}
 	
@@ -469,7 +490,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	{
 		for(indexRates2=0; indexRates < lenRates; indexRates2++, indexRates++)
 		{	
-			rateChar[indexRates] = (int) (((int)staInfo.extSupportedRates[indexRates2]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
+			rateChar[indexRates2] = ((int)staInfo.extSupportedRates[indexRates2]);
 			CWLog("Ext supported rates %d: %d", indexRates, rateChar[indexRates]);
 		}
 	}
@@ -491,7 +512,7 @@ CWBool nl80211CmdNewStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
-	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+	//flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
 	flags.mask |= BIT(NL80211_STA_FLAG_AUTHORIZED);
 	flags.set = flags.mask;
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
@@ -547,7 +568,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, lenRates, char, {CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL); return CW_FALSE;});
 	for(indexRates=0; indexRates < staInfo.lenSupportedRates; indexRates++)
 	{	
-		rateChar[indexRates] = (int) (((int)staInfo.supportedRates[indexRates]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
+		rateChar[indexRates] = ((int)staInfo.supportedRates[indexRates]); /* / 0.5 */
 		CWLog("Supported rates %d: %d", indexRates, rateChar[indexRates]);
 	}
 	
@@ -555,11 +576,11 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	{
 		for(indexRates2=0; indexRates < lenRates; indexRates2++, indexRates++)
 		{	
-			rateChar[indexRates] = (int) (((int)staInfo.extSupportedRates[indexRates2]) / 0.5); //infoBSS->phyInfo->phyMbpsSet[indexRates]
+			rateChar[indexRates2] = ((int)staInfo.extSupportedRates[indexRates2]);
 			CWLog("Ext supported rates %d: %d", indexRates, rateChar[indexRates]);
 		}
 	}
-	
+
 	CWLog("len rates: %d", lenRates);
 	NLA_PUT(msg, NL80211_ATTR_STA_SUPPORTED_RATES, lenRates, rateChar);
 		
@@ -577,7 +598,7 @@ CWBool nl80211CmdSetStation(WTPBSSInfo * infoBSS, WTPSTAInfo staInfo){
 	
 	struct nl80211_sta_flag_update flags;
 	os_memset(&flags, 0, sizeof(flags));
-	flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+	//flags.mask |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
 	flags.mask |= BIT(NL80211_STA_FLAG_AUTHORIZED);
 	flags.set = flags.mask;
 	NLA_PUT(msg, NL80211_ATTR_STA_FLAGS2, sizeof(flags), &flags);
@@ -634,7 +655,9 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int radioIndex, int cts, i
 */			   
 {
 	struct nl_msg *msg;
-
+	int lenRates, indexRates=0;
+	unsigned char * rateChar;
+	
 	msg = nlmsg_alloc();
 	if (!msg)
 		return -ENOMEM;
@@ -645,39 +668,20 @@ int nl80211_set_bss(WTPInterfaceInfo * interfaceInfo, int radioIndex, int cts, i
 		NLA_PUT_U8(msg, NL80211_ATTR_BSS_CTS_PROT, cts);
 	if (preamble >= 0)
 		NLA_PUT_U8(msg, NL80211_ATTR_BSS_SHORT_PREAMBLE, preamble);
-	
-	int lenRates=4, indexRates=0;
-	unsigned char rateChar[4];
-
-	/*if(gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.lenSupportedRates < CW_80211_MAX_SUPP_RATES)
-		lenRates = gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.lenSupportedRates;
-	else
-		lenRates = CW_80211_MAX_SUPP_RATES;
-	*/
-	for(indexRates=0; indexRates < lenRates; indexRates++)
-		rateChar[indexRates] = (int) (gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.phyMbpsSet[indexRates] * 10); // 0.1); // diviso 5?
-
-	NLA_PUT(msg, NL80211_ATTR_BSS_BASIC_RATES, lenRates, rateChar);
-	
-/*	if (slot >= 0)
-		NLA_PUT_U8(msg, NL80211_ATTR_BSS_SHORT_SLOT_TIME, slot);
-	if (ht_opmode >= 0)
-		NLA_PUT_U16(msg, NL80211_ATTR_BSS_HT_OPMODE, ht_opmode);
-	if (ap_isolate >= 0)
-		NLA_PUT_U8(msg, NL80211_ATTR_AP_ISOLATE, ap_isolate);
-
-	if (basic_rates) {
-		u8 rates[NL80211_MAX_SUPP_RATES];
-		u8 rates_len = 0;
-		int i;
-
-		for (i = 0; i < NL80211_MAX_SUPP_RATES && basic_rates[i] >= 0;
-		     i++)
-			rates[rates_len++] = basic_rates[i] / 5;
-
-		NLA_PUT(msg, NL80211_ATTR_BSS_BASIC_RATES, rates_len, rates);
-	}
+		/*
+	NLA_PUT_U8(msg, NL80211_ATTR_BSS_CTS_PROT, 0);
+	NLA_PUT_U8(msg, NL80211_ATTR_BSS_SHORT_PREAMBLE, 0);
+	NLA_PUT_U8(msg, NL80211_ATTR_BSS_SHORT_SLOT_TIME, 1);
+//	NLA_PUT_U8(msg, NL80211_ATTR_AP_ISOLATE, 0);
 */
+
+	CW_CREATE_ARRAY_CALLOC_ERR(rateChar, gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.lenSupportedRates, char, return CWErrorRaise(CW_ERROR_OUT_OF_MEMORY, NULL););
+	for(indexRates=0; indexRates < gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.lenSupportedRates; indexRates++)
+	{
+		rateChar[indexRates] = gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.supportedRates[indexRates];
+		CWLog("BSS RATE rate1: %d - rate2: %d", gRadiosInfo.radiosInfo[radioIndex].gWTPPhyInfo.supportedRates[indexRates], rateChar[indexRates]);
+	}
+	NLA_PUT(msg, NL80211_ATTR_BSS_BASIC_RATES, lenRates, rateChar);
 
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, interfaceInfo->realWlanID);
 

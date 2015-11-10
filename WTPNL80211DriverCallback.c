@@ -289,7 +289,7 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 				else
 					singlePhyInfo->phyStandard5000MH=CW_FALSE;
 
-				if (tb_band[NL80211_BAND_ATTR_RATES]) {
+				if (tb_band[NL80211_BAND_ATTR_RATES] && phy2GH == CW_TRUE && phy5GH == CW_FALSE) {
 					
 					CWLog("[NL80211 INFO] Bitrates (non-HT):\n");
 				
@@ -301,7 +301,8 @@ int CB_getPhyInfo(struct nl_msg *msg, void * arg) {
 						if(indexMbps < WTP_NL80211_BITRATE_NUM)
 						{		
 							singlePhyInfo->phyMbpsSet[indexMbps] = (float) (0.1 * nla_get_u32(tb_rate[NL80211_BITRATE_ATTR_RATE]));
-							indexMbps++;
+							if(singlePhyInfo->phyMbpsSet[indexMbps] > 0)
+								indexMbps++;
 						}
 					}
 				}

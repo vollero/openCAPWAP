@@ -118,6 +118,7 @@ extern struct nl80211SocketUnit globalNLSock;
 #define IE_TYPE_SSID 0
 #define IE_TYPE_SUPP_RATES 1
 #define IE_TYPE_DSSS 3
+#define IE_TYPE_ERP 42
 #define IE_TYPE_EXT_SUPP_RATES 50
 #define IE_TYPE_BSS_MAX_IDLE_PERIOD 90
 
@@ -613,6 +614,7 @@ CWBool CW80211AssembleIEAuthTransNum(char * frame, int * offset, short int value
 CWBool CW80211AssembleIEStatusCode(char * frame, int * offset, short int value);
 CWBool CW80211AssembleIEAssID(char * frame, int * offset, short int value);
 
+CWBool CW80211AssembleIEERP(char * frame, int * offset, short int value);
 CWBool CW80211AssembleIESSID(char * frame, int * offset, char * value);
 float mapSupportedRatesValues(float rate, short int mode);
 CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value, int numRates);
