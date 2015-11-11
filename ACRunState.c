@@ -816,8 +816,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 								avlTree = AVLinsert(WTPIndex, assocResponse.DA, assocResponse.BSSID, gWTPs[WTPIndex].WTPProtocolManager.radiosInfo.radiosInfo[indexRadio].gWTPPhyInfo.radioID, avlTree);
 							CWThreadMutexUnlock(&mutexAvlTree);
 							//----
-							
-							if(tmpNodeSta != NULL && toSendEventRequestDelete == CW_TRUE)
+							if(
+								tmpNodeSta != NULL &&
+								tmpNodeSta->staAddr != NULL &&
+								tmpNodeSta->BSSID != NULL && 
+								toSendEventRequestDelete == CW_TRUE
+							)
 							{								
 								CWFrameAssociationResponse assocResponseFake;
 								CW_COPY_MEMORY(assocResponseFake.DA, tmpNodeSta->staAddr, ETH_ALEN);
@@ -850,9 +854,12 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 				}
 
 #ifndef SPLIT_MAC
+struct timeval tval_before, tval_after, tval_result;
+
 				/* In caso di LOCAL MAC, AC riceve anche AssResp per poter inviare uno Station Configuration Request coerente */
 				if(subtype == WLAN_FC_STYPE_ASSOC_RESP)
 				{
+					gettimeofday(&tval_before, NULL);
 					CWLog("CW80211: Management Association response received");
 					
 					CWFrameAssociationResponse assocResponse;
@@ -920,11 +927,25 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 							CWThreadMutexUnlock(&mutexAvlTree);
 							//----
 							
-							if(tmpNodeSta != NULL && toSendEventRequestDelete == CW_TRUE)
+							gettimeofday(&tval_after, NULL);
+							timersub(&tval_after, &tval_before, &tval_result);
+							CWLog("Association time elapsed: %ld.%06ld\n", (long int) tval_result.tv_sec, (long int) tval_result.tv_usec );
+
+
+							if(
+								tmpNodeSta != NULL &&
+								tmpNodeSta->staAddr != NULL &&
+								tmpNodeSta->BSSID != NULL && 
+								toSendEventRequestDelete == CW_TRUE
+							)
 							{
+								CWLog("Entro per handover");
+								gettimeofday(&tval_before, NULL);
+						
 								CWFrameAssociationResponse assocResponseFake;
 								CW_COPY_MEMORY(assocResponseFake.DA, tmpNodeSta->staAddr, ETH_ALEN);
 								CW_COPY_MEMORY(assocResponseFake.BSSID, tmpNodeSta->BSSID, ETH_ALEN);
+								CWLog("Prima di assemble delete");
 
 								//Send a Station Configuration Request DELETE STA
 								if (CWAssembleStationConfigurationRequest(&(gWTPs[tmpNodeSta->index].messages),
@@ -933,18 +954,25 @@ CWBool ACEnterRun(int WTPIndex, CWProtocolMessage *msgPtr, CWBool dataFlag) {
 												  seqNum, assocResponse, tmpNodeSta->index,
 												  CW_MSG_ELEMENT_DELETE_STATION_CW_TYPE)) {
 
+CWLog("Prima di CWACSendAcknowledgedPacket");
+
 									if(CWACSendAcknowledgedPacket(tmpNodeSta->index, 
 												  CW_MSG_TYPE_VALUE_STATION_CONFIGURATION_RESPONSE,
 												  seqNum)) 
 										CWLog("AC send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
 									else
 									{	
-										CWLog("AC can't send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
+										CWLog("AC couldn't send Station Request Message to WTP[%d] to delete STA[%02x:%02x:%02x:%02x:%02x:%02x] radioID[%d]", tmpNodeSta->index, (int)tmpNodeSta->staAddr[0], (int)tmpNodeSta->staAddr[1], (int)tmpNodeSta->staAddr[2], (int)tmpNodeSta->staAddr[3], (int)tmpNodeSta->staAddr[4], (int)tmpNodeSta->staAddr[5], tmpNodeSta->radioID);
 										CWACStopRetransmission(tmpNodeSta->index);
 									}
 								}
-							}
-							return CW_TRUE;
+								
+								gettimeofday(&tval_after, NULL);
+							timersub(&tval_after, &tval_before, &tval_result);
+							CWLog("Handover time elapsed: %ld.%06ld\n", (long int) tval_result.tv_sec, (long int) tval_result.tv_usec );
+
+								return CW_TRUE;
+							}			
 						}
 						else
 							CWACStopRetransmission(WTPIndex);
