@@ -16,8 +16,9 @@ HOW TO RUN WTP:
 	- In file settings.wtp.txt you have to put the phy name of your wireless card (use iw):
 		<RADIO_PHY_TOT>1
 		<RADIO_PHY_NAME_0>phy2
-    - Open the file "config.wtp" and write the AC IP-address between <AC_ADDRESSES> and </AC_ADDRESSES> tags
+    	- Open the file "config.wtp" and write the AC IP-address between <AC_ADDRESSES> and </AC_ADDRESSES> tags
 	- Run "./WTP" in superuser mode
+	- In LocalMAC mode, you need to bridge the master interface with your ethernet port or setting the route with ip command
 
 HOW TO RUN AC (32-bit OS recommended):
 	
@@ -34,7 +35,7 @@ HOW TO RUN AC (32-bit OS recommended):
 		ifconfig AC_tap 0
 		dhclient bridgeAC
 
-HOW TO CREATE AN AP ON WTP SIDE:
+HOW TO CREATE AN Access Point Interface ON WTP SIDE:
 	- Enter into "capwap/wum" and run "make"
 	- Run: ./wum -c wtps if you want to know all WTPs associated with your AC
 	- Run: ./wum -c addwlan -w <WTP_ID> -r 1 -l 1 -s <SSID> -t 1
