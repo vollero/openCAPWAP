@@ -8,6 +8,11 @@ HOW TO BUILD AC AND WTP:
   - Run "make clean"
   - Run "make"
 
+Required:
+	libnl-3-dev
+	libnl-3-genl
+	libssl-dev
+	
 HOW TO RUN WTP:
 
 	- Open a shell in superuser mode
