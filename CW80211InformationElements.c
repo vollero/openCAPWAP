@@ -1282,7 +1282,7 @@ unsigned char *  CW80211AssembleDataFrameHdr(unsigned char * SA, unsigned char *
 	else 
 		return NULL;
 	
-	CWLog("SeqCtl: %d nhtons: %d", seqctl, ntohs(seqctl));
+	//CWLog("SeqCtl: %d nhtons: %d", seqctl, ntohs(seqctl));
 	//2 (sequence ctl)
 	if(!CW80211AssembleIESequenceNumber(&(frameACK[(*offset)]), offset, seqctl))
 		return NULL;
