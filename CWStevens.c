@@ -220,19 +220,9 @@ struct ifi_info* get_ifi_info(int family, int doaliases)
 #ifdef	HAVE_SOCKADDR_SA_LEN
 		len = max(sizeof(struct sockaddr), ifr->ifr_addr.sa_len);
 #else
-		switch (ifr->ifr_addr.sa_family) {
-#ifdef	IPV6
-		case AF_INET6:	
-			len = sizeof(struct sockaddr_in6);
-			break;
-#endif
-		case AF_INET:	
-		default:	
-			len = sizeof(struct sockaddr);
-			break;
-		}
+		len = sizeof *ifr;
 #endif	/* HAVE_SOCKADDR_SA_LEN */
-		ptr += sizeof(ifr->ifr_name) + len;	/* for next one in buffer */
+		ptr += len;	/* for next one in buffer */
 
 #ifdef	HAVE_SOCKADDR_DL_STRUCT
 		/* assumes that AF_LINK precedes AF_INET or AF_INET6 */
