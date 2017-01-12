@@ -5,7 +5,11 @@ It supports both SplitMAC and LocalMAC operational architectures.
 
 For further informations please refer to: 
 "OpenCAPWAP v2.0: the new open-source implementation of the CAPWAP protocol", E. Agostini, M. Bernaschi, M. Vellucci, L. Vollero
-International Journal of Network Management 2016, 26:537–552
+International Journal of Network Management 2016, Volume 26, Issue 6, Pages 537–552 
+
+[Wiley Online Library](http://onlinelibrary.wiley.com/doi/10.1002/nem.1949/abstract)
+[ResearchGate](https://www.researchgate.net/publication/307913953_OpenCAPWAP_v20_the_new_open-source_implementation_of_the_CAPWAP_protocol_OPENCAPWAP_V20)
+
 
 ## Requirements
 
@@ -25,6 +29,8 @@ Within the openCAPWAP folder, type:
 make clean
 make
 ```
+
+For further info, please refer to the INSTALL file
 
 ## Notes
 
