@@ -3,11 +3,11 @@
 Open source implementation of the CAPWAP protocol according to RFC 4515 and RFC 4516.
 It supports both SplitMAC and LocalMAC operational architectures.
 
-For further informations please refer to: 
+For further informations please refer to: <br />
 "OpenCAPWAP v2.0: the new open-source implementation of the CAPWAP protocol", E. Agostini, M. Bernaschi, M. Vellucci, L. Vollero
-International Journal of Network Management 2016, Volume 26, Issue 6, Pages 537–552 
+International Journal of Network Management 2016, Volume 26, Issue 6, Pages 537–552 <br />
 
-[Wiley Online Library](http://onlinelibrary.wiley.com/doi/10.1002/nem.1949/abstract)
+[Wiley Online Library](http://onlinelibrary.wiley.com/doi/10.1002/nem.1949/abstract) <br />
 [ResearchGate](https://www.researchgate.net/publication/307913953_OpenCAPWAP_v20_the_new_open-source_implementation_of_the_CAPWAP_protocol_OPENCAPWAP_V20)
 
 
