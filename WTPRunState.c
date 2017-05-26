@@ -274,6 +274,7 @@ manager_data_failure:
  */
  CW_THREAD_RETURN_TYPE CWWTPManageDataPacket(void *arg) {
 	
+	struct timeval tv;
 	int 			n,readBytes;
 	struct sockaddr_ll 	rawSockaddr;	
 	CWProtocolMessage 	msgPtr;
@@ -319,6 +320,9 @@ manager_data_failure:
 
 	CW_REPEAT_FOREVER
 	{
+		tv.tv_sec = 0;
+		tv.tv_usec = 100*1000;
+		select(0, NULL, NULL, NULL, &tv);
 		/*
 		 * Flag DataChannel & ControlChannel Dead
 		 */
@@ -612,6 +616,7 @@ int wtpInRunState=0;
 
 CWStateTransition CWWTPEnterRun() {
 
+	struct timeval tv;
 	int k, msg_len;
 	int gWTPThreadDataPacketStateLocal=0;
 
@@ -643,6 +648,9 @@ CWStateTransition CWWTPEnterRun() {
 
 	CW_REPEAT_FOREVER
 	{
+		tv.tv_sec = 0;
+		tv.tv_usec = 100*1000;
+		select(0, NULL, NULL, NULL, &tv);
 		CWBool bReceivePacket = CW_FALSE;
 		CWBool bReveiveBinding = CW_FALSE;
 		CWBool gWTPDataChannelLocalFlag = CW_FALSE;
