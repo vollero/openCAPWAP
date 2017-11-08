@@ -13,10 +13,11 @@ International Journal of Network Management 2016, Volume 26, Issue 6, Pages 537â
 
 ## Requirements
 
+This version has been tested on Linux Debian distro 32-bit.
 You need to install the following libraries:
 ```
 libnl-3-dev
-libnl-3-genl
+libnl-3-genl-dev
 libssl-dev
 ```
 
