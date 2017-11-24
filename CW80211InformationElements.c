@@ -246,8 +246,8 @@ CWBool CW80211AssembleIESupportedRates(char * frame, int * offset, char * value,
 	
 	if(numRates <= 0)
 		return CW_FALSE;
-		
-	CW_COPY_MEMORY((frame+IE_TYPE_LEN), &(numRates), IE_SIZE_LEN);
+	unsigned char len = numRates;	
+	CW_COPY_MEMORY((frame+IE_TYPE_LEN), &(len), IE_SIZE_LEN);
 	(*offset) += IE_SIZE_LEN;
 	/*int i=0;
 	for(i=0; i<numRates; i++)
